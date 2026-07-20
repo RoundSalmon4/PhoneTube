@@ -236,11 +236,11 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
     public void updateSection(VideoGroup group) {
         if (group == null) return;
         mHandler.post(() -> {
+            boolean newHasData = !group.isEmpty();
             BrowseSection section = group.getSection();
             if (section != null) {
                 VideoGroup existing = mVideoGroups.get(section.getId());
                 boolean existingHasData = existing != null && !existing.isEmpty();
-                boolean newHasData = !group.isEmpty();
                 // Don't let an empty placeholder overwrite a group that already has real
                 // videos. The presenter's updateVideoRows sends an empty VideoGroup first
                 // (line ~709 of BrowsePresenter) before the Observable emits real data.
