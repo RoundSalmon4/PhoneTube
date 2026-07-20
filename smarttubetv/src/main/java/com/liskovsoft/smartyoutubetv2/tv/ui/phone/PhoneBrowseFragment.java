@@ -295,9 +295,13 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
     public void showError(ErrorFragmentData data) {
         mHandler.post(() -> {
             if (mEmptyText != null) {
-                mEmptyText.setText(data != null ? data.toString() : "Error");
+                mEmptyText.setText(data != null ? data.getMessage() : "Error");
                 mEmptyText.setVisibility(View.VISIBLE);
             }
+            // Auth-gated sections (Home, Subscriptions, etc.) call showError() instead of
+            // updateSection(), which breaks chain-loading. Continue the chain so non-auth
+            // sections (Music, etc.) still load.
+            triggerNextUnloadedSection();
         });
     }
 

@@ -123,6 +123,7 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
         mPlayerView = view.findViewById(R.id.exo_player_view);
         mControlsContainer = view.findViewById(R.id.controls_container);
         mBtnBack = view.findViewById(R.id.btn_back);
+        ImageButton btnBackPersistent = view.findViewById(R.id.btn_back_persistent);
         mBtnPlayPause = view.findViewById(R.id.btn_play_pause);
         mBtnRewind = view.findViewById(R.id.btn_rewind);
         mBtnForward = view.findViewById(R.id.btn_forward);
@@ -135,6 +136,12 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
         mYouTubeOverlay = view.findViewById(R.id.youtube_overlay);
 
         mBtnBack.setOnClickListener(v -> {
+            if (getActivity() != null) {
+                getActivity().finish();
+            }
+        });
+
+        btnBackPersistent.setOnClickListener(v -> {
             if (getActivity() != null) {
                 getActivity().finish();
             }
