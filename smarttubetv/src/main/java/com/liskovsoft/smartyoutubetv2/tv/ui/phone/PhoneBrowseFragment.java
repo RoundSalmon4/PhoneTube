@@ -195,6 +195,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         mHandler.post(() -> {
             int size = mSections.size();
             mSections.clear();
+            mSettingsGroups.clear();
             // Don't clear mVideoGroups — preserve cached video data across section rebuilds
             // triggered by onAccountChanged. The presenter's updateVideoRows sends an empty
             // placeholder group that would overwrite real data if we cleared here.
@@ -342,7 +343,6 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
      */
     private void triggerNextUnloadedSection() {
         if (mChainingLoads || mSections.isEmpty()) return;
-        if (mBrowsePresenter.hasPendingActions()) return;
 
         for (BrowseSection section : mSections) {
             // Settings sections use SettingsGroup, not VideoGroup
@@ -378,42 +378,56 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
 
     // ---------- Adapter ----------
 
-    private class PhoneSectionAdapter extends RecyclerView.Adapter<PhoneSectionAdapter.SectionViewHolder> {
+    private class PhoneSectionAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
-        private static final int TYPE_SECTION = 0;
-        private static final int TYPE_VIDEO_CARD = 1;
+        private static final int TYPE_VIDEO_SECTION = 0;
+        private static final int TYPE_SETTINGS_SECTION = 1;
+
+        @Override
+        public int getItemViewType(int position) {
+            BrowseSection section = mSections.get(position);
+            if (section.getType() == BrowseSection.TYPE_SETTINGS_GRID) {
+                return TYPE_SETTINGS_SECTION;
+            }
+            return TYPE_VIDEO_SECTION;
+        }
 
         @NonNull
         @Override
-        public SectionViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View view = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.item_phone_section, parent, false);
-            return new SectionViewHolder(view);
+        public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            if (viewType == TYPE_SETTINGS_SECTION) {
+                View view = LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.item_phone_section_settings, parent, false);
+                return new SettingsSectionViewHolder(view);
+            } else {
+                View view = LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.item_phone_section, parent, false);
+                return new VideoSectionViewHolder(view);
+            }
         }
 
         @Override
-        public void onBindViewHolder(@NonNull SectionViewHolder holder, int position) {
+        public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             BrowseSection section = mSections.get(position);
-            holder.sectionTitle.setText(section.getTitle());
 
-            SettingsGroup settingsGroup = mSettingsGroups.get(section.getId());
-            VideoGroup group = mVideoGroups.get(section.getId());
-
-            if (settingsGroup != null && !settingsGroup.isEmpty()) {
-                // Settings section: show settings items
-                holder.horizontalList.setLayoutManager(new LinearLayoutManager(
-                        holder.itemView.getContext(), LinearLayoutManager.VERTICAL, false));
-                SettingsItemAdapter settingsAdapter = new SettingsItemAdapter(settingsGroup.getItems());
-                holder.horizontalList.setAdapter(settingsAdapter);
+            if (holder instanceof SettingsSectionViewHolder) {
+                SettingsSectionViewHolder sh = (SettingsSectionViewHolder) holder;
+                sh.sectionTitle.setText(section.getTitle());
+                SettingsGroup settingsGroup = mSettingsGroups.get(section.getId());
+                if (settingsGroup != null && !settingsGroup.isEmpty()) {
+                    sh.settingsAdapter.setItems(settingsGroup.getItems());
+                } else {
+                    sh.settingsAdapter.setItems(null);
+                }
             } else {
-                // Video section: show video cards
-                holder.horizontalList.setLayoutManager(new LinearLayoutManager(
-                        holder.itemView.getContext(), LinearLayoutManager.HORIZONTAL, false));
+                VideoSectionViewHolder vh = (VideoSectionViewHolder) holder;
+                vh.sectionTitle.setText(section.getTitle());
+                VideoGroup group = mVideoGroups.get(section.getId());
                 List<Video> videos = group != null ? group.getVideos() : null;
                 if (videos != null && !videos.isEmpty()) {
-                    holder.videoAdapter.setVideos(videos);
+                    vh.videoAdapter.setVideos(videos);
                 } else {
-                    holder.videoAdapter.setVideos(null);
+                    vh.videoAdapter.setVideos(null);
                 }
             }
         }
@@ -423,12 +437,12 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
             return mSections.size();
         }
 
-        class SectionViewHolder extends RecyclerView.ViewHolder {
+        class VideoSectionViewHolder extends RecyclerView.ViewHolder {
             TextView sectionTitle;
             RecyclerView horizontalList;
             VideoCardListAdapter videoAdapter;
 
-            SectionViewHolder(@NonNull View itemView) {
+            VideoSectionViewHolder(@NonNull View itemView) {
                 super(itemView);
                 sectionTitle = itemView.findViewById(R.id.section_title);
                 horizontalList = itemView.findViewById(R.id.section_items);
@@ -436,6 +450,22 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                         itemView.getContext(), LinearLayoutManager.HORIZONTAL, false));
                 videoAdapter = new VideoCardListAdapter();
                 horizontalList.setAdapter(videoAdapter);
+            }
+        }
+
+        class SettingsSectionViewHolder extends RecyclerView.ViewHolder {
+            TextView sectionTitle;
+            RecyclerView settingsList;
+            SettingsItemAdapter settingsAdapter;
+
+            SettingsSectionViewHolder(@NonNull View itemView) {
+                super(itemView);
+                sectionTitle = itemView.findViewById(R.id.section_title);
+                settingsList = itemView.findViewById(R.id.section_items);
+                settingsList.setLayoutManager(new LinearLayoutManager(
+                        itemView.getContext(), LinearLayoutManager.VERTICAL, false));
+                settingsAdapter = new SettingsItemAdapter();
+                settingsList.setAdapter(settingsAdapter);
             }
         }
     }
@@ -512,10 +542,18 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
     // ---------- Settings item adapter (vertical) ----------
 
     private static class SettingsItemAdapter extends RecyclerView.Adapter<SettingsItemAdapter.SettingsViewHolder> {
-        private final List<SettingsItem> mItems;
+        private List<SettingsItem> mItems = new ArrayList<>();
+
+        SettingsItemAdapter() {
+        }
 
         SettingsItemAdapter(List<SettingsItem> items) {
             mItems = items != null ? items : new ArrayList<>();
+        }
+
+        void setItems(List<SettingsItem> items) {
+            mItems = items != null ? items : new ArrayList<>();
+            notifyDataSetChanged();
         }
 
         @NonNull

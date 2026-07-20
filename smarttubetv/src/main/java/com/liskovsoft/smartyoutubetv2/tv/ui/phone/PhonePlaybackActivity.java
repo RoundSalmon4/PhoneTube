@@ -52,6 +52,11 @@ public class PhonePlaybackActivity extends PhoneActivity {
     }
 
     @Override
+    protected void initEdgeSlide() {
+        // Disable edge slide during video playback — conflicts with seek gestures
+    }
+
+    @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
         if (mPlaybackFragment != null) {
             mPlaybackFragment.onDispatchTouchEvent(event);

@@ -417,18 +417,27 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
         }
     }
 
-    // --- Results adapter (vertical list of video/channel cards) ---
+    // --- Results adapter (groups with headers, channels separated from videos) ---
 
     private class ResultsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
-        private static final int TYPE_VIDEO = 0;
-        private static final int TYPE_CHANNEL = 1;
-        private List<Video> mAllVideos = new ArrayList<>();
+        private static final int TYPE_GROUP_HEADER = 0;
+        private static final int TYPE_VIDEO = 1;
+        private static final int TYPE_CHANNEL = 2;
+
+        private final List<Object> mItems = new ArrayList<>();
 
         void setGroups(List<VideoGroup> groups) {
-            mAllVideos.clear();
+            mItems.clear();
             for (VideoGroup group : groups) {
-                if (group.getVideos() != null) {
-                    mAllVideos.addAll(group.getVideos());
+                if (group.getVideos() == null || group.getVideos().isEmpty()) continue;
+
+                // Add group header if the group has a title
+                if (group.getTitle() != null && !group.getTitle().isEmpty()) {
+                    mItems.add(group.getTitle());
+                }
+
+                for (Video video : group.getVideos()) {
+                    mItems.add(video);
                 }
             }
             notifyDataSetChanged();
@@ -436,13 +445,22 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
 
         @Override
         public int getItemViewType(int position) {
-            return mAllVideos.get(position).isChannel() ? TYPE_CHANNEL : TYPE_VIDEO;
+            Object item = mItems.get(position);
+            if (item instanceof String) {
+                return TYPE_GROUP_HEADER;
+            }
+            Video video = (Video) item;
+            return video.isChannel() ? TYPE_CHANNEL : TYPE_VIDEO;
         }
 
         @NonNull
         @Override
         public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            if (viewType == TYPE_CHANNEL) {
+            if (viewType == TYPE_GROUP_HEADER) {
+                View view = LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.item_phone_search_group_header, parent, false);
+                return new HeaderViewHolder(view);
+            } else if (viewType == TYPE_CHANNEL) {
                 View view = LayoutInflater.from(parent.getContext())
                         .inflate(R.layout.item_phone_channel_card, parent, false);
                 return new ChannelViewHolder(view);
@@ -459,7 +477,14 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
 
         @Override
         public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-            Video video = mAllVideos.get(position);
+            Object item = mItems.get(position);
+
+            if (holder instanceof HeaderViewHolder) {
+                ((HeaderViewHolder) holder).title.setText((String) item);
+                return;
+            }
+
+            Video video = (Video) item;
 
             if (holder instanceof ChannelViewHolder) {
                 bindChannel((ChannelViewHolder) holder, video);
@@ -473,7 +498,8 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
                 return true;
             });
 
-            if (position >= mAllVideos.size() - 5) {
+            // Trigger next page load near the end
+            if (position >= mItems.size() - 5 && video != null) {
                 mSearchPresenter.onScrollEnd(video);
             }
         }
@@ -520,7 +546,16 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
 
         @Override
         public int getItemCount() {
-            return mAllVideos.size();
+            return mItems.size();
+        }
+
+        class HeaderViewHolder extends RecyclerView.ViewHolder {
+            android.widget.TextView title;
+
+            HeaderViewHolder(@NonNull View itemView) {
+                super(itemView);
+                title = itemView.findViewById(R.id.group_header_title);
+            }
         }
 
         class VideoViewHolder extends RecyclerView.ViewHolder {

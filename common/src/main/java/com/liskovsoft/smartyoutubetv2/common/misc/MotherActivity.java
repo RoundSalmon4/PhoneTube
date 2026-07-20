@@ -407,7 +407,7 @@ public class MotherActivity extends FragmentActivity {
         return MediaServiceData.instance();
     }
 
-    private void initEdgeSlide() {
+    protected void initEdgeSlide() {
         if (VERSION.SDK_INT < 21 || !Helpers.isTouchSupported(this) || Utils.isSystemGestureArrowEnabled(this)) {
             return;
         }
