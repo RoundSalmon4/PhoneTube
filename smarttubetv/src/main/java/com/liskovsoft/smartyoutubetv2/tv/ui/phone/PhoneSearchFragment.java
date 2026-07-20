@@ -18,8 +18,6 @@ import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ProgressBar;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -42,6 +40,7 @@ import java.util.List;
 public class PhoneSearchFragment extends Fragment implements SearchView {
     private static final String TAG = PhoneSearchFragment.class.getSimpleName();
     private static final long SUGGESTION_DEBOUNCE_MS = 300;
+    private static final int VOICE_REQUEST_CODE = 1001;
 
     private EditText mSearchEditText;
     private ImageButton mBackButton;
@@ -61,20 +60,6 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
 
     private String mSearchQuery;
     private boolean mIsFragmentCreated;
-
-    private final ActivityResultLauncher<Intent> mVoiceLauncher =
-            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-                if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
-                    List<String> matches = result.getData().getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-                    if (matches != null && !matches.isEmpty()) {
-                        String query = matches.get(0);
-                        mSearchEditText.setText(query);
-                        mSearchPresenter.onSearch(query);
-                        mSuggestionsList.setVisibility(View.GONE);
-                        mResultsList.setVisibility(View.VISIBLE);
-                    }
-                }
-            });
 
     @Nullable
     @Override
@@ -358,7 +343,7 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
                         RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
                 intent.putExtra(RecognizerIntent.EXTRA_PROMPT,
                         getString(R.string.search_hint));
-                mVoiceLauncher.launch(intent);
+                startActivityForResult(intent, VOICE_REQUEST_CODE);
             } catch (Exception e) {
                 // No speech recognizer available
             }
@@ -369,6 +354,21 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
     public void finishReally() {
         if (getActivity() != null) {
             getActivity().finish();
+        }
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == VOICE_REQUEST_CODE && resultCode == Activity.RESULT_OK && data != null) {
+            List<String> matches = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+            if (matches != null && !matches.isEmpty()) {
+                String query = matches.get(0);
+                mSearchEditText.setText(query);
+                mSearchPresenter.onSearch(query);
+                mSuggestionsList.setVisibility(View.GONE);
+                mResultsList.setVisibility(View.VISIBLE);
+            }
         }
     }
 
