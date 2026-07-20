@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="12dp"
+    android:focusable="true"
+    android:clickable="true"
+    android:background="?attr/selectableItemBackground">
+
+    <!-- Channel avatar (circular) -->
+    <ImageView
+        android:id="@+id/channel_avatar"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:scaleType="centerCrop"
+        android:background="@color/card_default_background_dark"
+        android:contentDescription="@null" />
+
+    <!-- Channel info -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:paddingStart="12dp">
+
+        <TextView
+            android:id="@+id/channel_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@android:color/white"
+            android:textSize="15sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/channel_subscriber_count"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/light_grey2"
+            android:textSize="13sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:paddingTop="2dp" />
+    </LinearLayout>
+
+</LinearLayout>

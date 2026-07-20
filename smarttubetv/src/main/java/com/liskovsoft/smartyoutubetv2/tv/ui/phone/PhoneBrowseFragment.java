@@ -20,6 +20,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.BrowseSection;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.SettingsGroup;
+import com.liskovsoft.smartyoutubetv2.common.app.models.data.SettingsItem;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.VideoGroup;
 import com.liskovsoft.smartyoutubetv2.common.app.models.errors.ErrorFragmentData;
@@ -52,6 +53,8 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
     // ordered section list and video data per section
     private final List<BrowseSection> mSections = new ArrayList<>();
     private final Map<Integer, VideoGroup> mVideoGroups = new HashMap<>();
+    private final Map<Integer, SettingsGroup> mSettingsGroups = new HashMap<>();
+    private boolean mChainingLoads;
 
     @Nullable
     @Override
@@ -154,6 +157,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                 if (mSections.get(i).getId() == section.getId()) {
                     mSections.remove(i);
                     mVideoGroups.remove(section.getId());
+                    mSettingsGroups.remove(section.getId());
                     mAdapter.notifyItemRemoved(i);
                     break;
                 }
@@ -177,6 +181,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                 if (mSections.get(i).getId() == section.getId()) {
                     mSections.remove(i);
                     mVideoGroups.remove(section.getId());
+                    mSettingsGroups.remove(section.getId());
                     mAdapter.notifyItemRemoved(i);
                     break;
                 }
@@ -207,10 +212,17 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                     lm.scrollToPositionWithOffset(index, 0);
                 }
 
-                // Trigger data loading when focusOnContent=true, or when the section has no data.
-                // The latter handles onAccountChanged -> refreshSections -> selectSection(index, false)
-                // which rebuilds sections after removeAllSections clears the video data.
                 BrowseSection section = mSections.get(index);
+
+                // Settings sections use SettingsGroup
+                if (section.getType() == BrowseSection.TYPE_SETTINGS_GRID) {
+                    SettingsGroup sg = mSettingsGroups.get(section.getId());
+                    if (focusOnContent || sg == null || sg.isEmpty()) {
+                        mBrowsePresenter.onSectionFocused(section.getId());
+                    }
+                    return;
+                }
+
                 VideoGroup group = mVideoGroups.get(section.getId());
                 boolean hasData = group != null && group.getVideos() != null && !group.getVideos().isEmpty();
                 if (focusOnContent || !hasData) {
@@ -237,12 +249,27 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                 }
             }
             mAdapter.notifyDataSetChanged();
+
+            // Chain-load: after a section gets real data, trigger the next unloaded section.
+            // This mirrors TV Leanback's sidebar focus behavior where each section loads
+            // sequentially as the user navigates down.
+            if (newHasData) {
+                triggerNextUnloadedSection();
+            }
         });
     }
 
     @Override
     public void updateSection(SettingsGroup group) {
-        mHandler.post(() -> mAdapter.notifyDataSetChanged());
+        if (group == null) return;
+        mHandler.post(() -> {
+            BrowseSection section = group.getCategory();
+            if (section != null) {
+                mSettingsGroups.put(section.getId(), group);
+            }
+            mAdapter.notifyDataSetChanged();
+            triggerNextUnloadedSection();
+        });
     }
 
     @Override
@@ -250,6 +277,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         if (section == null) return;
         mHandler.post(() -> {
             mVideoGroups.remove(section.getId());
+            mSettingsGroups.remove(section.getId());
             mAdapter.notifyDataSetChanged();
         });
     }
@@ -308,6 +336,46 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         }
     }
 
+    /**
+     * Chain-load: find the next section without data and trigger onSectionFocused.
+     * Called after each section's data arrives so sections load sequentially on first boot.
+     */
+    private void triggerNextUnloadedSection() {
+        if (mChainingLoads || mSections.isEmpty()) return;
+        if (mBrowsePresenter.hasPendingActions()) return;
+
+        for (BrowseSection section : mSections) {
+            // Settings sections use SettingsGroup, not VideoGroup
+            if (section.getType() == BrowseSection.TYPE_SETTINGS_GRID) {
+                SettingsGroup sg = mSettingsGroups.get(section.getId());
+                if (sg == null || sg.isEmpty()) {
+                    mChainingLoads = true;
+                    mHandler.postDelayed(() -> {
+                        mChainingLoads = false;
+                        if (isAdded()) {
+                            mBrowsePresenter.onSectionFocused(section.getId());
+                        }
+                    }, 50);
+                    return;
+                }
+                continue;
+            }
+
+            VideoGroup group = mVideoGroups.get(section.getId());
+            boolean hasData = group != null && group.getVideos() != null && !group.getVideos().isEmpty();
+            if (!hasData) {
+                mChainingLoads = true;
+                mHandler.postDelayed(() -> {
+                    mChainingLoads = false;
+                    if (isAdded()) {
+                        mBrowsePresenter.onSectionFocused(section.getId());
+                    }
+                }, 50);
+                return;
+            }
+        }
+    }
+
     // ---------- Adapter ----------
 
     private class PhoneSectionAdapter extends RecyclerView.Adapter<PhoneSectionAdapter.SectionViewHolder> {
@@ -328,12 +396,25 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
             BrowseSection section = mSections.get(position);
             holder.sectionTitle.setText(section.getTitle());
 
+            SettingsGroup settingsGroup = mSettingsGroups.get(section.getId());
             VideoGroup group = mVideoGroups.get(section.getId());
-            List<Video> videos = group != null ? group.getVideos() : null;
-            if (videos != null && !videos.isEmpty()) {
-                holder.videoAdapter.setVideos(videos);
+
+            if (settingsGroup != null && !settingsGroup.isEmpty()) {
+                // Settings section: show settings items
+                holder.horizontalList.setLayoutManager(new LinearLayoutManager(
+                        holder.itemView.getContext(), LinearLayoutManager.VERTICAL, false));
+                SettingsItemAdapter settingsAdapter = new SettingsItemAdapter(settingsGroup.getItems());
+                holder.horizontalList.setAdapter(settingsAdapter);
             } else {
-                holder.videoAdapter.setVideos(null);
+                // Video section: show video cards
+                holder.horizontalList.setLayoutManager(new LinearLayoutManager(
+                        holder.itemView.getContext(), LinearLayoutManager.HORIZONTAL, false));
+                List<Video> videos = group != null ? group.getVideos() : null;
+                if (videos != null && !videos.isEmpty()) {
+                    holder.videoAdapter.setVideos(videos);
+                } else {
+                    holder.videoAdapter.setVideos(null);
+                }
             }
         }
 
@@ -424,6 +505,59 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                 title = itemView.findViewById(R.id.video_title);
                 channelName = itemView.findViewById(R.id.video_channel_name);
                 viewsDate = itemView.findViewById(R.id.video_views_date);
+            }
+        }
+    }
+
+    // ---------- Settings item adapter (vertical) ----------
+
+    private static class SettingsItemAdapter extends RecyclerView.Adapter<SettingsItemAdapter.SettingsViewHolder> {
+        private final List<SettingsItem> mItems;
+
+        SettingsItemAdapter(List<SettingsItem> items) {
+            mItems = items != null ? items : new ArrayList<>();
+        }
+
+        @NonNull
+        @Override
+        public SettingsViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_phone_settings, parent, false);
+            return new SettingsViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull SettingsViewHolder holder, int position) {
+            SettingsItem item = mItems.get(position);
+            holder.title.setText(item.title);
+
+            if (item.imageResId != -1) {
+                holder.icon.setImageResource(item.imageResId);
+                holder.icon.setVisibility(View.VISIBLE);
+            } else {
+                holder.icon.setVisibility(View.GONE);
+            }
+
+            holder.itemView.setOnClickListener(v -> {
+                if (item.onClick != null) {
+                    item.onClick.run();
+                }
+            });
+        }
+
+        @Override
+        public int getItemCount() {
+            return mItems.size();
+        }
+
+        static class SettingsViewHolder extends RecyclerView.ViewHolder {
+            android.widget.ImageView icon;
+            android.widget.TextView title;
+
+            SettingsViewHolder(@NonNull View itemView) {
+                super(itemView);
+                icon = itemView.findViewById(R.id.settings_icon);
+                title = itemView.findViewById(R.id.settings_title);
             }
         }
     }

@@ -417,9 +417,11 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
         }
     }
 
-    // --- Results adapter (vertical list of video cards) ---
+    // --- Results adapter (vertical list of video/channel cards) ---
 
-    private class ResultsAdapter extends RecyclerView.Adapter<ResultsAdapter.ResultViewHolder> {
+    private class ResultsAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+        private static final int TYPE_VIDEO = 0;
+        private static final int TYPE_CHANNEL = 1;
         private List<Video> mAllVideos = new ArrayList<>();
 
         void setGroups(List<VideoGroup> groups) {
@@ -432,22 +434,51 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
             notifyDataSetChanged();
         }
 
+        @Override
+        public int getItemViewType(int position) {
+            return mAllVideos.get(position).isChannel() ? TYPE_CHANNEL : TYPE_VIDEO;
+        }
+
         @NonNull
         @Override
-        public ResultViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View view = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.item_phone_video_card, parent, false);
-            ViewGroup.LayoutParams lp = view.getLayoutParams();
-            if (lp != null) {
-                lp.width = ViewGroup.LayoutParams.MATCH_PARENT;
+        public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            if (viewType == TYPE_CHANNEL) {
+                View view = LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.item_phone_channel_card, parent, false);
+                return new ChannelViewHolder(view);
+            } else {
+                View view = LayoutInflater.from(parent.getContext())
+                        .inflate(R.layout.item_phone_video_card, parent, false);
+                ViewGroup.LayoutParams lp = view.getLayoutParams();
+                if (lp != null) {
+                    lp.width = ViewGroup.LayoutParams.MATCH_PARENT;
+                }
+                return new VideoViewHolder(view);
             }
-            return new ResultViewHolder(view);
         }
 
         @Override
-        public void onBindViewHolder(@NonNull ResultViewHolder holder, int position) {
+        public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
             Video video = mAllVideos.get(position);
 
+            if (holder instanceof ChannelViewHolder) {
+                bindChannel((ChannelViewHolder) holder, video);
+            } else {
+                bindVideo((VideoViewHolder) holder, video);
+            }
+
+            holder.itemView.setOnClickListener(v -> mSearchPresenter.onVideoItemClicked(video));
+            holder.itemView.setOnLongClickListener(v -> {
+                mSearchPresenter.onVideoItemLongClicked(video);
+                return true;
+            });
+
+            if (position >= mAllVideos.size() - 5) {
+                mSearchPresenter.onScrollEnd(video);
+            }
+        }
+
+        private void bindVideo(VideoViewHolder holder, Video video) {
             holder.title.setText(video.getTitle());
             holder.channelName.setText(video.getAuthor());
             holder.viewsDate.setText(video.getSecondTitle());
@@ -467,15 +498,23 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
                         .centerCrop()
                         .into(holder.thumbnail);
             }
+        }
 
-            holder.itemView.setOnClickListener(v -> mSearchPresenter.onVideoItemClicked(video));
-            holder.itemView.setOnLongClickListener(v -> {
-                mSearchPresenter.onVideoItemLongClicked(video);
-                return true;
-            });
+        private void bindChannel(ChannelViewHolder holder, Video video) {
+            holder.channelName.setText(video.getTitle());
+            holder.subscriberCount.setText(video.subscriberCount);
 
-            if (position >= mAllVideos.size() - 5) {
-                mSearchPresenter.onScrollEnd(video);
+            String avatarUrl = video.getCardImageUrl();
+
+            Activity activity = null;
+            if (holder.itemView.getContext() instanceof Activity) {
+                activity = (Activity) holder.itemView.getContext();
+            }
+            if (activity != null && !activity.isDestroyed()) {
+                Glide.with(activity)
+                        .load(avatarUrl)
+                        .circleCrop()
+                        .into(holder.avatar);
             }
         }
 
@@ -484,18 +523,31 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
             return mAllVideos.size();
         }
 
-        class ResultViewHolder extends RecyclerView.ViewHolder {
+        class VideoViewHolder extends RecyclerView.ViewHolder {
             android.widget.ImageView thumbnail;
             android.widget.TextView title;
             android.widget.TextView channelName;
             android.widget.TextView viewsDate;
 
-            ResultViewHolder(@NonNull View itemView) {
+            VideoViewHolder(@NonNull View itemView) {
                 super(itemView);
                 thumbnail = itemView.findViewById(R.id.video_thumbnail);
                 title = itemView.findViewById(R.id.video_title);
                 channelName = itemView.findViewById(R.id.video_channel_name);
                 viewsDate = itemView.findViewById(R.id.video_views_date);
+            }
+        }
+
+        class ChannelViewHolder extends RecyclerView.ViewHolder {
+            android.widget.ImageView avatar;
+            android.widget.TextView channelName;
+            android.widget.TextView subscriberCount;
+
+            ChannelViewHolder(@NonNull View itemView) {
+                super(itemView);
+                avatar = itemView.findViewById(R.id.channel_avatar);
+                channelName = itemView.findViewById(R.id.channel_name);
+                subscriberCount = itemView.findViewById(R.id.channel_subscriber_count);
             }
         }
     }
