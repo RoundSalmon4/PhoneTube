@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.fragment.app.FragmentContainerView
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/phone_browse_fragment"
-    android:name="com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneBrowseFragment"
+    android:id="@+id/phone_browse_fragment_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/shelf_background_dark" />

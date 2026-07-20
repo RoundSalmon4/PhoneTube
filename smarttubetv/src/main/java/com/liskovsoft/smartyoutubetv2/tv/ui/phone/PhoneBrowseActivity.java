@@ -16,6 +16,13 @@ public class PhoneBrowseActivity extends PhoneActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.fragment_phone_browse);
+
+        if (savedInstanceState == null) {
+            getSupportFragmentManager()
+                    .beginTransaction()
+                    .add(R.id.phone_browse_fragment_container, new PhoneBrowseFragment())
+                    .commit();
+        }
     }
 
     @Override
