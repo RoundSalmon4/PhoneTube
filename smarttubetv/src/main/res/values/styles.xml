@@ -248,4 +248,69 @@
         <item name="cardSelectedBackground">@color/card_selected_background_white_grey</item>
     </style>
     <!--  End Color scheme: Dark Blue (OLED)  -->
+
+    <!-- ========== Phone (AppCompat) themes ========== -->
+    <!-- Phone Browse: dark background, no Leanback dependency -->
+    <style name="App.Theme.Phone.Browse" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/shelf_background_dark</item>
+        <item name="brandColor">@color/fastlane_background_dark</item>
+        <item name="brandAccentColor">@color/fastlane_background</item>
+        <item name="shelfBackground">@color/shelf_background_dark</item>
+        <item name="cardDefaultBackground">@color/card_default_background_dark</item>
+        <item name="cardSelectedBackground">@color/card_selected_background_white</item>
+        <item name="cardProgressStyle">?android:attr/progressBarStyleHorizontal</item>
+        <item name="appLogo">@mipmap/app_logo</item>
+        <item name="colorPrimary">@color/fastlane_background_dark</item>
+        <item name="colorPrimaryDark">@color/shelf_background_dark</item>
+        <item name="colorAccent" tools:targetApi="21">@color/fastlane_background</item>
+        <item name="android:colorAccent" tools:targetApi="21">@color/fastlane_background</item>
+        <!-- Disable activity transition animations -->
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+
+    <!-- Phone Player -->
+    <style name="App.Theme.Phone.Player" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="shelfBackground">@color/shelf_background_dark</item>
+        <item name="cardDefaultBackground">@color/card_default_background_dark</item>
+        <item name="cardSelectedBackground">@color/card_selected_background_white</item>
+        <item name="cardProgressStyle">?android:attr/progressBarStyleHorizontal</item>
+        <item name="colorPrimary">@color/fastlane_background_dark</item>
+        <item name="colorPrimaryDark">@android:color/black</item>
+        <item name="colorAccent" tools:targetApi="21">@color/fastlane_background</item>
+        <item name="android:colorAccent" tools:targetApi="21">@color/fastlane_background</item>
+        <!-- Disable activity transition animations -->
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+
+    <!-- Phone Preferences (dialog) -->
+    <style name="App.Theme.Phone.Preferences.Base" parent="Theme.AppCompat">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="colorAccent" tools:targetApi="21">@color/fastlane_background</item>
+        <item name="android:colorAccent" tools:targetApi="21">@color/fastlane_background</item>
+        <item name="colorPrimary" tools:targetApi="21">@color/fastlane_background_dark</item>
+        <item name="android:colorPrimary" tools:targetApi="21">@color/fastlane_background_dark</item>
+        <!-- Disable activity transition animations -->
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+    <style name="App.Theme.Phone.Preferences" parent="App.Theme.Phone.Preferences.Base" />
+    <!-- Android 8 fallback -->
+    <style name="App.Theme.Phone.Preferences.Opaque" parent="App.Theme.Phone.Preferences.Base">
+        <item name="android:windowIsTranslucent">false</item>
+    </style>
+
+    <!-- Phone GuidedStep (sign-in, add-device) -->
+    <style name="App.Theme.Phone.GuidedStep" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/shelf_background_dark</item>
+        <item name="shelfBackground">@color/shelf_background_dark</item>
+        <item name="colorPrimary">@color/fastlane_background_dark</item>
+        <item name="colorAccent" tools:targetApi="21">@color/fastlane_background</item>
+        <!-- Disable activity transition animations -->
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+    <!-- ========== End Phone themes ========== -->
 </resources>
