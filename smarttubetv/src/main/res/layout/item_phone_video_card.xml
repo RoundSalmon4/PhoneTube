@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
+    android:layout_width="250dp"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="4dp">
+    android:padding="6dp"
+    android:focusable="true"
+    android:clickable="true">
 
     <!-- Video thumbnail -->
     <FrameLayout
@@ -14,7 +16,7 @@
         <ImageView
             android:id="@+id/video_thumbnail"
             android:layout_width="match_parent"
-            android:layout_height="100dp"
+            android:layout_height="140dp"
             android:scaleType="centerCrop"
             android:background="@color/card_default_background_dark"
             android:contentDescription="@null" />
@@ -41,55 +43,37 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:paddingTop="6dp">
 
-        <!-- Channel avatar placeholder -->
-        <ImageView
-            android:id="@+id/video_channel_avatar"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_marginEnd="8dp"
-            android:layout_marginTop="2dp"
-            android:scaleType="centerCrop"
-            android:background="@color/card_default_background_dark"
-            android:contentDescription="@null" />
-
-        <LinearLayout
-            android:layout_width="0dp"
+        <TextView
+            android:id="@+id/video_title"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:textColor="@android:color/white"
+            android:textSize="13sp"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:lineSpacingExtra="2dp" />
 
-            <TextView
-                android:id="@+id/video_title"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textColor="@android:color/white"
-                android:textSize="13sp"
-                android:maxLines="2"
-                android:ellipsize="end"
-                android:lineSpacingExtra="2dp" />
+        <TextView
+            android:id="@+id/video_channel_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/light_grey2"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:paddingTop="2dp" />
 
-            <TextView
-                android:id="@+id/video_channel_name"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textColor="@color/light_grey2"
-                android:textSize="12sp"
-                android:maxLines="1"
-                android:ellipsize="end"
-                android:paddingTop="2dp" />
-
-            <TextView
-                android:id="@+id/video_views_date"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textColor="@color/light_grey2"
-                android:textSize="12sp"
-                android:maxLines="1"
-                android:ellipsize="end" />
-        </LinearLayout>
+        <TextView
+            android:id="@+id/video_views_date"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/light_grey2"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end" />
     </LinearLayout>
 
 </LinearLayout>

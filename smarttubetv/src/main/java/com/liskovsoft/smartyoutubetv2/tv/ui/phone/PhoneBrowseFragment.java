@@ -1,11 +1,13 @@
 package com.liskovsoft.smartyoutubetv2.tv.ui.phone;
 
+import android.app.Activity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -15,6 +17,7 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.BrowseSection;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.SettingsGroup;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
@@ -22,14 +25,17 @@ import com.liskovsoft.smartyoutubetv2.common.app.models.data.VideoGroup;
 import com.liskovsoft.smartyoutubetv2.common.app.models.errors.ErrorFragmentData;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.BrowsePresenter;
 import com.liskovsoft.smartyoutubetv2.common.app.views.BrowseView;
+import com.liskovsoft.smartyoutubetv2.common.utils.ClickbaitRemover;
 import com.liskovsoft.smartyoutubetv2.tv.R;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Phone-friendly browse fragment using a vertical RecyclerView of horizontal sections.
- * Implements BrowseView to work with existing presenters.
+ * Implements BrowseView to work with existing BrowsePresenter.
  */
 public class PhoneBrowseFragment extends Fragment implements BrowseView {
     private static final String TAG = PhoneBrowseFragment.class.getSimpleName();
@@ -39,9 +45,12 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
     private TextView mEmptyText;
     private PhoneSectionAdapter mAdapter;
     private BrowsePresenter mBrowsePresenter;
-    private final List<BrowseSection> mSections = new ArrayList<>();
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private boolean mIsFragmentCreated;
+
+    // ordered section list and video data per section
+    private final List<BrowseSection> mSections = new ArrayList<>();
+    private final Map<Integer, VideoGroup> mVideoGroups = new HashMap<>();
 
     @Nullable
     @Override
@@ -64,6 +73,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
 
         mBrowsePresenter = BrowsePresenter.instance(requireContext());
         mBrowsePresenter.setView(this);
+        mBrowsePresenter.onViewInitialized();
     }
 
     @Override
@@ -99,6 +109,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
             for (int i = mSections.size() - 1; i >= 0; i--) {
                 if (mSections.get(i).getId() == section.getId()) {
                     mSections.remove(i);
+                    mVideoGroups.remove(section.getId());
                     mAdapter.notifyItemRemoved(i);
                     break;
                 }
@@ -121,6 +132,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
             for (int i = mSections.size() - 1; i >= 0; i--) {
                 if (mSections.get(i).getId() == section.getId()) {
                     mSections.remove(i);
+                    mVideoGroups.remove(section.getId());
                     mAdapter.notifyItemRemoved(i);
                     break;
                 }
@@ -134,6 +146,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         mHandler.post(() -> {
             int size = mSections.size();
             mSections.clear();
+            mVideoGroups.clear();
             mAdapter.notifyItemRangeRemoved(0, size);
             updateEmptyState();
         });
@@ -153,7 +166,14 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
 
     @Override
     public void updateSection(VideoGroup group) {
-        mHandler.post(() -> mAdapter.notifyDataSetChanged());
+        if (group == null) return;
+        mHandler.post(() -> {
+            BrowseSection section = group.getSection();
+            if (section != null) {
+                mVideoGroups.put(section.getId(), group);
+            }
+            mAdapter.notifyDataSetChanged();
+        });
     }
 
     @Override
@@ -163,17 +183,19 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
 
     @Override
     public void clearSection(BrowseSection section) {
-        mHandler.post(() -> mAdapter.notifyDataSetChanged());
+        if (section == null) return;
+        mHandler.post(() -> {
+            mVideoGroups.remove(section.getId());
+            mAdapter.notifyDataSetChanged();
+        });
     }
 
     @Override
     public void selectSectionItem(int index) {
-        // Not needed for phone vertical scroll
     }
 
     @Override
     public void selectSectionItem(Video item) {
-        // Not needed for phone vertical scroll
     }
 
     @Override
@@ -214,7 +236,6 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
 
     @Override
     public void updateBadge() {
-        // No badge on phone
     }
 
     private void updateEmptyState() {
@@ -223,11 +244,12 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         }
     }
 
-    /**
-     * Simple adapter that shows section headers. The actual video content within each section
-     * will be rendered in a future commit with horizontal RecyclerViews.
-     */
+    // ---------- Adapter ----------
+
     private class PhoneSectionAdapter extends RecyclerView.Adapter<PhoneSectionAdapter.SectionViewHolder> {
+
+        private static final int TYPE_SECTION = 0;
+        private static final int TYPE_VIDEO_CARD = 1;
 
         @NonNull
         @Override
@@ -241,8 +263,14 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         public void onBindViewHolder(@NonNull SectionViewHolder holder, int position) {
             BrowseSection section = mSections.get(position);
             holder.sectionTitle.setText(section.getTitle());
-            // Video items within each section will be handled in a future commit
-            // with a horizontal RecyclerView per section
+
+            VideoGroup group = mVideoGroups.get(section.getId());
+            List<Video> videos = group != null ? group.getVideos() : null;
+            if (videos != null && !videos.isEmpty()) {
+                holder.videoAdapter.setVideos(videos);
+            } else {
+                holder.videoAdapter.setVideos(null);
+            }
         }
 
         @Override
@@ -253,6 +281,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         class SectionViewHolder extends RecyclerView.ViewHolder {
             TextView sectionTitle;
             RecyclerView horizontalList;
+            VideoCardListAdapter videoAdapter;
 
             SectionViewHolder(@NonNull View itemView) {
                 super(itemView);
@@ -260,6 +289,77 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                 horizontalList = itemView.findViewById(R.id.section_items);
                 horizontalList.setLayoutManager(new LinearLayoutManager(
                         itemView.getContext(), LinearLayoutManager.HORIZONTAL, false));
+                videoAdapter = new VideoCardListAdapter();
+                horizontalList.setAdapter(videoAdapter);
+            }
+        }
+    }
+
+    // ---------- Video list adapter (horizontal) ----------
+
+    private static class VideoCardListAdapter extends RecyclerView.Adapter<VideoCardListAdapter.VideoViewHolder> {
+        private List<Video> mVideos = new ArrayList<>();
+
+        void setVideos(List<Video> videos) {
+            mVideos = videos != null ? videos : new ArrayList<>();
+            notifyDataSetChanged();
+        }
+
+        @NonNull
+        @Override
+        public VideoViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_phone_video_card, parent, false);
+            return new VideoViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull VideoViewHolder holder, int position) {
+            Video video = mVideos.get(position);
+
+            holder.title.setText(video.getTitle());
+            holder.channelName.setText(video.getAuthor());
+            holder.viewsDate.setText(video.getSecondTitle());
+
+            String thumbnailUrl = ClickbaitRemover.updateThumbnail(video, 0);
+            if (thumbnailUrl == null) {
+                thumbnailUrl = video.getCardImageUrl();
+            }
+
+            Activity activity = null;
+            if (holder.itemView.getContext() instanceof Activity) {
+                activity = (Activity) holder.itemView.getContext();
+            }
+            if (activity != null && !activity.isDestroyed()) {
+                Glide.with(activity)
+                        .load(thumbnailUrl)
+                        .centerCrop()
+                        .into(holder.thumbnail);
+            }
+
+            holder.itemView.setOnClickListener(v -> {
+                BrowsePresenter presenter = BrowsePresenter.instance(v.getContext());
+                presenter.onVideoItemClicked(video);
+            });
+        }
+
+        @Override
+        public int getItemCount() {
+            return mVideos != null ? mVideos.size() : 0;
+        }
+
+        static class VideoViewHolder extends RecyclerView.ViewHolder {
+            ImageView thumbnail;
+            TextView title;
+            TextView channelName;
+            TextView viewsDate;
+
+            VideoViewHolder(@NonNull View itemView) {
+                super(itemView);
+                thumbnail = itemView.findViewById(R.id.video_thumbnail);
+                title = itemView.findViewById(R.id.video_title);
+                channelName = itemView.findViewById(R.id.video_channel_name);
+                viewsDate = itemView.findViewById(R.id.video_views_date);
             }
         }
     }
