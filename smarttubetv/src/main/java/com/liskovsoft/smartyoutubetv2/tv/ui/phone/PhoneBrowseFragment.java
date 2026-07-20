@@ -170,6 +170,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                 mAdapter.notifyItemInserted(index);
             }
             updateEmptyState();
+            triggerNextUnloadedSection();
         });
     }
 

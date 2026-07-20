@@ -200,7 +200,7 @@
             android:name="com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneSearchActivity"
             android:launchMode="singleInstance"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"
-            android:screenOrientation="portrait"
+            android:screenOrientation="fullSensor"
             android:theme="@style/App.Theme.Phone.Browse"/>
 
         <activity

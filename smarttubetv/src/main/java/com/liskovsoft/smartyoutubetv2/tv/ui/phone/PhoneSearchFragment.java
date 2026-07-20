@@ -431,9 +431,13 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
             for (VideoGroup group : groups) {
                 if (group.getVideos() == null || group.getVideos().isEmpty()) continue;
 
-                // Add group header if the group has a title
-                if (group.getTitle() != null && !group.getTitle().isEmpty()) {
-                    mItems.add(group.getTitle());
+                // Use the group title if available, otherwise generate one from content
+                String title = group.getTitle();
+                if (title == null || title.isEmpty()) {
+                    title = inferGroupTitle(group.getVideos());
+                }
+                if (title != null && !title.isEmpty()) {
+                    mItems.add(title);
                 }
 
                 for (Video video : group.getVideos()) {
@@ -441,6 +445,24 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
                 }
             }
             notifyDataSetChanged();
+        }
+
+        private String inferGroupTitle(List<Video> videos) {
+            if (videos == null || videos.isEmpty()) return null;
+
+            boolean hasChannels = false;
+            boolean hasVideos = false;
+            for (Video v : videos) {
+                if (v.isChannel()) {
+                    hasChannels = true;
+                } else {
+                    hasVideos = true;
+                }
+            }
+
+            if (hasChannels && !hasVideos) return "Channels";
+            if (hasVideos && !hasChannels) return "Videos";
+            return "Results";
         }
 
         @Override
