@@ -24,6 +24,7 @@ import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.VideoGroup;
 import com.liskovsoft.smartyoutubetv2.common.app.models.errors.ErrorFragmentData;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.BrowsePresenter;
+import com.liskovsoft.smartyoutubetv2.common.app.presenters.SearchPresenter;
 import com.liskovsoft.smartyoutubetv2.common.app.views.BrowseView;
 import com.liskovsoft.smartyoutubetv2.common.utils.ClickbaitRemover;
 import com.liskovsoft.smartyoutubetv2.tv.R;
@@ -66,6 +67,14 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         mRecyclerView = view.findViewById(R.id.phone_browse_recycler);
         mProgressBar = view.findViewById(R.id.phone_browse_progress);
         mEmptyText = view.findViewById(R.id.phone_browse_empty);
+
+        // Search bar — tapping opens PhoneSearchActivity via SearchPresenter
+        View searchBar = view.findViewById(R.id.search_bar_container);
+        if (searchBar != null) {
+            searchBar.setOnClickListener(v -> {
+                SearchPresenter.instance(requireContext()).startSearch(null);
+            });
+        }
 
         mAdapter = new PhoneSectionAdapter();
         LinearLayoutManager layoutManager = new LinearLayoutManager(getContext());
