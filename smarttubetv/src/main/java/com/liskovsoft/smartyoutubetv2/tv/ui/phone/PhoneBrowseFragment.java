@@ -101,7 +101,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
             }
 
             private void notifyTopVisibleSection() {
-                LinearLayoutManager lm = (LinearLayoutManager) rv.getLayoutManager();
+                LinearLayoutManager lm = (LinearLayoutManager) mRecyclerView.getLayoutManager();
                 if (lm == null || mSections.isEmpty()) return;
 
                 int first = lm.findFirstVisibleItemPosition();
