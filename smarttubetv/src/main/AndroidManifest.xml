@@ -197,6 +197,13 @@
             android:theme="@style/App.Theme.Phone.Player"/>
 
         <activity
+            android:name="com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneSearchActivity"
+            android:launchMode="singleInstance"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"
+            android:screenOrientation="unspecified"
+            android:theme="@style/App.Theme.Phone.Browse"/>
+
+        <activity
             android:name="com.liskovsoft.smartyoutubetv2.tv.ui.search.tags.SearchTagsActivity"
             android:launchMode="singleInstance"
             android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation|layoutDirection"

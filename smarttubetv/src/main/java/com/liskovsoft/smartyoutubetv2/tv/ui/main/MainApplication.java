@@ -26,6 +26,7 @@ import com.liskovsoft.smartyoutubetv2.tv.ui.adddevice.AddDeviceActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.browse.BrowseActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneBrowseActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhonePlaybackActivity;
+import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneSearchActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.channel.ChannelActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.channeluploads.ChannelUploadsActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.dialogs.AppDialogActivity;
@@ -105,7 +106,7 @@ public class MainApplication extends MultiDexApplication { // fix: Didn't find c
         viewManager.register(BrowseView.class, PhoneBrowseActivity.class); // no parent, because it's root activity
         viewManager.register(PlaybackView.class, PhonePlaybackActivity.class, PhoneBrowseActivity.class);
         viewManager.register(AppDialogView.class, dialogClazz, PhoneBrowseActivity.class);
-        viewManager.register(SearchView.class, SearchTagsActivity.class, PhoneBrowseActivity.class);
+        viewManager.register(SearchView.class, PhoneSearchActivity.class, PhoneBrowseActivity.class);
         viewManager.register(SignInView.class, SignInActivity.class, PhoneBrowseActivity.class);
         viewManager.register(AddDeviceView.class, AddDeviceActivity.class, PhoneBrowseActivity.class);
         viewManager.register(ChannelView.class, ChannelActivity.class, PhoneBrowseActivity.class);
