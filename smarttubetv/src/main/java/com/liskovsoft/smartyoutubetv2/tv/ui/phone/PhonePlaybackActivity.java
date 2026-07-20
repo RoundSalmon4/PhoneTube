@@ -6,6 +6,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.MotionEvent;
 
+import androidx.fragment.app.Fragment;
+
 import com.liskovsoft.sharedutils.helpers.Helpers;
 import com.liskovsoft.sharedutils.mylogger.Log;
 import com.liskovsoft.smartyoutubetv2.common.prefs.GeneralData;

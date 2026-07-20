@@ -291,7 +291,7 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
 
         mPlayer.addListener(new Player.EventListener() {
             @Override
-            public void onPositionDiscontinuity(int oldPosition, int newPosition, int reason) {
+            public void onPositionDiscontinuity(int reason) {
                 updateSeekbar();
             }
 
