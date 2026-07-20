@@ -68,7 +68,8 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         mEmptyText = view.findViewById(R.id.phone_browse_empty);
 
         mAdapter = new PhoneSectionAdapter();
-        mRecyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+        LinearLayoutManager layoutManager = new LinearLayoutManager(getContext());
+        mRecyclerView.setLayoutManager(layoutManager);
         mRecyclerView.setAdapter(mAdapter);
 
         mBrowsePresenter = BrowsePresenter.instance(requireContext());
@@ -160,6 +161,10 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                 if (lm != null) {
                     lm.scrollToPositionWithOffset(index, 0);
                 }
+
+                // Trigger data loading for the selected section
+                BrowseSection section = mSections.get(index);
+                mBrowsePresenter.onSectionFocused(section.getId());
             });
         }
     }
