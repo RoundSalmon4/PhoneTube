@@ -69,7 +69,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         mEmptyText = view.findViewById(R.id.phone_browse_empty);
 
         // Search bar — tapping opens PhoneSearchActivity via SearchPresenter
-        View searchBar = view.findViewById(R.id.search_bar_container);
+        View searchBar = view.findViewById(R.id.search_bar_text);
         if (searchBar != null) {
             searchBar.setOnClickListener(v -> {
                 SearchPresenter.instance(requireContext()).startSearch(null);
@@ -80,6 +80,40 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         LinearLayoutManager layoutManager = new LinearLayoutManager(getContext());
         mRecyclerView.setLayoutManager(layoutManager);
         mRecyclerView.setAdapter(mAdapter);
+
+        // Trigger section data loading as the user scrolls, mirroring TV Leanback behavior.
+        // On TV, the Leanback adapter calls selectSection() when a row gains focus.
+        // Here we detect the top-most visible section and trigger onSectionFocused.
+        mRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            private int mLastFocusedId = -1;
+
+            @Override
+            public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
+                if (dy == 0) return;
+                notifyTopVisibleSection();
+            }
+
+            @Override
+            public void onScrollStateChanged(@NonNull RecyclerView rv, int newState) {
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    notifyTopVisibleSection();
+                }
+            }
+
+            private void notifyTopVisibleSection() {
+                LinearLayoutManager lm = (LinearLayoutManager) rv.getLayoutManager();
+                if (lm == null || mSections.isEmpty()) return;
+
+                int first = lm.findFirstVisibleItemPosition();
+                if (first < 0 || first >= mSections.size()) return;
+
+                BrowseSection section = mSections.get(first);
+                if (section != null && section.getId() != mLastFocusedId) {
+                    mLastFocusedId = section.getId();
+                    mBrowsePresenter.onSectionFocused(section.getId());
+                }
+            }
+        });
 
         mBrowsePresenter = BrowsePresenter.instance(requireContext());
         mBrowsePresenter.setView(this);
