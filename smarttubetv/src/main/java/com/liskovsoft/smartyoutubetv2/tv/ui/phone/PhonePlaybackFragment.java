@@ -212,6 +212,8 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
         });
 
         setupDoubleTap();
+
+        mPlaybackPresenter.onViewInitialized();
     }
 
     @Override
@@ -293,16 +295,6 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
             @Override
             public void onPositionDiscontinuity(int reason) {
                 updateSeekbar();
-            }
-
-            @Override
-            public void onPlayerStateChanged(boolean playWhenReady, int playbackState) {
-                updatePlayPauseIcon();
-                if (playbackState == Player.STATE_ENDED) {
-                    mPlaybackPresenter.onPlayEnd();
-                } else if (playbackState == Player.STATE_BUFFERING) {
-                    mPlaybackPresenter.onBuffering();
-                }
             }
         });
 
