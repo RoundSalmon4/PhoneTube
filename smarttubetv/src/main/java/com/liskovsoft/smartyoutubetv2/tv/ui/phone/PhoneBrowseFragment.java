@@ -162,12 +162,13 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                     lm.scrollToPositionWithOffset(index, 0);
                 }
 
-                // Only trigger data loading when focusOnContent=true (the onViewInitialized path).
-                // focusOnContent=false comes from refreshSections and is a TV-specific concern
-                // for Leanback header transitions — triggering onSectionFocused here causes
-                // a double data load whose empty placeholder overwrites real video data.
-                if (focusOnContent) {
-                    BrowseSection section = mSections.get(index);
+                // Trigger data loading when focusOnContent=true, or when the section has no data.
+                // The latter handles onAccountChanged -> refreshSections -> selectSection(index, false)
+                // which rebuilds sections after removeAllSections clears the video data.
+                BrowseSection section = mSections.get(index);
+                VideoGroup group = mVideoGroups.get(section.getId());
+                boolean hasData = group != null && group.getVideos() != null && !group.getVideos().isEmpty();
+                if (focusOnContent || !hasData) {
                     mBrowsePresenter.onSectionFocused(section.getId());
                 }
             }
