@@ -156,15 +156,20 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
     @Override
     public void selectSection(int index, boolean focusOnContent) {
         mHandler.post(() -> {
-            // Check bounds inside the handler so sections added via addSection() are present
             if (index >= 0 && index < mSections.size()) {
                 LinearLayoutManager lm = (LinearLayoutManager) mRecyclerView.getLayoutManager();
                 if (lm != null) {
                     lm.scrollToPositionWithOffset(index, 0);
                 }
 
-                BrowseSection section = mSections.get(index);
-                mBrowsePresenter.onSectionFocused(section.getId());
+                // Only trigger data loading when focusOnContent=true (the onViewInitialized path).
+                // focusOnContent=false comes from refreshSections and is a TV-specific concern
+                // for Leanback header transitions — triggering onSectionFocused here causes
+                // a double data load whose empty placeholder overwrites real video data.
+                if (focusOnContent) {
+                    BrowseSection section = mSections.get(index);
+                    mBrowsePresenter.onSectionFocused(section.getId());
+                }
             }
         });
     }
