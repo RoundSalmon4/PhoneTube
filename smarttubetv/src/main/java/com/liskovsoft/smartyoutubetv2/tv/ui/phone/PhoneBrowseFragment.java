@@ -155,18 +155,18 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
 
     @Override
     public void selectSection(int index, boolean focusOnContent) {
-        if (index >= 0 && index < mSections.size()) {
-            mHandler.post(() -> {
+        mHandler.post(() -> {
+            // Check bounds inside the handler so sections added via addSection() are present
+            if (index >= 0 && index < mSections.size()) {
                 LinearLayoutManager lm = (LinearLayoutManager) mRecyclerView.getLayoutManager();
                 if (lm != null) {
                     lm.scrollToPositionWithOffset(index, 0);
                 }
 
-                // Trigger data loading for the selected section
                 BrowseSection section = mSections.get(index);
                 mBrowsePresenter.onSectionFocused(section.getId());
-            });
-        }
+            }
+        });
     }
 
     @Override
