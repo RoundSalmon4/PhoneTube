@@ -245,11 +245,13 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
             VideoGroup existing = findGroupById(group.getId());
             if (existing == null) {
                 mVideoGroups.add(group);
-                mResultsAdapter.setGroups(mVideoGroups);
             } else {
-                existing.add(group);
-                mResultsAdapter.notifyDataSetChanged();
+                // Merge new videos into existing group
+                for (Video video : group.getVideos()) {
+                    existing.add(video);
+                }
             }
+            mResultsAdapter.setGroups(mVideoGroups);
 
             mSuggestionsList.setVisibility(View.GONE);
             mResultsList.setVisibility(View.VISIBLE);
