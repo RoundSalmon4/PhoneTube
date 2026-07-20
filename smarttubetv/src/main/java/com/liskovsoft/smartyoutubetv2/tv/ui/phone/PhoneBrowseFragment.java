@@ -147,7 +147,9 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         mHandler.post(() -> {
             int size = mSections.size();
             mSections.clear();
-            mVideoGroups.clear();
+            // Don't clear mVideoGroups — preserve cached video data across section rebuilds
+            // triggered by onAccountChanged. The presenter's updateVideoRows sends an empty
+            // placeholder group that would overwrite real data if we cleared here.
             mAdapter.notifyItemRangeRemoved(0, size);
             updateEmptyState();
         });
@@ -181,7 +183,15 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         mHandler.post(() -> {
             BrowseSection section = group.getSection();
             if (section != null) {
-                mVideoGroups.put(section.getId(), group);
+                VideoGroup existing = mVideoGroups.get(section.getId());
+                boolean existingHasData = existing != null && !existing.isEmpty();
+                boolean newHasData = !group.isEmpty();
+                // Don't let an empty placeholder overwrite a group that already has real
+                // videos. The presenter's updateVideoRows sends an empty VideoGroup first
+                // (line ~709 of BrowsePresenter) before the Observable emits real data.
+                if (!existingHasData || newHasData) {
+                    mVideoGroups.put(section.getId(), group);
+                }
             }
             mAdapter.notifyDataSetChanged();
         });
