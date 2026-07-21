@@ -67,6 +67,15 @@
                 android:textSize="16sp"
                 android:maxLines="1"
                 android:ellipsize="end" />
+
+            <ImageButton
+                android:id="@+id/btn_more"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_more"
+                android:contentDescription="Options"
+                android:scaleType="centerInside" />
         </LinearLayout>
 
         <LinearLayout

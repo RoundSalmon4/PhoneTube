@@ -1,5 +1,6 @@
 package com.liskovsoft.smartyoutubetv2.tv.ui.phone;
 
+import android.app.AlertDialog;
 import android.os.Build.VERSION;
 import android.os.Bundle;
 import android.os.Handler;
@@ -71,6 +72,7 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
     private ImageButton mBtnPlayPause;
     private ImageButton mBtnRewind;
     private ImageButton mBtnForward;
+    private ImageButton mBtnMore;
     private TextView mVideoTitle;
     private TextView mTimeCurrent;
     private TextView mTimeTotal;
@@ -127,6 +129,7 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
         mBtnPlayPause = view.findViewById(R.id.btn_play_pause);
         mBtnRewind = view.findViewById(R.id.btn_rewind);
         mBtnForward = view.findViewById(R.id.btn_forward);
+        mBtnMore = view.findViewById(R.id.btn_more);
         mVideoTitle = view.findViewById(R.id.video_title);
         mTimeCurrent = view.findViewById(R.id.time_current);
         mTimeTotal = view.findViewById(R.id.time_total);
@@ -172,6 +175,8 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
             mPlayer.seekTo(pos);
             mPlaybackPresenter.onSeekEnd();
         });
+
+        mBtnMore.setOnClickListener(v -> showPlayerMenu());
 
         mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -500,6 +505,41 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
     private void scheduleHideControls() {
         mUiHandler.removeCallbacks(mHideControlsRunnable);
         mUiHandler.postDelayed(mHideControlsRunnable, CONTROLS_TIMEOUT_MS);
+    }
+
+    private void showPlayerMenu() {
+        mUiHandler.removeCallbacks(mHideControlsRunnable);
+
+        String[] items = {
+                getString(R.string.action_video_speed),
+                getString(R.string.action_subtitles),
+                getString(R.string.action_video_zoom),
+                getString(R.string.share_link),
+                getString(R.string.action_video_info),
+                getString(R.string.action_playlist_add),
+                getString(R.string.action_playback_queue),
+                getString(R.string.action_pip)
+        };
+
+        int[] actionIds = {
+                R.id.action_video_speed,
+                R.id.lb_control_closed_captioning,
+                R.id.action_video_zoom,
+                R.id.action_share,
+                R.id.action_info,
+                R.id.action_playlist_add,
+                R.id.action_playback_queue,
+                R.id.action_pip
+        };
+
+        new AlertDialog.Builder(getContext(), android.R.style.Theme_Material_Dialog)
+                .setItems(items, (dialog, which) -> {
+                    mPlaybackPresenter.onButtonClicked(actionIds[which], PlayerUI.BUTTON_OFF);
+                    scheduleHideControls();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .setOnDismissListener(d -> scheduleHideControls())
+                .show();
     }
 
     private void updatePlayPauseIcon() {
