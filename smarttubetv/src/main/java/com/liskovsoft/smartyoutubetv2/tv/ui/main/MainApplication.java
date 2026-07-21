@@ -25,6 +25,8 @@ import com.liskovsoft.smartyoutubetv2.common.prefs.PlayerTweaksData;
 import com.liskovsoft.smartyoutubetv2.tv.ui.adddevice.AddDeviceActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.browse.BrowseActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneBrowseActivity;
+import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneChannelActivity;
+import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneChannelUploadsActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhonePlaybackActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneSearchActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.channel.ChannelActivity;
@@ -109,8 +111,8 @@ public class MainApplication extends MultiDexApplication { // fix: Didn't find c
         viewManager.register(SearchView.class, PhoneSearchActivity.class, PhoneBrowseActivity.class);
         viewManager.register(SignInView.class, SignInActivity.class, PhoneBrowseActivity.class);
         viewManager.register(AddDeviceView.class, AddDeviceActivity.class, PhoneBrowseActivity.class);
-        viewManager.register(ChannelView.class, ChannelActivity.class, PhoneBrowseActivity.class);
-        viewManager.register(ChannelUploadsView.class, ChannelUploadsActivity.class, PhoneBrowseActivity.class);
+        viewManager.register(ChannelView.class, PhoneChannelActivity.class, PhoneBrowseActivity.class);
+        viewManager.register(ChannelUploadsView.class, PhoneChannelUploadsActivity.class, PhoneBrowseActivity.class);
         viewManager.register(WebBrowserView.class, WebBrowserActivity.class, PhoneBrowseActivity.class);
     }
 
