@@ -12,19 +12,11 @@
         android:orientation="vertical"
         android:padding="32dp">
 
-        <ImageView
-            android:id="@+id/signin_qr_code"
-            android:layout_width="200dp"
-            android:layout_height="200dp"
-            android:layout_marginTop="32dp"
-            android:layout_marginBottom="24dp"
-            android:contentDescription="@null"
-            android:src="@drawable/activate_account_qrcode" />
-
         <TextView
             android:id="@+id/signin_title"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="64dp"
             android:layout_marginBottom="8dp"
             android:text="@string/signin_view_title"
             android:textColor="@android:color/white"
