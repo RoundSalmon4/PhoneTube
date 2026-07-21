@@ -1,7 +1,5 @@
 package com.liskovsoft.smartyoutubetv2.tv.ui.main;
 
-import android.os.Build.VERSION;
-
 import androidx.multidex.MultiDexApplication;
 
 import com.liskovsoft.sharedutils.helpers.Helpers;
@@ -23,16 +21,12 @@ import com.liskovsoft.smartyoutubetv2.common.prefs.NetworkData;
 import com.liskovsoft.smartyoutubetv2.common.prefs.PlayerData;
 import com.liskovsoft.smartyoutubetv2.common.prefs.PlayerTweaksData;
 import com.liskovsoft.smartyoutubetv2.tv.ui.adddevice.AddDeviceActivity;
-import com.liskovsoft.smartyoutubetv2.tv.ui.browse.BrowseActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneBrowseActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneChannelActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneChannelUploadsActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhonePlaybackActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneSearchActivity;
-import com.liskovsoft.smartyoutubetv2.tv.ui.channel.ChannelActivity;
-import com.liskovsoft.smartyoutubetv2.tv.ui.channeluploads.ChannelUploadsActivity;
-import com.liskovsoft.smartyoutubetv2.tv.ui.dialogs.AppDialogActivity;
-import com.liskovsoft.smartyoutubetv2.tv.ui.dialogs.AppDialogActivityOpaque;
+import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneAppDialogActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.playback.PlaybackActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.search.tags.SearchTagsActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.signin.SignInActivity;
@@ -93,21 +87,11 @@ public class MainApplication extends MultiDexApplication { // fix: Didn't find c
     private void setupViewManager() {
         ViewManager viewManager = ViewManager.instance(this);
 
-        Class<? extends AppDialogActivity> dialogClazz;
-
-        if (VERSION.SDK_INT == 26
-                && Helpers.equalsAny(Helpers.getCrashlyticsDeviceName(), "4S806_Z51S1 (Panasonic)")) {
-            // The fix: Only fullscreen opaque activities can request orientation
-            dialogClazz = AppDialogActivityOpaque.class;
-        } else {
-            dialogClazz = AppDialogActivity.class;
-        }
-
         viewManager.setRoot(PhoneBrowseActivity.class);
         viewManager.register(SplashView.class, SplashActivity.class); // no parent, because it's root activity
         viewManager.register(BrowseView.class, PhoneBrowseActivity.class); // no parent, because it's root activity
         viewManager.register(PlaybackView.class, PhonePlaybackActivity.class, PhoneBrowseActivity.class);
-        viewManager.register(AppDialogView.class, dialogClazz, PhoneBrowseActivity.class);
+        viewManager.register(AppDialogView.class, PhoneAppDialogActivity.class, PhoneBrowseActivity.class);
         viewManager.register(SearchView.class, PhoneSearchActivity.class, PhoneBrowseActivity.class);
         viewManager.register(SignInView.class, SignInActivity.class, PhoneBrowseActivity.class);
         viewManager.register(AddDeviceView.class, AddDeviceActivity.class, PhoneBrowseActivity.class);
