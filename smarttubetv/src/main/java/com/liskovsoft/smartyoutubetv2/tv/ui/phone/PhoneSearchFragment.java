@@ -431,38 +431,33 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
             for (VideoGroup group : groups) {
                 if (group.getVideos() == null || group.getVideos().isEmpty()) continue;
 
-                // Use the group title if available, otherwise generate one from content
-                String title = group.getTitle();
-                if (title == null || title.isEmpty()) {
-                    title = inferGroupTitle(group.getVideos());
-                }
-                if (title != null && !title.isEmpty()) {
-                    mItems.add(title);
+                // Split channels from videos so they appear in separate sections
+                List<Video> channels = new ArrayList<>();
+                List<Video> videos = new ArrayList<>();
+                for (Video v : group.getVideos()) {
+                    if (v.isChannel()) {
+                        channels.add(v);
+                    } else {
+                        videos.add(v);
+                    }
                 }
 
-                for (Video video : group.getVideos()) {
-                    mItems.add(video);
+                String title = group.getTitle();
+
+                // Add videos section
+                if (!videos.isEmpty()) {
+                    String videoTitle = title != null && !title.isEmpty() ? title : "Videos";
+                    mItems.add(videoTitle);
+                    mItems.addAll(videos);
+                }
+
+                // Add channels section with its own header
+                if (!channels.isEmpty()) {
+                    mItems.add("Channels");
+                    mItems.addAll(channels);
                 }
             }
             notifyDataSetChanged();
-        }
-
-        private String inferGroupTitle(List<Video> videos) {
-            if (videos == null || videos.isEmpty()) return null;
-
-            boolean hasChannels = false;
-            boolean hasVideos = false;
-            for (Video v : videos) {
-                if (v.isChannel()) {
-                    hasChannels = true;
-                } else {
-                    hasVideos = true;
-                }
-            }
-
-            if (hasChannels && !hasVideos) return "Channels";
-            if (hasVideos && !hasChannels) return "Videos";
-            return "Results";
         }
 
         @Override
