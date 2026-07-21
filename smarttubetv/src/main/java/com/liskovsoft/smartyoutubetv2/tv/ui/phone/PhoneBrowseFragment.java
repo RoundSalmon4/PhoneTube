@@ -32,8 +32,10 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Phone-friendly browse fragment using a vertical RecyclerView of horizontal sections.
@@ -55,6 +57,8 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
     private final Map<Integer, VideoGroup> mVideoGroups = new HashMap<>();
     private final Map<Integer, SettingsGroup> mSettingsGroups = new HashMap<>();
     private boolean mChainingLoads;
+    private boolean mChainActive;
+    private final Set<Integer> mChainTriggeredSections = new HashSet<>();
 
     @Nullable
     @Override
@@ -196,6 +200,8 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
             int size = mSections.size();
             mSections.clear();
             mSettingsGroups.clear();
+            mChainTriggeredSections.clear();
+            mChainActive = false;
             // Don't clear mVideoGroups — preserve cached video data across section rebuilds
             // triggered by onAccountChanged. The presenter's updateVideoRows sends an empty
             // placeholder group that would overwrite real data if we cleared here.
@@ -308,6 +314,10 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
     @Override
     public void showProgressBar(boolean show) {
         mHandler.post(() -> {
+            // Suppress progress bar toggling during chain-loading to prevent flickering.
+            // mChainActive stays true from the first chain trigger until all sections are
+            // loaded (or have errored), so the progress bar stays visible throughout.
+            if (mChainActive && show) return;
             if (mProgressBar != null) {
                 mProgressBar.setVisibility(show ? View.VISIBLE : View.GONE);
             }
@@ -349,10 +359,19 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         if (mChainingLoads || mSections.isEmpty()) return;
 
         for (BrowseSection section : mSections) {
+            int id = section.getId();
+
+            // Don't retry sections the chain already attempted (e.g. auth-gated sections
+            // that call showError instead of updateSection never store data, causing an
+            // infinite loop without this guard).
+            if (mChainTriggeredSections.contains(id)) continue;
+
             // Settings sections use SettingsGroup, not VideoGroup
             if (section.getType() == BrowseSection.TYPE_SETTINGS_GRID) {
                 SettingsGroup sg = mSettingsGroups.get(section.getId());
                 if (sg == null || sg.isEmpty()) {
+                    mChainActive = true;
+                    mChainTriggeredSections.add(id);
                     mChainingLoads = true;
                     mHandler.postDelayed(() -> {
                         mChainingLoads = false;
@@ -368,6 +387,8 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
             VideoGroup group = mVideoGroups.get(section.getId());
             boolean hasData = group != null && group.getVideos() != null && !group.getVideos().isEmpty();
             if (!hasData) {
+                mChainActive = true;
+                mChainTriggeredSections.add(id);
                 mChainingLoads = true;
                 mHandler.postDelayed(() -> {
                     mChainingLoads = false;
@@ -378,6 +399,9 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                 return;
             }
         }
+
+        // All sections loaded — chain is done
+        mChainActive = false;
     }
 
     // ---------- Adapter ----------
