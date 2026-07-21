@@ -51,7 +51,6 @@ public class PhoneBrowseFragment extends Fragment {
     private final List<BrowseSection> mSections = new ArrayList<>();
     private final Map<Integer, VideoGroup> mVideoGroups = new HashMap<>();
     private final Map<Integer, SettingsGroup> mSettingsGroups = new HashMap<>();
-    private int mLoadingCount;
     private OnRefreshListener mRefreshListener;
 
     interface OnRefreshListener {
@@ -128,6 +127,11 @@ public class PhoneBrowseFragment extends Fragment {
                 mAdapter.notifyItemInserted(index);
             }
             updateEmptyState();
+
+            // Hide progress bar once we have sections to display
+            if (mProgressBar != null && !mSections.isEmpty()) {
+                mProgressBar.setVisibility(View.GONE);
+            }
         });
     }
 
@@ -152,7 +156,6 @@ public class PhoneBrowseFragment extends Fragment {
             int size = mSections.size();
             mSections.clear();
             mSettingsGroups.clear();
-            mLoadingCount = 0;
             mAdapter.notifyItemRangeRemoved(0, size);
             updateEmptyState();
         });
@@ -207,13 +210,15 @@ public class PhoneBrowseFragment extends Fragment {
 
     void showProgressBar(boolean show) {
         mHandler.post(() -> {
-            if (show) {
-                mLoadingCount++;
-            } else {
-                mLoadingCount = Math.max(0, mLoadingCount - 1);
-            }
+            // Only show progress bar during initial load (no sections yet).
+            // Once sections appear, hide it — individual section data loads in the
+            // background shouldn't show a global spinner.
             if (mProgressBar != null) {
-                mProgressBar.setVisibility(mLoadingCount > 0 ? View.VISIBLE : View.GONE);
+                if (show && mSections.isEmpty()) {
+                    mProgressBar.setVisibility(View.VISIBLE);
+                } else {
+                    mProgressBar.setVisibility(View.GONE);
+                }
             }
         });
     }
