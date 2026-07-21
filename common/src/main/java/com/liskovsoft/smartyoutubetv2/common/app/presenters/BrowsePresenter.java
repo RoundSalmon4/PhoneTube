@@ -1238,7 +1238,7 @@ public class BrowsePresenter extends BasePresenter<BrowseView> implements Sectio
 
         VideoStateService stateService = VideoStateService.instance(getContext());
 
-        if (stateService.isEmpty() || (!stateService.isHistoryBroken() && !videoGroup.isEmpty())) {
+        if (stateService.isEmpty()) {
             return;
         }
 
@@ -1250,9 +1250,7 @@ public class BrowsePresenter extends BasePresenter<BrowseView> implements Sectio
         }
 
         for (State state : stateService.getStates()) {
-            if (lastHistoryItem == null || state.timestamp > stateService.getSessionStartTimeMs()) {
-                videoGroup.add(0, state.video);
-            }
+            videoGroup.add(0, state.video);
         }
     }
 }

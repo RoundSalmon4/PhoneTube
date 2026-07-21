@@ -173,6 +173,11 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
             mPlaybackPresenter.onSeekEnd();
         });
 
+        ImageButton btnMore = view.findViewById(R.id.btn_more);
+        if (btnMore != null) {
+            btnMore.setOnClickListener(v -> showPlayerMenu());
+        }
+
         mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
@@ -528,6 +533,41 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
             return String.format(Locale.US, "%d:%02d:%02d", h, m, s);
         }
         return String.format(Locale.US, "%d:%02d", m, s);
+    }
+
+    private void showPlayerMenu() {
+        if (getContext() == null || getActivity() == null || getActivity().isFinishing()) {
+            return;
+        }
+
+        String[] items = {
+                getString(R.string.action_video_speed),
+                getString(R.string.action_subtitles),
+                getString(R.string.action_video_zoom),
+                getString(R.string.share_link),
+                getString(R.string.action_video_info),
+                getString(R.string.action_playlist_add),
+                getString(R.string.action_playback_queue)
+        };
+
+        int[] actions = {
+                R.id.action_video_speed,
+                R.id.lb_control_closed_captioning,
+                R.id.action_video_zoom,
+                R.id.action_share,
+                R.id.action_info,
+                R.id.action_playlist_add,
+                R.id.action_playback_queue
+        };
+
+        new android.app.AlertDialog.Builder(getContext())
+                .setTitle("Player options")
+                .setItems(items, (dialog, which) -> {
+                    if (mPlaybackPresenter != null) {
+                        mPlaybackPresenter.onButtonClicked(actions[which], PlayerUI.BUTTON_OFF);
+                    }
+                })
+                .show();
     }
 
     // Touch forwarding for double-tap

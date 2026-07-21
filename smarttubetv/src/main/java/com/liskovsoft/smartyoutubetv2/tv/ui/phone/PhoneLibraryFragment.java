@@ -22,6 +22,7 @@ import com.liskovsoft.smartyoutubetv2.common.app.models.data.BrowseSection;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.VideoGroup;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.BrowsePresenter;
+import com.liskovsoft.smartyoutubetv2.common.app.presenters.ChannelPresenter;
 import com.liskovsoft.smartyoutubetv2.common.utils.ClickbaitRemover;
 import com.liskovsoft.smartyoutubetv2.tv.R;
 
@@ -165,8 +166,12 @@ public class PhoneLibraryFragment extends Fragment {
             }
 
             holder.itemView.setOnClickListener(v -> {
-                BrowsePresenter presenter = BrowsePresenter.instance(v.getContext());
-                presenter.onVideoItemClicked(video);
+                if (video.isChannel()) {
+                    ChannelPresenter.instance(v.getContext()).openChannel(video);
+                } else {
+                    BrowsePresenter presenter = BrowsePresenter.instance(v.getContext());
+                    presenter.onVideoItemClicked(video);
+                }
             });
             holder.itemView.setOnLongClickListener(v -> {
                 BrowsePresenter presenter = BrowsePresenter.instance(v.getContext());

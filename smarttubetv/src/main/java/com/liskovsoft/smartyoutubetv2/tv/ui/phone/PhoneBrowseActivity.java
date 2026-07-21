@@ -141,12 +141,12 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView {
 
         Menu menu = mBottomNav.getMenu();
         menu.findItem(R.id.nav_subscriptions).setVisible(signedIn);
-        menu.findItem(R.id.nav_library).setVisible(signedIn);
+        // Library (history) is always visible — shows local history when not signed in
 
         // If currently on a hidden tab, switch to home
         if (!signedIn) {
             String currentTag = getSelectedTabTag();
-            if (TAG_SUBSCRIPTIONS.equals(currentTag) || TAG_LIBRARY.equals(currentTag)) {
+            if (TAG_SUBSCRIPTIONS.equals(currentTag)) {
                 mBottomNav.setSelectedItemId(R.id.nav_home);
             }
         }

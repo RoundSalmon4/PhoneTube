@@ -25,6 +25,7 @@ import com.liskovsoft.smartyoutubetv2.common.app.models.data.SettingsItem;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.VideoGroup;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.BrowsePresenter;
+import com.liskovsoft.smartyoutubetv2.common.app.presenters.ChannelPresenter;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.SearchPresenter;
 import com.liskovsoft.smartyoutubetv2.common.utils.ClickbaitRemover;
 import com.liskovsoft.smartyoutubetv2.tv.R;
@@ -155,6 +156,7 @@ public class PhoneBrowseFragment extends Fragment {
         mHandler.post(() -> {
             int size = mSections.size();
             mSections.clear();
+            mVideoGroups.clear();
             mSettingsGroups.clear();
             mAdapter.notifyItemRangeRemoved(0, size);
             updateEmptyState();
@@ -175,12 +177,16 @@ public class PhoneBrowseFragment extends Fragment {
     void updateSection(VideoGroup group) {
         if (group == null) return;
         mHandler.post(() -> {
-            boolean newHasData = !group.isEmpty();
             BrowseSection section = group.getSection();
             if (section != null) {
                 VideoGroup existing = mVideoGroups.get(section.getId());
-                boolean existingHasData = existing != null && !existing.isEmpty();
-                if (!existingHasData || newHasData) {
+                if (existing != null && existing != group && !group.isEmpty()) {
+                    // TYPE_ROW: multiple VideoGroups share the same section ID.
+                    // Accumulate videos into the existing group rather than replacing.
+                    for (Video v : group.getVideos()) {
+                        existing.add(v);
+                    }
+                } else {
                     mVideoGroups.put(section.getId(), group);
                 }
             }
@@ -379,8 +385,12 @@ public class PhoneBrowseFragment extends Fragment {
             }
 
             holder.itemView.setOnClickListener(v -> {
-                BrowsePresenter presenter = BrowsePresenter.instance(v.getContext());
-                presenter.onVideoItemClicked(video);
+                if (video.isChannel()) {
+                    ChannelPresenter.instance(v.getContext()).openChannel(video);
+                } else {
+                    BrowsePresenter presenter = BrowsePresenter.instance(v.getContext());
+                    presenter.onVideoItemClicked(video);
+                }
             });
             holder.itemView.setOnLongClickListener(v -> {
                 BrowsePresenter presenter = BrowsePresenter.instance(v.getContext());
