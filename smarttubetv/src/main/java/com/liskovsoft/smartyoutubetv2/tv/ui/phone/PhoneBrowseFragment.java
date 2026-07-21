@@ -18,67 +18,49 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
-import com.google.android.material.bottomnavigation.BottomNavigationView;
-
 import com.bumptech.glide.Glide;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.BrowseSection;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.SettingsGroup;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.SettingsItem;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.VideoGroup;
-import com.liskovsoft.smartyoutubetv2.common.app.models.errors.ErrorFragmentData;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.BrowsePresenter;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.SearchPresenter;
-import com.liskovsoft.smartyoutubetv2.common.app.views.BrowseView;
 import com.liskovsoft.smartyoutubetv2.common.utils.ClickbaitRemover;
 import com.liskovsoft.smartyoutubetv2.tv.R;
-import com.liskovsoft.mediaserviceinterfaces.data.MediaGroup;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
- * Phone-friendly browse fragment using a vertical RecyclerView of horizontal sections.
- * Implements BrowseView to work with existing BrowsePresenter.
+ * Home tab fragment — displays browse sections as horizontal video rows.
+ * Display-only. Data is pushed from PhoneBrowseActivity.
  */
-public class PhoneBrowseFragment extends Fragment implements BrowseView {
+public class PhoneBrowseFragment extends Fragment {
     private static final String TAG = PhoneBrowseFragment.class.getSimpleName();
 
     private RecyclerView mRecyclerView;
     private SwipeRefreshLayout mSwipeRefresh;
     private ProgressBar mProgressBar;
     private TextView mEmptyText;
-    private BottomNavigationView mBottomNav;
     private PhoneSectionAdapter mAdapter;
-    private BrowsePresenter mBrowsePresenter;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
-    private boolean mIsFragmentCreated;
-    private boolean mBottomNavSynchronizedByScroll;
 
-    // Map BrowseSection type IDs to bottom nav menu item IDs
-    private static final Map<Integer, Integer> SECTION_TO_NAV = new HashMap<>();
-    private static final Map<Integer, Integer> NAV_TO_SECTION_TYPE = new HashMap<>();
-    static {
-        SECTION_TO_NAV.put(MediaGroup.TYPE_HOME, R.id.nav_home);
-        SECTION_TO_NAV.put(MediaGroup.TYPE_SUBSCRIPTIONS, R.id.nav_subscriptions);
-        SECTION_TO_NAV.put(MediaGroup.TYPE_HISTORY, R.id.nav_library);
-        SECTION_TO_NAV.put(MediaGroup.TYPE_SETTINGS, R.id.nav_settings);
-        NAV_TO_SECTION_TYPE.put(R.id.nav_home, MediaGroup.TYPE_HOME);
-        NAV_TO_SECTION_TYPE.put(R.id.nav_subscriptions, MediaGroup.TYPE_SUBSCRIPTIONS);
-        NAV_TO_SECTION_TYPE.put(R.id.nav_library, MediaGroup.TYPE_HISTORY);
-        NAV_TO_SECTION_TYPE.put(R.id.nav_settings, MediaGroup.TYPE_SETTINGS);
-    }
-
-    // ordered section list and video data per section
     private final List<BrowseSection> mSections = new ArrayList<>();
     private final Map<Integer, VideoGroup> mVideoGroups = new HashMap<>();
     private final Map<Integer, SettingsGroup> mSettingsGroups = new HashMap<>();
-    private final Set<Integer> mLoadedSections = new HashSet<>();
     private int mLoadingCount;
+    private OnRefreshListener mRefreshListener;
+
+    interface OnRefreshListener {
+        void onRefresh(int sectionId);
+    }
+
+    void setOnRefreshListener(OnRefreshListener listener) {
+        mRefreshListener = listener;
+    }
 
     @Nullable
     @Override
@@ -95,19 +77,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         mSwipeRefresh = view.findViewById(R.id.phone_browse_swipe_refresh);
         mProgressBar = view.findViewById(R.id.phone_browse_progress);
         mEmptyText = view.findViewById(R.id.phone_browse_empty);
-        mBottomNav = view.findViewById(R.id.phone_browse_bottom_nav);
 
-        // Bottom nav: tapping a tab scrolls to the matching section
-        if (mBottomNav != null) {
-            mBottomNav.setOnItemSelectedListener(item -> {
-                Integer sectionType = NAV_TO_SECTION_TYPE.get(item.getItemId());
-                if (sectionType == null) return false;
-                scrollToSectionType(sectionType);
-                return true;
-            });
-        }
-
-        // Pull-to-refresh: reload the currently visible section
         mSwipeRefresh.setColorSchemeResources(android.R.color.holo_blue_bright);
         mSwipeRefresh.setOnRefreshListener(() -> {
             LinearLayoutManager lm = (LinearLayoutManager) mRecyclerView.getLayoutManager();
@@ -115,14 +85,14 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                 int first = lm.findFirstVisibleItemPosition();
                 if (first >= 0 && first < mSections.size()) {
                     BrowseSection section = mSections.get(first);
-                    mLoadedSections.remove(section.getId());
-                    mBrowsePresenter.loadSectionData(section.getId());
+                    if (mRefreshListener != null) {
+                        mRefreshListener.onRefresh(section.getId());
+                    }
                 }
             }
             mSwipeRefresh.setRefreshing(false);
         });
 
-        // Search bar — tapping opens PhoneSearchActivity via SearchPresenter
         View searchBar = view.findViewById(R.id.search_bar_text);
         if (searchBar != null) {
             searchBar.setOnClickListener(v -> {
@@ -134,91 +104,13 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         LinearLayoutManager layoutManager = new LinearLayoutManager(getContext());
         mRecyclerView.setLayoutManager(layoutManager);
         mRecyclerView.setAdapter(mAdapter);
-
-        // Trigger section data loading as the user scrolls, but only for sections
-        // that haven't been loaded yet. This prevents re-fetching data every time
-        // the user scrolls back to a section they've already visited.
-        mRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
-                if (dy == 0) return;
-                loadFirstUnloadedSection();
-                syncBottomNavFromScroll();
-            }
-
-            @Override
-            public void onScrollStateChanged(@NonNull RecyclerView rv, int newState) {
-                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    loadFirstUnloadedSection();
-                }
-            }
-
-            private void loadFirstUnloadedSection() {
-                LinearLayoutManager lm = (LinearLayoutManager) mRecyclerView.getLayoutManager();
-                if (lm == null || mSections.isEmpty()) return;
-
-                int first = lm.findFirstVisibleItemPosition();
-                if (first < 0 || first >= mSections.size()) return;
-
-                BrowseSection section = mSections.get(first);
-                if (section != null && !mLoadedSections.contains(section.getId())) {
-                    mLoadedSections.add(section.getId());
-                    mBrowsePresenter.loadSectionData(section.getId());
-                }
-            }
-        });
-
-        mBrowsePresenter = BrowsePresenter.instance(requireContext());
-        mBrowsePresenter.setView(this);
-        mBrowsePresenter.onViewInitialized();
-
-        // After all addSection() handler posts complete, fire loadSectionData() for every
-        // section in parallel. loadSectionData() sets mSuppressDispose so disposeActions()
-        // won't kill in-flight subscriptions. Stagger by 50ms to avoid network congestion.
-        mHandler.post(() -> {
-            for (int i = 0; i < mSections.size(); i++) {
-                final int idx = i;
-                BrowseSection section = mSections.get(i);
-                mLoadedSections.add(section.getId());
-                mHandler.postDelayed(() -> {
-                    if (isAdded() && mBrowsePresenter != null) {
-                        mBrowsePresenter.loadSectionData(section.getId());
-                    }
-                }, (long) idx * 50);
-            }
-        });
     }
 
-    @Override
-    public void onResume() {
-        super.onResume();
-        if (!mIsFragmentCreated) {
-            mBrowsePresenter.onViewResumed();
-        }
-        mIsFragmentCreated = false;
-    }
+    // --- Data methods called by PhoneBrowseActivity ---
 
-    @Override
-    public void onPause() {
-        super.onPause();
-        if (!mIsFragmentCreated) {
-            mBrowsePresenter.onViewPaused();
-        }
-    }
-
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        mBrowsePresenter.onViewDestroyed();
-    }
-
-    // --- BrowseView implementation ---
-
-    @Override
-    public void addSection(int index, BrowseSection section) {
+    void addSection(int index, BrowseSection section) {
         if (section == null) return;
         mHandler.post(() -> {
-            // Remove if already exists
             for (int i = mSections.size() - 1; i >= 0; i--) {
                 if (mSections.get(i).getId() == section.getId()) {
                     mSections.remove(i);
@@ -239,8 +131,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         });
     }
 
-    @Override
-    public void removeSection(BrowseSection section) {
+    void removeSection(BrowseSection section) {
         if (section == null) return;
         mHandler.post(() -> {
             for (int i = mSections.size() - 1; i >= 0; i--) {
@@ -256,39 +147,29 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         });
     }
 
-    @Override
-    public void removeAllSections() {
+    void removeAllSections() {
         mHandler.post(() -> {
             int size = mSections.size();
             mSections.clear();
             mSettingsGroups.clear();
-            mLoadedSections.clear();
             mLoadingCount = 0;
-            // Don't clear mVideoGroups — preserve cached video data across section rebuilds
-            // triggered by onAccountChanged. The presenter's updateVideoRows sends an empty
-            // placeholder group that would overwrite real data if we cleared here.
             mAdapter.notifyItemRangeRemoved(0, size);
             updateEmptyState();
         });
     }
 
-    @Override
-    public void selectSection(int index, boolean focusOnContent) {
+    void scrollToSection(int index) {
         mHandler.post(() -> {
             if (index >= 0 && index < mSections.size()) {
                 LinearLayoutManager lm = (LinearLayoutManager) mRecyclerView.getLayoutManager();
                 if (lm != null) {
                     lm.scrollToPositionWithOffset(index, 0);
                 }
-
-                BrowseSection section = mSections.get(index);
-                mBrowsePresenter.loadSectionData(section.getId());
             }
         });
     }
 
-    @Override
-    public void updateSection(VideoGroup group) {
+    void updateSection(VideoGroup group) {
         if (group == null) return;
         mHandler.post(() -> {
             boolean newHasData = !group.isEmpty();
@@ -296,9 +177,6 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
             if (section != null) {
                 VideoGroup existing = mVideoGroups.get(section.getId());
                 boolean existingHasData = existing != null && !existing.isEmpty();
-                // Don't let an empty placeholder overwrite a group that already has real
-                // videos. The presenter's updateVideoRows sends an empty VideoGroup first
-                // (line ~709 of BrowsePresenter) before the Observable emits real data.
                 if (!existingHasData || newHasData) {
                     mVideoGroups.put(section.getId(), group);
                 }
@@ -307,8 +185,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         });
     }
 
-    @Override
-    public void updateSection(SettingsGroup group) {
+    void updateSection(SettingsGroup group) {
         if (group == null) return;
         mHandler.post(() -> {
             BrowseSection section = group.getCategory();
@@ -319,8 +196,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         });
     }
 
-    @Override
-    public void clearSection(BrowseSection section) {
+    void clearSection(BrowseSection section) {
         if (section == null) return;
         mHandler.post(() -> {
             mVideoGroups.remove(section.getId());
@@ -329,26 +205,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         });
     }
 
-    @Override
-    public void selectSectionItem(int index) {
-    }
-
-    @Override
-    public void selectSectionItem(Video item) {
-    }
-
-    @Override
-    public void showError(ErrorFragmentData data) {
-        mHandler.post(() -> {
-            if (mEmptyText != null) {
-                mEmptyText.setText(data != null ? data.getMessage() : "Error");
-                mEmptyText.setVisibility(View.VISIBLE);
-            }
-        });
-    }
-
-    @Override
-    public void showProgressBar(boolean show) {
+    void showProgressBar(boolean show) {
         mHandler.post(() -> {
             if (show) {
                 mLoadingCount++;
@@ -361,79 +218,22 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         });
     }
 
-    @Override
-    public boolean isProgressBarShowing() {
-        return mProgressBar != null && mProgressBar.getVisibility() == View.VISIBLE;
+    void showError(String message) {
+        mHandler.post(() -> {
+            if (mEmptyText != null) {
+                mEmptyText.setText(message != null ? message : "Error");
+                mEmptyText.setVisibility(View.VISIBLE);
+            }
+        });
     }
 
-    @Override
-    public void focusOnContent() {
-        if (mRecyclerView != null) {
-            mRecyclerView.requestFocus();
-        }
-    }
-
-    @Override
-    public boolean isEmpty() {
+    boolean isEmpty() {
         return mSections.isEmpty();
-    }
-
-    @Override
-    public void updateBadge() {
     }
 
     private void updateEmptyState() {
         if (mEmptyText != null) {
             mEmptyText.setVisibility(mSections.isEmpty() ? View.VISIBLE : View.GONE);
-        }
-    }
-
-    /**
-     * Scroll to the first section whose type matches {@code sectionType}.
-     * Also highlights the matching bottom nav tab.
-     */
-    private void scrollToSectionType(int sectionType) {
-        for (int i = 0; i < mSections.size(); i++) {
-            if (mSections.get(i).getId() == sectionType) {
-                mBottomNavSynchronizedByScroll = true;
-                LinearLayoutManager lm = (LinearLayoutManager) mRecyclerView.getLayoutManager();
-                if (lm != null) {
-                    lm.scrollToPositionWithOffset(i, 0);
-                }
-                mBrowsePresenter.loadSectionData(mSections.get(i).getId());
-                break;
-            }
-        }
-    }
-
-    /**
-     * Called during scroll to highlight the bottom nav tab that matches the
-     * topmost visible section.
-     */
-    private void syncBottomNavFromScroll() {
-        if (mBottomNav == null || mSections.isEmpty()) return;
-        if (mBottomNavSynchronizedByScroll) {
-            mBottomNavSynchronizedByScroll = false;
-            return;
-        }
-
-        LinearLayoutManager lm = (LinearLayoutManager) mRecyclerView.getLayoutManager();
-        if (lm == null) return;
-
-        int first = lm.findFirstVisibleItemPosition();
-        if (first < 0 || first >= mSections.size()) return;
-
-        BrowseSection section = mSections.get(first);
-        Integer navId = SECTION_TO_NAV.get(section.getId());
-        if (navId != null && mBottomNav.getSelectedItemId() != navId) {
-            mBottomNav.setOnItemSelectedListener(null);
-            mBottomNav.setSelectedItemId(navId);
-            mBottomNav.setOnItemSelectedListener(item -> {
-                Integer sectionType = NAV_TO_SECTION_TYPE.get(item.getItemId());
-                if (sectionType == null) return false;
-                scrollToSectionType(sectionType);
-                return true;
-            });
         }
     }
 
@@ -533,7 +333,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
 
     // ---------- Video list adapter (horizontal) ----------
 
-    private static class VideoCardListAdapter extends RecyclerView.Adapter<VideoCardListAdapter.VideoViewHolder> {
+    static class VideoCardListAdapter extends RecyclerView.Adapter<VideoCardListAdapter.VideoViewHolder> {
         private List<Video> mVideos = new ArrayList<>();
 
         void setVideos(List<Video> videos) {
@@ -607,15 +407,8 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
 
     // ---------- Settings item adapter (vertical) ----------
 
-    private static class SettingsItemAdapter extends RecyclerView.Adapter<SettingsItemAdapter.SettingsViewHolder> {
+    static class SettingsItemAdapter extends RecyclerView.Adapter<SettingsItemAdapter.SettingsViewHolder> {
         private List<SettingsItem> mItems = new ArrayList<>();
-
-        SettingsItemAdapter() {
-        }
-
-        SettingsItemAdapter(List<SettingsItem> items) {
-            mItems = items != null ? items : new ArrayList<>();
-        }
 
         void setItems(List<SettingsItem> items) {
             mItems = items != null ? items : new ArrayList<>();
