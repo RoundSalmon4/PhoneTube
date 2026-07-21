@@ -27,33 +27,36 @@ jobs:
       - name: Grant Gradle permissions
         run: chmod +x gradlew
 
+      - name: Set up debug signing for release build
+        run: echo -e "storeFile=/home/runner/.android/debug.keystore\nstorePassword=android\nkeyAlias=androiddebugkey\nkeyPassword=android" > keystore.properties
+
       - name: Build with Gradle
-        run: ./gradlew clean assembleStfdroidDebug
+        run: ./gradlew clean assembleStfdroidRelease
 
       - name: Upload Universal APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: SmartTube-Phone_${{ github.sha }}_universal
-          path: ./smarttubetv/build/outputs/apk/stfdroid/debug/*_universal.apk
+          path: ./smarttubetv/build/outputs/apk/stfdroid/release/*_universal.apk
           if-no-files-found: warn
 
       - name: Upload ARM64 APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: SmartTube-Phone_${{ github.sha }}_arm64
-          path: ./smarttubetv/build/outputs/apk/stfdroid/debug/*_arm64-v8a.apk
+          path: ./smarttubetv/build/outputs/apk/stfdroid/release/*_arm64-v8a.apk
           if-no-files-found: warn
 
       - name: Upload ARMv7 APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: SmartTube-Phone_${{ github.sha }}_armeabi-v7a
-          path: ./smarttubetv/build/outputs/apk/stfdroid/debug/*_armeabi-v7a.apk
+          path: ./smarttubetv/build/outputs/apk/stfdroid/release/*_armeabi-v7a.apk
           if-no-files-found: warn
 
       - name: Upload x86 APK
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: SmartTube-Phone_${{ github.sha }}_x86
-          path: ./smarttubetv/build/outputs/apk/stfdroid/debug/*_x86.apk
+          path: ./smarttubetv/build/outputs/apk/stfdroid/release/*_x86.apk
           if-no-files-found: warn
