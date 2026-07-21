@@ -177,16 +177,18 @@ public class PhoneBrowseFragment extends Fragment {
     void updateSection(VideoGroup group) {
         if (group == null) return;
         mHandler.post(() -> {
+            boolean newHasData = !group.isEmpty();
             BrowseSection section = group.getSection();
             if (section != null) {
                 VideoGroup existing = mVideoGroups.get(section.getId());
-                if (existing != null && existing != group && !group.isEmpty()) {
-                    // TYPE_ROW: multiple VideoGroups share the same section ID.
-                    // Accumulate videos into the existing group rather than replacing.
-                    for (Video v : group.getVideos()) {
-                        existing.add(v);
-                    }
-                } else {
+                boolean existingHasData = existing != null && !existing.isEmpty();
+                // A TYPE_ROW section arrives as several VideoGroups sharing one section id
+                // (the presenter emits an empty ACTION_REPLACE placeholder first, then the
+                // real rows). Only swap in a group that carries data so an empty placeholder
+                // never wipes rows we already drew. Never mutate the incoming group in place —
+                // its video list is shared with the presenter's cache and touching it corrupts
+                // the parallel loads that are still in flight.
+                if (!existingHasData || newHasData) {
                     mVideoGroups.put(section.getId(), group);
                 }
             }
