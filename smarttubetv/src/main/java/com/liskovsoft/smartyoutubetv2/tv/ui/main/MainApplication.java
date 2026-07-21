@@ -28,7 +28,6 @@ import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneSearchActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneAppDialogActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneSignInActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneAddDeviceActivity;
-import com.liskovsoft.smartyoutubetv2.tv.ui.phone.PhoneWebBrowserActivity;
 import com.liskovsoft.smartyoutubetv2.tv.ui.webbrowser.WebBrowserActivity;
 
 import org.conscrypt.Conscrypt;
@@ -96,7 +95,7 @@ public class MainApplication extends MultiDexApplication { // fix: Didn't find c
         viewManager.register(AddDeviceView.class, PhoneAddDeviceActivity.class, PhoneBrowseActivity.class);
         viewManager.register(ChannelView.class, PhoneChannelActivity.class, PhoneBrowseActivity.class);
         viewManager.register(ChannelUploadsView.class, PhoneChannelUploadsActivity.class, PhoneBrowseActivity.class);
-        viewManager.register(WebBrowserView.class, PhoneWebBrowserActivity.class, PhoneBrowseActivity.class);
+        viewManager.register(WebBrowserView.class, WebBrowserActivity.class, PhoneBrowseActivity.class);
     }
 
     private void setupGlobalExceptionHandler() {
