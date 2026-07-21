@@ -25,7 +25,6 @@ import com.liskovsoft.smartyoutubetv2.common.app.models.data.SettingsItem;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.VideoGroup;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.BrowsePresenter;
-import com.liskovsoft.smartyoutubetv2.common.app.presenters.ChannelPresenter;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.SearchPresenter;
 import com.liskovsoft.smartyoutubetv2.common.utils.ClickbaitRemover;
 import com.liskovsoft.smartyoutubetv2.tv.R;
@@ -387,12 +386,10 @@ public class PhoneBrowseFragment extends Fragment {
             }
 
             holder.itemView.setOnClickListener(v -> {
-                if (video.isChannel()) {
-                    ChannelPresenter.instance(v.getContext()).openChannel(video);
-                } else {
-                    BrowsePresenter presenter = BrowsePresenter.instance(v.getContext());
-                    presenter.onVideoItemClicked(video);
-                }
+                // Let the presenter route the tap. It funnels through VideoActionPresenter,
+                // which already knows how to open a channel, a playlist or play a video —
+                // so Channels/Playlists/My Videos cards all end up in the right place.
+                BrowsePresenter.instance(v.getContext()).onVideoItemClicked(video);
             });
             holder.itemView.setOnLongClickListener(v -> {
                 BrowsePresenter presenter = BrowsePresenter.instance(v.getContext());

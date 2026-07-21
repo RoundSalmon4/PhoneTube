@@ -937,6 +937,13 @@ public class BrowsePresenter extends BasePresenter<BrowseView> implements Sectio
             return;
         }
 
+        // Point the current-section bookkeeping at whatever we're loading. A lot of the
+        // section helpers (isHistorySection, belongsToChannelUploadsMultiGrid, isGridSection,
+        // pagination, local-history fallback...) read mCurrentSection, and on phone we never
+        // go through onSectionFocused, so without this they'd all act on a stale/null section
+        // and the Channels/Playlists/History tabs come up empty.
+        mCurrentSection = section;
+
         mSuppressDispose = true;
         updateSection(section);
         updateRefreshTime();
