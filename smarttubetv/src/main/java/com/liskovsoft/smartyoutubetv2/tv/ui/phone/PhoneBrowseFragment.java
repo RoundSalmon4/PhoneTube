@@ -18,6 +18,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+
 import com.bumptech.glide.Glide;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.BrowseSection;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.SettingsGroup;
@@ -30,6 +32,7 @@ import com.liskovsoft.smartyoutubetv2.common.app.presenters.SearchPresenter;
 import com.liskovsoft.smartyoutubetv2.common.app.views.BrowseView;
 import com.liskovsoft.smartyoutubetv2.common.utils.ClickbaitRemover;
 import com.liskovsoft.smartyoutubetv2.tv.R;
+import com.liskovsoft.mediaserviceinterfaces.data.MediaGroup;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,10 +52,26 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
     private SwipeRefreshLayout mSwipeRefresh;
     private ProgressBar mProgressBar;
     private TextView mEmptyText;
+    private BottomNavigationView mBottomNav;
     private PhoneSectionAdapter mAdapter;
     private BrowsePresenter mBrowsePresenter;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
     private boolean mIsFragmentCreated;
+    private boolean mBottomNavSynchronizedByScroll;
+
+    // Map BrowseSection type IDs to bottom nav menu item IDs
+    private static final Map<Integer, Integer> SECTION_TO_NAV = new HashMap<>();
+    private static final Map<Integer, Integer> NAV_TO_SECTION_TYPE = new HashMap<>();
+    static {
+        SECTION_TO_NAV.put(MediaGroup.TYPE_HOME, R.id.nav_home);
+        SECTION_TO_NAV.put(MediaGroup.TYPE_SUBSCRIPTIONS, R.id.nav_subscriptions);
+        SECTION_TO_NAV.put(MediaGroup.TYPE_HISTORY, R.id.nav_library);
+        SECTION_TO_NAV.put(MediaGroup.TYPE_SETTINGS, R.id.nav_settings);
+        NAV_TO_SECTION_TYPE.put(R.id.nav_home, MediaGroup.TYPE_HOME);
+        NAV_TO_SECTION_TYPE.put(R.id.nav_subscriptions, MediaGroup.TYPE_SUBSCRIPTIONS);
+        NAV_TO_SECTION_TYPE.put(R.id.nav_library, MediaGroup.TYPE_HISTORY);
+        NAV_TO_SECTION_TYPE.put(R.id.nav_settings, MediaGroup.TYPE_SETTINGS);
+    }
 
     // ordered section list and video data per section
     private final List<BrowseSection> mSections = new ArrayList<>();
@@ -76,6 +95,17 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         mSwipeRefresh = view.findViewById(R.id.phone_browse_swipe_refresh);
         mProgressBar = view.findViewById(R.id.phone_browse_progress);
         mEmptyText = view.findViewById(R.id.phone_browse_empty);
+        mBottomNav = view.findViewById(R.id.phone_browse_bottom_nav);
+
+        // Bottom nav: tapping a tab scrolls to the matching section
+        if (mBottomNav != null) {
+            mBottomNav.setOnItemSelectedListener(item -> {
+                Integer sectionType = NAV_TO_SECTION_TYPE.get(item.getItemId());
+                if (sectionType == null) return false;
+                scrollToSectionType(sectionType);
+                return true;
+            });
+        }
 
         // Pull-to-refresh: reload the currently visible section
         mSwipeRefresh.setColorSchemeResources(android.R.color.holo_blue_bright);
@@ -113,6 +143,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
             public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
                 if (dy == 0) return;
                 loadFirstUnloadedSection();
+                syncBottomNavFromScroll();
             }
 
             @Override
@@ -354,6 +385,55 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
     private void updateEmptyState() {
         if (mEmptyText != null) {
             mEmptyText.setVisibility(mSections.isEmpty() ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    /**
+     * Scroll to the first section whose type matches {@code sectionType}.
+     * Also highlights the matching bottom nav tab.
+     */
+    private void scrollToSectionType(int sectionType) {
+        for (int i = 0; i < mSections.size(); i++) {
+            if (mSections.get(i).getId() == sectionType) {
+                mBottomNavSynchronizedByScroll = true;
+                LinearLayoutManager lm = (LinearLayoutManager) mRecyclerView.getLayoutManager();
+                if (lm != null) {
+                    lm.scrollToPositionWithOffset(i, 0);
+                }
+                mBrowsePresenter.loadSectionData(mSections.get(i).getId());
+                break;
+            }
+        }
+    }
+
+    /**
+     * Called during scroll to highlight the bottom nav tab that matches the
+     * topmost visible section.
+     */
+    private void syncBottomNavFromScroll() {
+        if (mBottomNav == null || mSections.isEmpty()) return;
+        if (mBottomNavSynchronizedByScroll) {
+            mBottomNavSynchronizedByScroll = false;
+            return;
+        }
+
+        LinearLayoutManager lm = (LinearLayoutManager) mRecyclerView.getLayoutManager();
+        if (lm == null) return;
+
+        int first = lm.findFirstVisibleItemPosition();
+        if (first < 0 || first >= mSections.size()) return;
+
+        BrowseSection section = mSections.get(first);
+        Integer navId = SECTION_TO_NAV.get(section.getId());
+        if (navId != null && mBottomNav.getSelectedItemId() != navId) {
+            mBottomNav.setOnItemSelectedListener(null);
+            mBottomNav.setSelectedItemId(navId);
+            mBottomNav.setOnItemSelectedListener(item -> {
+                Integer sectionType = NAV_TO_SECTION_TYPE.get(item.getItemId());
+                if (sectionType == null) return false;
+                scrollToSectionType(sectionType);
+                return true;
+            });
         }
     }
 
