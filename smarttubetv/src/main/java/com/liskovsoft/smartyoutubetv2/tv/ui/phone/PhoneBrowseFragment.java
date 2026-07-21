@@ -16,6 +16,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.bumptech.glide.Glide;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.BrowseSection;
@@ -32,8 +33,10 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Phone-friendly browse fragment using a vertical RecyclerView of horizontal sections.
@@ -43,6 +46,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
     private static final String TAG = PhoneBrowseFragment.class.getSimpleName();
 
     private RecyclerView mRecyclerView;
+    private SwipeRefreshLayout mSwipeRefresh;
     private ProgressBar mProgressBar;
     private TextView mEmptyText;
     private PhoneSectionAdapter mAdapter;
@@ -54,6 +58,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
     private final List<BrowseSection> mSections = new ArrayList<>();
     private final Map<Integer, VideoGroup> mVideoGroups = new HashMap<>();
     private final Map<Integer, SettingsGroup> mSettingsGroups = new HashMap<>();
+    private final Set<Integer> mLoadedSections = new HashSet<>();
     private int mLoadingCount;
 
     @Nullable
@@ -68,8 +73,24 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         super.onViewCreated(view, savedInstanceState);
 
         mRecyclerView = view.findViewById(R.id.phone_browse_recycler);
+        mSwipeRefresh = view.findViewById(R.id.phone_browse_swipe_refresh);
         mProgressBar = view.findViewById(R.id.phone_browse_progress);
         mEmptyText = view.findViewById(R.id.phone_browse_empty);
+
+        // Pull-to-refresh: reload the currently visible section
+        mSwipeRefresh.setColorSchemeResources(android.R.color.holo_blue_bright);
+        mSwipeRefresh.setOnRefreshListener(() -> {
+            LinearLayoutManager lm = (LinearLayoutManager) mRecyclerView.getLayoutManager();
+            if (lm != null && !mSections.isEmpty()) {
+                int first = lm.findFirstVisibleItemPosition();
+                if (first >= 0 && first < mSections.size()) {
+                    BrowseSection section = mSections.get(first);
+                    mLoadedSections.remove(section.getId());
+                    mBrowsePresenter.loadSectionData(section.getId());
+                }
+            }
+            mSwipeRefresh.setRefreshing(false);
+        });
 
         // Search bar — tapping opens PhoneSearchActivity via SearchPresenter
         View searchBar = view.findViewById(R.id.search_bar_text);
@@ -84,26 +105,24 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         mRecyclerView.setLayoutManager(layoutManager);
         mRecyclerView.setAdapter(mAdapter);
 
-        // Trigger section data loading as the user scrolls, mirroring TV Leanback behavior.
-        // Uses loadSectionData() which skips disposeActions(), so parallel subscriptions
-        // are not killed when a new section scrolls into view.
+        // Trigger section data loading as the user scrolls, but only for sections
+        // that haven't been loaded yet. This prevents re-fetching data every time
+        // the user scrolls back to a section they've already visited.
         mRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            private int mLastFocusedId = -1;
-
             @Override
             public void onScrolled(@NonNull RecyclerView rv, int dx, int dy) {
                 if (dy == 0) return;
-                notifyTopVisibleSection();
+                loadFirstUnloadedSection();
             }
 
             @Override
             public void onScrollStateChanged(@NonNull RecyclerView rv, int newState) {
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    notifyTopVisibleSection();
+                    loadFirstUnloadedSection();
                 }
             }
 
-            private void notifyTopVisibleSection() {
+            private void loadFirstUnloadedSection() {
                 LinearLayoutManager lm = (LinearLayoutManager) mRecyclerView.getLayoutManager();
                 if (lm == null || mSections.isEmpty()) return;
 
@@ -111,8 +130,8 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                 if (first < 0 || first >= mSections.size()) return;
 
                 BrowseSection section = mSections.get(first);
-                if (section != null && section.getId() != mLastFocusedId) {
-                    mLastFocusedId = section.getId();
+                if (section != null && !mLoadedSections.contains(section.getId())) {
+                    mLoadedSections.add(section.getId());
                     mBrowsePresenter.loadSectionData(section.getId());
                 }
             }
@@ -129,6 +148,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
             for (int i = 0; i < mSections.size(); i++) {
                 final int idx = i;
                 BrowseSection section = mSections.get(i);
+                mLoadedSections.add(section.getId());
                 mHandler.postDelayed(() -> {
                     if (isAdded() && mBrowsePresenter != null) {
                         mBrowsePresenter.loadSectionData(section.getId());
@@ -211,6 +231,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
             int size = mSections.size();
             mSections.clear();
             mSettingsGroups.clear();
+            mLoadedSections.clear();
             mLoadingCount = 0;
             // Don't clear mVideoGroups — preserve cached video data across section rebuilds
             // triggered by onAccountChanged. The presenter's updateVideoRows sends an empty

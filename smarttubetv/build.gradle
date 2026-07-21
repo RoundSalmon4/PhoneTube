@@ -183,6 +183,7 @@ dependencies {
     implementation 'androidx.recommendation:recommendation:' + leanbackXVersion
     implementation 'androidx.annotation:annotation:' + annotationXVersion
     implementation 'androidx.recyclerview:recyclerview:' + recyclerviewXVersion // exoplayer 2.12.1 fix
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
     implementation 'androidx.media:media:' + mediaXVersion // exoplayer fix
     implementation 'androidx.constraintlayout:constraintlayout:' + constraintLayoutXVersion
 
