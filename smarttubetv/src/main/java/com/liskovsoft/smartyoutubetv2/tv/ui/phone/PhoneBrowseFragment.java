@@ -32,10 +32,8 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Phone-friendly browse fragment using a vertical RecyclerView of horizontal sections.
@@ -56,9 +54,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
     private final List<BrowseSection> mSections = new ArrayList<>();
     private final Map<Integer, VideoGroup> mVideoGroups = new HashMap<>();
     private final Map<Integer, SettingsGroup> mSettingsGroups = new HashMap<>();
-    private boolean mChainingLoads;
-    private boolean mChainActive;
-    private final Set<Integer> mChainTriggeredSections = new HashSet<>();
+    private int mLoadingCount;
 
     @Nullable
     @Override
@@ -89,8 +85,8 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         mRecyclerView.setAdapter(mAdapter);
 
         // Trigger section data loading as the user scrolls, mirroring TV Leanback behavior.
-        // On TV, the Leanback adapter calls selectSection() when a row gains focus.
-        // Here we detect the top-most visible section and trigger onSectionFocused.
+        // Uses loadSectionData() which skips disposeActions(), so parallel subscriptions
+        // are not killed when a new section scrolls into view.
         mRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
             private int mLastFocusedId = -1;
 
@@ -117,7 +113,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                 BrowseSection section = mSections.get(first);
                 if (section != null && section.getId() != mLastFocusedId) {
                     mLastFocusedId = section.getId();
-                    mBrowsePresenter.onSectionFocused(section.getId());
+                    mBrowsePresenter.loadSectionData(section.getId());
                 }
             }
         });
@@ -125,6 +121,21 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         mBrowsePresenter = BrowsePresenter.instance(requireContext());
         mBrowsePresenter.setView(this);
         mBrowsePresenter.onViewInitialized();
+
+        // After all addSection() handler posts complete, fire loadSectionData() for every
+        // section in parallel. loadSectionData() sets mSuppressDispose so disposeActions()
+        // won't kill in-flight subscriptions. Stagger by 50ms to avoid network congestion.
+        mHandler.post(() -> {
+            for (int i = 0; i < mSections.size(); i++) {
+                final int idx = i;
+                BrowseSection section = mSections.get(i);
+                mHandler.postDelayed(() -> {
+                    if (isAdded() && mBrowsePresenter != null) {
+                        mBrowsePresenter.loadSectionData(section.getId());
+                    }
+                }, (long) idx * 50);
+            }
+        });
     }
 
     @Override
@@ -200,8 +211,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
             int size = mSections.size();
             mSections.clear();
             mSettingsGroups.clear();
-            mChainTriggeredSections.clear();
-            mChainActive = false;
+            mLoadingCount = 0;
             // Don't clear mVideoGroups — preserve cached video data across section rebuilds
             // triggered by onAccountChanged. The presenter's updateVideoRows sends an empty
             // placeholder group that would overwrite real data if we cleared here.
@@ -220,21 +230,7 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                 }
 
                 BrowseSection section = mSections.get(index);
-
-                // Settings sections use SettingsGroup
-                if (section.getType() == BrowseSection.TYPE_SETTINGS_GRID) {
-                    SettingsGroup sg = mSettingsGroups.get(section.getId());
-                    if (focusOnContent || sg == null || sg.isEmpty()) {
-                        mBrowsePresenter.onSectionFocused(section.getId());
-                    }
-                    return;
-                }
-
-                VideoGroup group = mVideoGroups.get(section.getId());
-                boolean hasData = group != null && group.getVideos() != null && !group.getVideos().isEmpty();
-                if (focusOnContent || !hasData) {
-                    mBrowsePresenter.onSectionFocused(section.getId());
-                }
+                mBrowsePresenter.loadSectionData(section.getId());
             }
         });
     }
@@ -256,13 +252,6 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                 }
             }
             mAdapter.notifyDataSetChanged();
-
-            // Chain-load: after a section gets real data, trigger the next unloaded section.
-            // This mirrors TV Leanback's sidebar focus behavior where each section loads
-            // sequentially as the user navigates down.
-            if (newHasData) {
-                triggerNextUnloadedSection();
-            }
         });
     }
 
@@ -275,7 +264,6 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                 mSettingsGroups.put(section.getId(), group);
             }
             mAdapter.notifyDataSetChanged();
-            triggerNextUnloadedSection();
         });
     }
 
@@ -304,22 +292,19 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                 mEmptyText.setText(data != null ? data.getMessage() : "Error");
                 mEmptyText.setVisibility(View.VISIBLE);
             }
-            // Auth-gated sections (Home, Subscriptions, etc.) call showError() instead of
-            // updateSection(), which breaks chain-loading. Continue the chain so non-auth
-            // sections (Music, etc.) still load.
-            triggerNextUnloadedSection();
         });
     }
 
     @Override
     public void showProgressBar(boolean show) {
         mHandler.post(() -> {
-            // Suppress progress bar toggling during chain-loading to prevent flickering.
-            // mChainActive stays true from the first chain trigger until all sections are
-            // loaded (or have errored), so the progress bar stays visible throughout.
-            if (mChainActive && show) return;
+            if (show) {
+                mLoadingCount++;
+            } else {
+                mLoadingCount = Math.max(0, mLoadingCount - 1);
+            }
             if (mProgressBar != null) {
-                mProgressBar.setVisibility(show ? View.VISIBLE : View.GONE);
+                mProgressBar.setVisibility(mLoadingCount > 0 ? View.VISIBLE : View.GONE);
             }
         });
     }
@@ -349,59 +334,6 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
         if (mEmptyText != null) {
             mEmptyText.setVisibility(mSections.isEmpty() ? View.VISIBLE : View.GONE);
         }
-    }
-
-    /**
-     * Chain-load: find the next section without data and trigger onSectionFocused.
-     * Called after each section's data arrives so sections load sequentially on first boot.
-     */
-    private void triggerNextUnloadedSection() {
-        if (mChainingLoads || mSections.isEmpty()) return;
-
-        for (BrowseSection section : mSections) {
-            int id = section.getId();
-
-            // Don't retry sections the chain already attempted (e.g. auth-gated sections
-            // that call showError instead of updateSection never store data, causing an
-            // infinite loop without this guard).
-            if (mChainTriggeredSections.contains(id)) continue;
-
-            // Settings sections use SettingsGroup, not VideoGroup
-            if (section.getType() == BrowseSection.TYPE_SETTINGS_GRID) {
-                SettingsGroup sg = mSettingsGroups.get(section.getId());
-                if (sg == null || sg.isEmpty()) {
-                    mChainActive = true;
-                    mChainTriggeredSections.add(id);
-                    mChainingLoads = true;
-                    mHandler.postDelayed(() -> {
-                        mChainingLoads = false;
-                        if (isAdded()) {
-                            mBrowsePresenter.onSectionFocused(section.getId());
-                        }
-                    }, 50);
-                    return;
-                }
-                continue;
-            }
-
-            VideoGroup group = mVideoGroups.get(section.getId());
-            boolean hasData = group != null && group.getVideos() != null && !group.getVideos().isEmpty();
-            if (!hasData) {
-                mChainActive = true;
-                mChainTriggeredSections.add(id);
-                mChainingLoads = true;
-                mHandler.postDelayed(() -> {
-                    mChainingLoads = false;
-                    if (isAdded()) {
-                        mBrowsePresenter.onSectionFocused(section.getId());
-                    }
-                }, 50);
-                return;
-            }
-        }
-
-        // All sections loaded — chain is done
-        mChainActive = false;
     }
 
     // ---------- Adapter ----------

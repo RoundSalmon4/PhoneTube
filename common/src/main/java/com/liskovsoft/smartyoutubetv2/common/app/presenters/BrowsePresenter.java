@@ -77,6 +77,7 @@ public class BrowsePresenter extends BasePresenter<BrowseView> implements Sectio
     private long mLastUpdateTimeMs = -1;
     private int mBootSectionIndex;
     private int mBootstrapSectionId = -1;
+    private boolean mSuppressDispose;
 
     private BrowsePresenter(Context context) {
         super(context);
@@ -918,10 +919,28 @@ public class BrowsePresenter extends BasePresenter<BrowseView> implements Sectio
     }
 
     private void disposeActions() {
+        if (mSuppressDispose) return;
         RxHelper.disposeActions(mActions);
         Utils.removeCallbacks(mRefreshSection);
         mLastUpdateTimeMs = -1;
         mBrowseProcessor.dispose();
+    }
+
+    /**
+     * Load a section's data without disposing previous subscriptions.
+     * Used by the phone port to load all sections in parallel on first boot.
+     * Each section subscribes to its Observable independently — no chaining needed.
+     */
+    public void loadSectionData(int sectionId) {
+        BrowseSection section = findSectionById(sectionId);
+        if (section == null || getView() == null) {
+            return;
+        }
+
+        mSuppressDispose = true;
+        updateSection(section);
+        updateRefreshTime();
+        mSuppressDispose = false;
     }
 
     private void updateChannelUploadsMultiGrid(Video item) {
