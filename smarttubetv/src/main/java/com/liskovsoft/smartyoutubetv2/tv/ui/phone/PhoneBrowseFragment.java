@@ -497,6 +497,11 @@ public class PhoneBrowseFragment extends Fragment implements BrowseView {
                 BrowsePresenter presenter = BrowsePresenter.instance(v.getContext());
                 presenter.onVideoItemClicked(video);
             });
+            holder.itemView.setOnLongClickListener(v -> {
+                BrowsePresenter presenter = BrowsePresenter.instance(v.getContext());
+                presenter.onVideoItemLongClicked(video);
+                return true;
+            });
         }
 
         @Override
