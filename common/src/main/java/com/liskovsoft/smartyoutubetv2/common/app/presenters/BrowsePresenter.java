@@ -1249,15 +1249,24 @@ public class BrowsePresenter extends BasePresenter<BrowseView> implements Sectio
             return;
         }
 
-        Video lastHistoryItem = videoGroup.isEmpty() ? null : videoGroup.get(0);
-        State lastState = stateService.getLastState();
-
-        if (lastState == null || Helpers.equals(lastHistoryItem, lastState.video)) {
-            return;
+        // Collect video IDs already present in the API history to avoid duplicates
+        java.util.Set<String> existingIds = new java.util.HashSet<>();
+        if (!videoGroup.isEmpty()) {
+            for (Video v : videoGroup.getVideos()) {
+                if (v != null && v.videoId != null) {
+                    existingIds.add(v.videoId);
+                }
+            }
         }
 
-        for (State state : stateService.getStates()) {
-            videoGroup.add(0, state.video);
+        // Local states are stored most-recent-first; prepend any that aren't already showing
+        // Iterate in reverse (oldest first) so that prepending preserves time order
+        for (int i = stateService.getStates().size() - 1; i >= 0; i--) {
+            State state = stateService.getStates().get(i);
+            if (state.video != null && state.video.videoId != null && !existingIds.contains(state.video.videoId)) {
+                videoGroup.add(0, state.video);
+                existingIds.add(state.video.videoId);
+            }
         }
     }
 }

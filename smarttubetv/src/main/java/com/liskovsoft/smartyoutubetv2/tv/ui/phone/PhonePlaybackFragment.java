@@ -540,10 +540,13 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
             return;
         }
 
+        mUiHandler.removeCallbacks(mHideControlsRunnable);
+
         String[] items = {
                 getString(R.string.action_video_speed),
                 getString(R.string.action_subtitles),
                 getString(R.string.action_video_zoom),
+                getString(R.string.action_pip),
                 getString(R.string.share_link),
                 getString(R.string.action_video_info),
                 getString(R.string.action_playlist_add),
@@ -554,20 +557,24 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
                 R.id.action_video_speed,
                 R.id.lb_control_closed_captioning,
                 R.id.action_video_zoom,
+                R.id.action_pip,
                 R.id.action_share,
                 R.id.action_info,
                 R.id.action_playlist_add,
                 R.id.action_playback_queue
         };
 
-        new android.app.AlertDialog.Builder(getContext())
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(getContext(), android.R.style.Theme_Material_Dialog)
                 .setTitle("Player options")
-                .setItems(items, (dialog, which) -> {
+                .setItems(items, (d, which) -> {
                     if (mPlaybackPresenter != null) {
                         mPlaybackPresenter.onButtonClicked(actions[which], PlayerUI.BUTTON_OFF);
                     }
                 })
-                .show();
+                .setOnDismissListener(d -> scheduleHideControls())
+                .create();
+        dialog.setCanceledOnTouchOutside(true);
+        dialog.show();
     }
 
     // Touch forwarding for double-tap
