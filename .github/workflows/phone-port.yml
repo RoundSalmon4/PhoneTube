@@ -28,7 +28,9 @@ jobs:
         run: chmod +x gradlew
 
       - name: Set up debug signing for release build
-        run: echo -e "storeFile=/home/runner/.android/debug.keystore\nstorePassword=android\nkeyAlias=androiddebugkey\nkeyPassword=android" > keystore.properties
+        run: |
+          keytool -genkeypair -v -keystore $HOME/.android/debug.keystore -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          echo -e "storeFile=$HOME/.android/debug.keystore\nstorePassword=android\nkeyAlias=androiddebugkey\nkeyPassword=android" > keystore.properties
 
       - name: Build with Gradle
         run: ./gradlew clean assembleStfdroidRelease
