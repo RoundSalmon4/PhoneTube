@@ -25,7 +25,6 @@ import com.liskovsoft.smartyoutubetv2.common.app.models.data.SettingsItem;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.VideoGroup;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.BrowsePresenter;
-import com.liskovsoft.smartyoutubetv2.common.app.presenters.ChannelPresenter;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.SearchPresenter;
 import com.liskovsoft.smartyoutubetv2.common.utils.ClickbaitRemover;
 import com.liskovsoft.smartyoutubetv2.tv.R;
@@ -50,7 +49,7 @@ public class PhoneBrowseFragment extends Fragment {
     private final Handler mHandler = new Handler(Looper.getMainLooper());
 
     private final List<BrowseSection> mSections = new ArrayList<>();
-    private final Map<Integer, List<Video>> mVideoGroups = new HashMap<>();
+    private final Map<Integer, VideoGroup> mVideoGroups = new HashMap<>();
     private final Map<Integer, SettingsGroup> mSettingsGroups = new HashMap<>();
     private OnRefreshListener mRefreshListener;
 
@@ -176,28 +175,13 @@ public class PhoneBrowseFragment extends Fragment {
     void updateSection(VideoGroup group) {
         if (group == null) return;
         mHandler.post(() -> {
+            boolean newHasData = !group.isEmpty();
             BrowseSection section = group.getSection();
-            if (section == null) return;
-
-            int id = section.getId();
-            List<Video> existing = mVideoGroups.get(id);
-
-            if (group.isEmpty()) {
-                // Empty group signals a reset — clear accumulated data
-                if (existing != null) {
-                    existing.clear();
-                }
-            } else {
-                List<Video> incoming = group.getVideos();
-                if (incoming == null || incoming.isEmpty()) return;
-
-                if (existing == null || existing.isEmpty()) {
-                    // First real data for this section — replace
-                    mVideoGroups.put(id, new ArrayList<>(incoming));
-                } else {
-                    // TYPE_ROW sends multiple groups for the same section.
-                    // Accumulate all videos into one list.
-                    existing.addAll(incoming);
+            if (section != null) {
+                VideoGroup existing = mVideoGroups.get(section.getId());
+                boolean existingHasData = existing != null && !existing.isEmpty();
+                if (!existingHasData || newHasData) {
+                    mVideoGroups.put(section.getId(), group);
                 }
             }
             mAdapter.notifyDataSetChanged();
@@ -218,8 +202,7 @@ public class PhoneBrowseFragment extends Fragment {
     void clearSection(BrowseSection section) {
         if (section == null) return;
         mHandler.post(() -> {
-            List<Video> videos = mVideoGroups.get(section.getId());
-            if (videos != null) videos.clear();
+            mVideoGroups.remove(section.getId());
             mSettingsGroups.remove(section.getId());
             mAdapter.notifyDataSetChanged();
         });
@@ -305,31 +288,14 @@ public class PhoneBrowseFragment extends Fragment {
             } else {
                 VideoSectionViewHolder vh = (VideoSectionViewHolder) holder;
                 vh.sectionTitle.setText(section.getTitle());
-                List<Video> videos = mVideoGroups.get(section.getId());
+                VideoGroup group = mVideoGroups.get(section.getId());
+                List<Video> videos = group != null ? group.getVideos() : null;
                 if (videos != null && !videos.isEmpty()) {
                     vh.videoAdapter.setVideos(videos);
                 } else {
                     vh.videoAdapter.setVideos(null);
                 }
             }
-
-            // Section header click — refreshes the section
-            View sectionTitle = holder.itemView.findViewById(R.id.section_title);
-
-            View.OnClickListener headerClick = v -> {
-                BrowsePresenter presenter = BrowsePresenter.instance(v.getContext());
-                presenter.onSectionFocused(section.getId());
-            };
-
-            // Section header long-press — opens section menu (move, rename, etc.)
-            View.OnLongClickListener headerLongClick = v -> {
-                BrowsePresenter presenter = BrowsePresenter.instance(v.getContext());
-                presenter.onSectionLongPressed(section.getId());
-                return true;
-            };
-
-            sectionTitle.setOnClickListener(headerClick);
-            sectionTitle.setOnLongClickListener(headerLongClick);
         }
 
         @Override
@@ -413,12 +379,8 @@ public class PhoneBrowseFragment extends Fragment {
             }
 
             holder.itemView.setOnClickListener(v -> {
-                if (video.isChannel()) {
-                    ChannelPresenter.instance(v.getContext()).openChannel(video);
-                } else {
-                    BrowsePresenter presenter = BrowsePresenter.instance(v.getContext());
-                    presenter.onVideoItemClicked(video);
-                }
+                BrowsePresenter presenter = BrowsePresenter.instance(v.getContext());
+                presenter.onVideoItemClicked(video);
             });
             holder.itemView.setOnLongClickListener(v -> {
                 BrowsePresenter presenter = BrowsePresenter.instance(v.getContext());

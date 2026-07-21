@@ -17,15 +17,9 @@
         android:textSize="18sp"
         android:textStyle="bold"
         android:fontFamily="sans-serif-medium"
-        android:paddingStart="0dp"
-        android:paddingEnd="16dp"
-        android:paddingTop="4dp"
         android:paddingBottom="8dp"
         android:singleLine="true"
-        android:ellipsize="end"
-        android:background="?attr/selectableItemBackground"
-        android:clickable="true"
-        android:focusable="true" />
+        android:ellipsize="end" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/section_items"
