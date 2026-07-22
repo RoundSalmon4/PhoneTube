@@ -23,7 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.rx2.awaitSingle
+import kotlinx.coroutines.rx2.awaitFirstOrDefault
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -44,32 +44,32 @@ class YouTubeEngine @Inject constructor(
         get() = serviceManager.mediaItemService
 
     fun getHome(): Flow<HomeFeed> = flow {
-        val groups = contentService.homeObserve.awaitSingle()
+        val groups = contentService.homeObserve.awaitFirstOrDefault(emptyList())
         emit(groups.toHomeFeed())
     }.flowOn(Dispatchers.IO)
 
     fun getTrending(): Flow<HomeFeed> = flow {
-        val groups = contentService.trendingObserve.awaitSingle()
+        val groups = contentService.trendingObserve.awaitFirstOrDefault(emptyList())
         emit(groups.toHomeFeed())
     }.flowOn(Dispatchers.IO)
 
     fun getMusic(): Flow<HomeFeed> = flow {
-        val groups = contentService.musicObserve.awaitSingle()
+        val groups = contentService.musicObserve.awaitFirstOrDefault(emptyList())
         emit(groups.toHomeFeed())
     }.flowOn(Dispatchers.IO)
 
     fun search(query: String): Flow<SearchResult> = flow {
-        val groups = contentService.getSearchObserve(query).awaitSingle()
+        val groups = contentService.getSearchObserve(query).awaitFirstOrDefault(emptyList())
         emit(groups.toSearchResult())
     }.flowOn(Dispatchers.IO)
 
     fun getSearchSuggestions(query: String): Flow<List<String>> = flow {
-        val suggestions = contentService.getSearchTagsObserve(query).awaitSingle()
+        val suggestions = contentService.getSearchTagsObserve(query).awaitFirstOrDefault(emptyList())
         emit(suggestions)
     }.flowOn(Dispatchers.IO)
 
     fun getChannel(channelId: String): Flow<ChannelResult> = flow {
-        val groups = contentService.getChannelObserve(channelId).awaitSingle()
+        val groups = contentService.getChannelObserve(channelId).awaitFirstOrDefault(emptyList())
         val firstGroup = groups.firstOrNull()
         val channelInfo = firstGroup?.let {
             ChannelInfo(
@@ -91,30 +91,30 @@ class YouTubeEngine @Inject constructor(
     }.flowOn(Dispatchers.IO)
 
     fun getChannelVideos(channelId: String): Flow<List<Video>> = flow {
-        val groups = contentService.getChannelObserve(channelId).awaitSingle()
+        val groups = contentService.getChannelObserve(channelId).awaitFirstOrDefault(emptyList())
         val videos = groups.flatMap { (it.mediaItems ?: emptyList()).filterNotNull() }
             .map { it.toVideo() }
         emit(videos)
     }.flowOn(Dispatchers.IO)
 
     fun getStreamInfo(videoId: String): Flow<StreamInfo> = flow {
-        val info = mediaItemService.getFormatInfoObserve(videoId).awaitSingle()
-        emit(info.toStreamInfo())
+        val info = mediaItemService.getFormatInfoObserve(videoId).awaitFirstOrDefault(null)
+        emit((info ?: throw IllegalStateException("No stream info available for $videoId")).toStreamInfo())
     }.flowOn(Dispatchers.IO)
 
     fun getMetadata(videoId: String): Flow<VideoMetadataResult> = flow {
-        val metadata = mediaItemService.getMetadataObserve(videoId).awaitSingle()
-        emit(metadata.toVideoMetadataResult())
+        val metadata = mediaItemService.getMetadataObserve(videoId).awaitFirstOrDefault(null)
+        emit((metadata ?: throw IllegalStateException("No metadata available for $videoId")).toVideoMetadataResult())
     }.flowOn(Dispatchers.IO)
 
     fun getSponsorSegments(videoId: String): Flow<List<SponsorSegment>> = flow {
-        val segments = mediaItemService.getSponsorSegmentsObserve(videoId).awaitSingle()
+        val segments = mediaItemService.getSponsorSegmentsObserve(videoId).awaitFirstOrDefault(emptyList())
         emit(segments.map { it.toSponsorSegment() })
     }.flowOn(Dispatchers.IO)
 
     fun continueGroup(group: MediaGroup): Flow<List<Video>> = flow {
-        val continued = contentService.continueGroupObserve(group).awaitSingle()
-        val videos = (continued.mediaItems ?: emptyList()).filterNotNull().map { it.toVideo() }
+        val continued = contentService.continueGroupObserve(group).awaitFirstOrDefault(null)
+        val videos = (continued?.mediaItems ?: emptyList()).filterNotNull().map { it.toVideo() }
         emit(videos)
     }.flowOn(Dispatchers.IO)
 
