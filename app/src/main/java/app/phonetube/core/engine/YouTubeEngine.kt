@@ -270,7 +270,9 @@ class YouTubeEngine @Inject constructor(
 
     private fun List<MediaGroup>.toHomeFeed(): HomeFeed = HomeFeed(
         sections = mapNotNull { group ->
-            val videos = (group.mediaItems ?: emptyList()).filterNotNull().map { it.toVideo() }
+            val videos = (group.mediaItems ?: emptyList()).filterNotNull()
+                .map { it.toVideo() }
+                .distinctBy { it.videoId }
             if (videos.isNotEmpty()) {
                 HomeSection(title = group.title.orEmpty(), videos = videos)
             } else null
@@ -279,7 +281,9 @@ class YouTubeEngine @Inject constructor(
 
     private fun List<MediaGroup>.toSearchResult(): SearchResult = SearchResult(
         sections = mapNotNull { group ->
-            val videos = (group.mediaItems ?: emptyList()).filterNotNull().map { it.toVideo() }
+            val videos = (group.mediaItems ?: emptyList()).filterNotNull()
+                .map { it.toVideo() }
+                .distinctBy { it.videoId }
             if (videos.isNotEmpty()) {
                 SearchSection(title = group.title.orEmpty(), videos = videos)
             } else null
