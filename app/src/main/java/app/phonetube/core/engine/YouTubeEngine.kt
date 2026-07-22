@@ -147,7 +147,7 @@ class YouTubeEngine @Inject constructor(
                 "playabilityReason=${mapped.playabilityReason}, " +
                 "hasDash=${mapped.dashManifestUrl != null}, hasHls=${mapped.hlsManifestUrl != null}, " +
                 "urlFormats=${mapped.urlFormats.size}, adaptiveFormats=${mapped.adaptiveFormats.size}, " +
-                "containsMedia=${info.containsMedia}, containsUrlFormats=${info.containsUrlFormats()}, " +
+                "containsMedia=${info.containsMedia()}, containsUrlFormats=${info.containsUrlFormats()}, " +
                 "containsDashFormats=${info.containsDashFormats()}, containsHlsUrl=${info.containsHlsUrl()}")
             emit(mapped)
         } catch (e: Exception) {

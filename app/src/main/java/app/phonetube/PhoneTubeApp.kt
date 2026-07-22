@@ -20,7 +20,6 @@ class PhoneTubeApp : Application(), SingletonImageLoader.Factory {
             .components {
                 add(OkHttpNetworkFetcherFactory())
             }
-            .crossfade(true)
             .build()
     }
 }
