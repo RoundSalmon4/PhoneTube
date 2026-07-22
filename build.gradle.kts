@@ -39,5 +39,19 @@ subprojects {
                 }
             } catch (_: Exception) {}
         }
+        // Align Kotlin JVM target with Java compileOptions to prevent mismatch errors
+        try {
+            val android = extensions.getByName("android")
+            val compileOptions = android.javaClass.getMethod("getCompileOptions").invoke(android)
+            val target = compileOptions.javaClass.getMethod("getTargetCompatibility").invoke(compileOptions)
+            val jvmVersion = when (target) {
+                JavaVersion.VERSION_1_8 -> "1.8"
+                JavaVersion.VERSION_11 -> "11"
+                JavaVersion.VERSION_17 -> "17"
+                else -> "1.8"
+            }
+            val kotlinOptions = android.javaClass.getMethod("getKotlinOptions").invoke(android)
+            kotlinOptions.javaClass.getMethod("setJvmTarget", String::class.java).invoke(kotlinOptions, jvmVersion)
+        } catch (_: Exception) {}
     }
 }
