@@ -43,11 +43,7 @@ public class PhoneAppDialogFragment extends PreferenceFragmentCompat implements 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View view = super.onCreateView(inflater, container, savedInstanceState);
-        if (view != null) {
-            view.setBackgroundColor(getResources().getColor(com.liskovsoft.smartyoutubetv2.tv.R.color.shelf_background_dark, null));
-        }
-        return view;
+        return super.onCreateView(inflater, container, savedInstanceState);
     }
 
     @Override

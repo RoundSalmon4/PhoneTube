@@ -295,7 +295,7 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
             NotificationChannel channel = new NotificationChannel(
                     NOTIFICATION_CHANNEL_ID,
                     getContext().getString(R.string.app_name),
-                    NotificationManager.IMPORTANCE_LOW);
+                    NotificationManager.IMPORTANCE_DEFAULT);
             channel.setDescription("Media playback controls");
             NotificationManager nm = (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm != null) {
@@ -486,66 +486,23 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
         PhonePlayerMenuBottomSheet sheet = PhonePlayerMenuBottomSheet.newInstance(items, actions);
         sheet.setOnMenuItemClickListener(actionId -> {
             if (mPlaybackPresenter != null) {
-                mPlaybackPresenter.onButtonClicked(actionId, PlayerUI.BUTTON_OFF);
+                mPlaybackPresenter.onButtonClicked(actionId, getButtonState(actionId));
             }
         });
         sheet.show(getChildFragmentManager(), "player_menu");
     }
 
-    // Touch forwarding for double-tap — guard with isOverlayShown() like the TV version.
-    // When overlay is visible, tap on empty space dismisses it; taps on buttons pass through.
+    // Touch forwarding for double-tap.
+    // When the ExoPlayer controller overlay is visible, skip double-tap forwarding
+    // so normal touch dispatch handles button clicks, seek bar drags, and overlay
+    // dismissal via PlayerView's built-in behavior.
     public void onDispatchTouchEvent(MotionEvent event) {
-        if (event.getAction() == MotionEvent.ACTION_DOWN && isOverlayShown()) {
-            View hitView = findViewAt(getView(), (int) event.getX(), (int) event.getY());
-            boolean hitButton = hitView instanceof android.widget.Button
-                    || hitView instanceof android.widget.ImageButton
-                    || hitView instanceof android.widget.TextView;
-            if (!hitButton) {
-                mPlayerView.hideController();
-                mPlaybackPresenter.onControlsShown(false);
-            }
+        if (isOverlayShown()) {
             return;
         }
-        if (mDoubleTapPlayerAdapter != null && !isOverlayShown()) {
+        if (mDoubleTapPlayerAdapter != null) {
             mDoubleTapPlayerAdapter.onTouchEvent(event);
         }
-    }
-
-    private View findViewAt(View root, int x, int y) {
-        if (root == null || !root.isShown()) {
-            return null;
-        }
-        if (root instanceof ViewGroup) {
-            ViewGroup group = (ViewGroup) root;
-            for (int i = group.getChildCount() - 1; i >= 0; i--) {
-                View child = group.getChildAt(i);
-                if (child.getVisibility() != View.VISIBLE) {
-                    continue;
-                }
-                int[] loc = new int[2];
-                child.getLocationOnScreen(loc);
-                int[] rootLoc = new int[2];
-                root.getLocationOnScreen(rootLoc);
-                int childX = x - (loc[0] - rootLoc[0]);
-                int childY = y - (loc[1] - rootLoc[1]);
-                if (childX >= 0 && childX < child.getWidth() && childY >= 0 && childY < child.getHeight()) {
-                    View found = findViewAt(child, childX, childY);
-                    if (found != null) {
-                        return found;
-                    }
-                }
-            }
-        }
-        int[] loc = new int[2];
-        root.getLocationOnScreen(loc);
-        int[] rootLoc = new int[2];
-        root.getLocationOnScreen(rootLoc);
-        int localX = x - (loc[0] - rootLoc[0]);
-        int localY = y - (loc[1] - rootLoc[1]);
-        if (localX >= 0 && localX < root.getWidth() && localY >= 0 && localY < root.getHeight()) {
-            return root;
-        }
-        return null;
     }
 
     // --- PlaybackView: PlayerManager ---

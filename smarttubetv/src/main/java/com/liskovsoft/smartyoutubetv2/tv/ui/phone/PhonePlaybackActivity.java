@@ -25,7 +25,12 @@ public class PhonePlaybackActivity extends PhoneActivity {
     private boolean mIsBackPressed;
     private boolean mPipPending;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
-    private final Runnable mPipPendingTimeout = () -> mPipPending = false;
+    private final Runnable mPipPendingTimeout = () -> {
+        if (mPipPending) {
+            mPipPending = false;
+            getViewManager().startParentView(this);
+        }
+    };
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -96,7 +101,12 @@ public class PhonePlaybackActivity extends PhoneActivity {
                 mPlaybackFragment.blockEngine(true);
             }
             getViewManager().blockTop(this);
-            getViewManager().startParentView(this);
+            // If PIP is pending, defer startParentView until onPictureInPictureModeChanged
+            // or the 3-second timeout fires. Android ignores PIP requests for backgrounded
+            // activities, so we must stay in the foreground until the transition completes.
+            if (!mPipPending) {
+                getViewManager().startParentView(this);
+            }
         } else {
             if (PlayerTweaksData.instance(this).isKeepFinishedActivityEnabled()) {
                 getViewManager().startParentView(this);
@@ -146,8 +156,12 @@ public class PhonePlaybackActivity extends PhoneActivity {
     @Override
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode);
-        mPipPending = false;
-        mHandler.removeCallbacks(mPipPendingTimeout);
+        if (mPipPending) {
+            mPipPending = false;
+            mHandler.removeCallbacks(mPipPendingTimeout);
+            // PIP transition complete (success or failure) — now safe to navigate
+            getViewManager().startParentView(this);
+        }
         if (mPlaybackFragment != null) {
             mPlaybackFragment.onPIPChanged(isInPictureInPictureMode);
         }
@@ -171,6 +185,9 @@ public class PhonePlaybackActivity extends PhoneActivity {
             } catch (Exception e) {
                 Log.e(TAG, e.getMessage());
                 mPipPending = false;
+                mHandler.removeCallbacks(mPipPendingTimeout);
+                // PIP failed — navigate away now
+                getViewManager().startParentView(this);
             }
         }
     }
