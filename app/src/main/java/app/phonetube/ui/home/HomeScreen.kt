@@ -102,7 +102,7 @@ private fun VideoRow(
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(videos, key = { it.videoId }) { video ->
+            items(videos) { video ->
                 VideoCard(
                     video = video,
                     onClick = { onVideoClick(video.videoId) }
