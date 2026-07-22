@@ -58,8 +58,12 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun startPlayback(info: StreamInfo) {
+        Log.d(TAG, "startPlayback: isUnplayable=${info.isUnplayable}, playabilityReason=${info.playabilityReason}, " +
+            "dash=${info.dashManifestUrl != null}, hls=${info.hlsManifestUrl != null}, " +
+            "urlFormats=${info.urlFormats.size}")
         when {
             info.isUnplayable -> {
+                Log.w(TAG, "Video is unplayable: ${info.playabilityReason}")
                 _uiState.value = PlayerUiState.Error(info.playabilityReason ?: "Video is unavailable")
             }
             info.dashManifestUrl != null -> {

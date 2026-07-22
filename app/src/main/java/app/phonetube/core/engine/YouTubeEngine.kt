@@ -136,8 +136,24 @@ class YouTubeEngine @Inject constructor(
     }.flowOn(Dispatchers.IO)
 
     fun getStreamInfo(videoId: String): Flow<StreamInfo> = flow {
-        val info = mediaItemService.getFormatInfoObserve(videoId).awaitFirstOrDefault(null)
-        emit((info ?: throw IllegalStateException("No stream info available for $videoId")).toStreamInfo())
+        try {
+            val info = mediaItemService.getFormatInfoObserve(videoId).awaitFirstOrDefault(null)
+            if (info == null) {
+                Log.e(TAG, "getStreamInfo($videoId): null response")
+                throw IllegalStateException("No stream info available for $videoId")
+            }
+            val mapped = info.toStreamInfo()
+            Log.d(TAG, "getStreamInfo($videoId): isUnplayable=${mapped.isUnplayable}, " +
+                "playabilityReason=${mapped.playabilityReason}, " +
+                "hasDash=${mapped.dashManifestUrl != null}, hasHls=${mapped.hlsManifestUrl != null}, " +
+                "urlFormats=${mapped.urlFormats.size}, adaptiveFormats=${mapped.adaptiveFormats.size}, " +
+                "containsMedia=${info.containsMedia}, containsUrlFormats=${info.containsUrlFormats()}, " +
+                "containsDashFormats=${info.containsDashFormats()}, containsHlsUrl=${info.containsHlsUrl()}")
+            emit(mapped)
+        } catch (e: Exception) {
+            Log.e(TAG, "getStreamInfo($videoId) failed", e)
+            throw e
+        }
     }.flowOn(Dispatchers.IO)
 
     fun getMetadata(videoId: String): Flow<VideoMetadataResult> = flow {
