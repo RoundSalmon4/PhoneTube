@@ -17,6 +17,9 @@ subprojects {
             force("org.jetbrains.kotlin:kotlin-stdlib:${libs.versions.kotlin.get()}")
             force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:${libs.versions.kotlin.get()}")
             force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:${libs.versions.kotlin.get()}")
+            force("com.squareup.okhttp3:okhttp:3.12.13")
+            force("com.squareup.okhttp3:okhttp-dnsoverhttps:3.12.13")
+            force("com.squareup.okhttp3:logging-interceptor:3.12.13")
         }
     }
     afterEvaluate {
