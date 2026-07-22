@@ -12,8 +12,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
-import android.widget.ProgressBar;
-import android.widget.SeekBar;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -35,7 +33,6 @@ import com.google.android.exoplayer2.ui.PlayerView;
 import com.google.android.exoplayer2.ui.SubtitleView;
 import com.liskovsoft.mediaserviceinterfaces.data.MediaItemFormatInfo;
 import com.liskovsoft.sharedutils.helpers.Helpers;
-import com.liskovsoft.sharedutils.mylogger.Log;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.VideoGroup;
 import com.liskovsoft.smartyoutubetv2.common.app.models.playback.manager.PlayerUI;
@@ -55,7 +52,6 @@ import com.liskovsoft.smartyoutubetv2.tv.ui.playback.other.BackboneQueueNavigato
 
 import java.io.InputStream;
 import java.util.List;
-import java.util.Locale;
 
 public class PhonePlaybackFragment extends Fragment implements PlaybackView {
     private static final String TAG = PhonePlaybackFragment.class.getSimpleName();
@@ -66,17 +62,9 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
     private ExoPlayerInitializer mPlayerInitializer;
 
     private PlayerView mPlayerView;
-    private View mControlsContainer;
-    private ImageButton mBtnBack;
-    private ImageButton mBtnPlayPause;
-    private ImageButton mBtnRewind;
-    private ImageButton mBtnForward;
     private TextView mVideoTitle;
-    private TextView mTimeCurrent;
-    private TextView mTimeTotal;
-    private SeekBar mSeekBar;
-    private ProgressBar mProgressBar;
     private SubtitleView mSubtitleView;
+    private View mBtnBackPersistent;
 
     private DoubleTapPlayerAdapter mDoubleTapPlayerAdapter;
     private YouTubeOverlay mYouTubeOverlay;
@@ -84,14 +72,7 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
     private MediaSessionConnector mMediaSessionConnector;
 
     private boolean mIsEngineBlocked;
-    private boolean mIsOverlayShown;
     private final Handler mUiHandler = new Handler(Looper.getMainLooper());
-    private boolean mIsSeeking;
-
-    private final Runnable mHideControlsRunnable = this::hideControlsOverlay;
-
-    private static final int CONTROLS_TIMEOUT_MS = 4000;
-    private static final int SEEKBAR_MAX = 1000;
 
     // --- Lifecycle ---
 
@@ -121,107 +102,21 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
         super.onViewCreated(view, savedInstanceState);
 
         mPlayerView = view.findViewById(R.id.exo_player_view);
-        mControlsContainer = view.findViewById(R.id.controls_container);
-        mBtnBack = view.findViewById(R.id.btn_back);
-        ImageButton btnBackPersistent = view.findViewById(R.id.btn_back_persistent);
-        mBtnPlayPause = view.findViewById(R.id.btn_play_pause);
-        mBtnRewind = view.findViewById(R.id.btn_rewind);
-        mBtnForward = view.findViewById(R.id.btn_forward);
-        mVideoTitle = view.findViewById(R.id.video_title);
-        mTimeCurrent = view.findViewById(R.id.time_current);
-        mTimeTotal = view.findViewById(R.id.time_total);
-        mSeekBar = view.findViewById(R.id.seek_bar);
-        mProgressBar = view.findViewById(R.id.player_progress);
+        mVideoTitle = view.findViewById(R.id.exo_title);
         mSubtitleView = view.findViewById(R.id.subtitle_view);
         mYouTubeOverlay = view.findViewById(R.id.youtube_overlay);
+        mBtnBackPersistent = view.findViewById(R.id.btn_back_persistent);
 
-        mBtnBack.setOnClickListener(v -> {
+        mBtnBackPersistent.setOnClickListener(v -> {
             if (getActivity() != null) {
                 getActivity().finish();
             }
         });
 
-        btnBackPersistent.setOnClickListener(v -> {
-            if (getActivity() != null) {
-                getActivity().finish();
-            }
-        });
-
-        mBtnPlayPause.setOnClickListener(v -> {
-            if (mPlayer == null) return;
-            if (mPlayer.getPlayWhenReady()) {
-                mPlaybackPresenter.onPauseClicked();
-                mPlayer.setPlayWhenReady(false);
-            } else {
-                mPlaybackPresenter.onPlayClicked();
-                mPlayer.setPlayWhenReady(true);
-            }
-            updatePlayPauseIcon();
-        });
-
-        mBtnRewind.setOnClickListener(v -> {
-            if (mPlayer == null) return;
-            long pos = Math.max(0, mPlayer.getCurrentPosition() - 10_000);
-            mPlayer.seekTo(pos);
-            mPlaybackPresenter.onSeekEnd();
-        });
-
-        mBtnForward.setOnClickListener(v -> {
-            if (mPlayer == null) return;
-            long pos = Math.min(mPlayer.getDuration(), mPlayer.getCurrentPosition() + 10_000);
-            mPlayer.seekTo(pos);
-            mPlaybackPresenter.onSeekEnd();
-        });
-
-        ImageButton btnMore = view.findViewById(R.id.btn_more);
+        ImageButton btnMore = view.findViewById(R.id.exo_more);
         if (btnMore != null) {
             btnMore.setOnClickListener(v -> showPlayerMenu());
         }
-
-        mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser && mPlayer != null) {
-                    long duration = mPlayer.getDuration();
-                    if (duration > 0) {
-                        long pos = (long) ((double) progress / SEEKBAR_MAX * duration);
-                        mTimeCurrent.setText(formatTime(pos));
-                    }
-                }
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-                mIsSeeking = true;
-                mUiHandler.removeCallbacks(mHideControlsRunnable);
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-                if (mPlayer != null) {
-                    long duration = mPlayer.getDuration();
-                    if (duration > 0) {
-                        long pos = (long) ((double) seekBar.getProgress() / SEEKBAR_MAX * duration);
-                        mPlayer.seekTo(pos);
-                        mPlaybackPresenter.onSeekEnd();
-                    }
-                }
-                mIsSeeking = false;
-                scheduleHideControls();
-            }
-        });
-
-        mControlsContainer.setOnClickListener(v -> {
-            // consume click to prevent pass-through
-        });
-
-        mPlayerView.setOnClickListener(v -> {
-            if (mIsOverlayShown) {
-                hideControlsOverlay();
-            } else {
-                showControlsOverlay();
-            }
-        });
 
         setupDoubleTap();
 
@@ -305,19 +200,8 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
 
         mPlayer.addListener(new Player.EventListener() {
             @Override
-            public void onPositionDiscontinuity(int reason) {
-                updateSeekbar();
-            }
-        });
-
-        // periodic seekbar update
-        mUiHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                if (mPlayer != null && !mIsSeeking) {
-                    updateSeekbar();
-                }
-                mUiHandler.postDelayed(this, 500);
+            public void onPlaybackParametersChanged(com.google.android.exoplayer2.PlaybackParameters playbackParameters) {
+                // no-op
             }
         });
     }
@@ -437,10 +321,12 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
 
         mDoubleTapPlayerAdapter = new DoubleTapPlayerAdapter(getView());
         mDoubleTapPlayerAdapter.onSingleTap(v -> {
-            if (mIsOverlayShown) {
-                hideControlsOverlay();
+            if (mPlayerView.isControllerFullyVisible()) {
+                mPlayerView.hideController();
+                mPlaybackPresenter.onControlsShown(false);
             } else {
-                showControlsOverlay();
+                mPlayerView.showController();
+                mPlaybackPresenter.onControlsShown(true);
             }
         });
         mDoubleTapPlayerAdapter.controller(mYouTubeOverlay);
@@ -485,62 +371,10 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
 
     // --- UI helpers ---
 
-    private void showControlsOverlay() {
-        if (getActivity() == null || getActivity().isFinishing()) return;
-        mIsOverlayShown = true;
-        mControlsContainer.setVisibility(View.VISIBLE);
-        mPlaybackPresenter.onControlsShown(true);
-        scheduleHideControls();
-    }
-
-    private void hideControlsOverlay() {
-        mIsOverlayShown = false;
-        if (mControlsContainer != null) {
-            mControlsContainer.setVisibility(View.GONE);
-        }
-        mPlaybackPresenter.onControlsShown(false);
-        mUiHandler.removeCallbacks(mHideControlsRunnable);
-    }
-
-    private void scheduleHideControls() {
-        mUiHandler.removeCallbacks(mHideControlsRunnable);
-        mUiHandler.postDelayed(mHideControlsRunnable, CONTROLS_TIMEOUT_MS);
-    }
-
-    private void updatePlayPauseIcon() {
-        if (mBtnPlayPause == null || mPlayer == null) return;
-        mBtnPlayPause.setImageResource(
-                mPlayer.getPlayWhenReady() ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play);
-    }
-
-    private void updateSeekbar() {
-        if (mPlayer == null || mSeekBar == null) return;
-        long position = mPlayer.getCurrentPosition();
-        long duration = mPlayer.getDuration();
-        if (duration > 0 && !mIsSeeking) {
-            mSeekBar.setProgress((int) ((double) position / duration * SEEKBAR_MAX));
-            mTimeCurrent.setText(formatTime(position));
-            mTimeTotal.setText(formatTime(duration));
-        }
-    }
-
-    private static String formatTime(long ms) {
-        long totalSec = ms / 1000;
-        long h = totalSec / 3600;
-        long m = (totalSec % 3600) / 60;
-        long s = totalSec % 60;
-        if (h > 0) {
-            return String.format(Locale.US, "%d:%02d:%02d", h, m, s);
-        }
-        return String.format(Locale.US, "%d:%02d", m, s);
-    }
-
     private void showPlayerMenu() {
         if (getContext() == null || getActivity() == null || getActivity().isFinishing()) {
             return;
         }
-
-        mUiHandler.removeCallbacks(mHideControlsRunnable);
 
         String[] items = {
                 getString(R.string.action_video_speed),
@@ -564,17 +398,13 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
                 R.id.action_playback_queue
         };
 
-        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(getContext(), android.R.style.Theme_Material_Dialog)
-                .setTitle("Player options")
-                .setItems(items, (d, which) -> {
-                    if (mPlaybackPresenter != null) {
-                        mPlaybackPresenter.onButtonClicked(actions[which], PlayerUI.BUTTON_OFF);
-                    }
-                })
-                .setOnDismissListener(d -> scheduleHideControls())
-                .create();
-        dialog.setCanceledOnTouchOutside(true);
-        dialog.show();
+        PhonePlayerMenuBottomSheet sheet = PhonePlayerMenuBottomSheet.newInstance(items, actions);
+        sheet.setOnMenuItemClickListener(actionId -> {
+            if (mPlaybackPresenter != null) {
+                mPlaybackPresenter.onButtonClicked(actionId, PlayerUI.BUTTON_OFF);
+            }
+        });
+        sheet.show(getChildFragmentManager(), "player_menu");
     }
 
     // Touch forwarding for double-tap
@@ -701,7 +531,6 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
     @Override
     public void setPlayWhenReady(boolean play) {
         mExoPlayerController.setPlayWhenReady(play);
-        updatePlayPauseIcon();
     }
 
     @Override
@@ -914,16 +743,19 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
 
     @Override
     public void showOverlay(boolean show) {
+        if (mPlayerView == null) return;
         if (show) {
-            showControlsOverlay();
+            mPlayerView.showController();
+            mPlaybackPresenter.onControlsShown(true);
         } else {
-            hideControlsOverlay();
+            mPlayerView.hideController();
+            mPlaybackPresenter.onControlsShown(false);
         }
     }
 
     @Override
     public boolean isOverlayShown() {
-        return mIsOverlayShown;
+        return mPlayerView != null && mPlayerView.isControllerFullyVisible();
     }
 
     @Override
@@ -943,7 +775,7 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
 
     @Override
     public boolean isControlsShown() {
-        return mIsOverlayShown;
+        return isOverlayShown();
     }
 
     @Override
@@ -997,9 +829,7 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
 
     @Override
     public void showProgressBar(boolean show) {
-        if (mProgressBar != null) {
-            mProgressBar.setVisibility(show ? View.VISIBLE : View.GONE);
-        }
+        // ExoPlayer handles buffering indicator automatically
     }
 
     @Override
@@ -1019,8 +849,8 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
 
     // Called by PhonePlaybackActivity for PIP
     public void onPIPChanged(boolean isInPIP) {
-        if (isInPIP) {
-            hideControlsOverlay();
+        if (isInPIP && mPlayerView != null) {
+            mPlayerView.hideController();
         }
     }
 
