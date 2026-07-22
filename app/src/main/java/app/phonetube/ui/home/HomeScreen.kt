@@ -4,15 +4,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -29,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.phonetube.core.engine.model.Video
+import app.phonetube.ui.components.VideoCard
 import coil3.compose.AsyncImage
 
 @Composable
@@ -45,7 +47,7 @@ fun HomeScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Loading YouTube home...")
+                    Text("Loading...")
                 }
             }
         }
@@ -69,20 +71,15 @@ fun HomeScreen(
         }
         is HomeUiState.Success -> {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp)
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = 48.dp, bottom = 16.dp)
             ) {
-                item {
-                    Text(
-                        text = "Sections: ${s.sectionTitles.joinToString(", ")}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 48.dp, bottom = 8.dp)
+                items(s.sections, key = { it.title }) { section ->
+                    VideoRow(
+                        title = section.title,
+                        videos = section.videos,
+                        onVideoClick = onVideoClick
                     )
-                }
-                items(s.videos) { video ->
-                    VideoRow(video = video, onClick = { onVideoClick(video.videoId) })
                 }
             }
         }
@@ -90,38 +87,27 @@ fun HomeScreen(
 }
 
 @Composable
-private fun VideoRow(video: Video, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp)
-            .clickable(onClick = onClick),
-        verticalAlignment = Alignment.Top
-    ) {
-        AsyncImage(
-            model = video.thumbnailUrl,
-            contentDescription = video.title,
-            modifier = Modifier
-                .size(width = 160.dp, height = 90.dp)
-                .clip(RoundedCornerShape(8.dp)),
-            contentScale = ContentScale.Crop
+private fun VideoRow(
+    title: String,
+    videos: List<Video>,
+    onVideoClick: (String) -> Unit
+) {
+    Column(modifier = Modifier.padding(bottom = 16.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
         )
-        Spacer(modifier = Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = video.title,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = video.author,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(videos, key = { it.videoId }) { video ->
+                VideoCard(
+                    video = video,
+                    onClick = { onVideoClick(video.videoId) }
+                )
+            }
         }
     }
 }
