@@ -1,7 +1,6 @@
 package app.phonetube.ui.player
 
 import android.app.Activity
-import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,13 +21,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.media3.ui.PlayerView
+import androidx.media3.ui.compose.PlayerSurface
 import kotlinx.coroutines.delay
 
 @Composable
@@ -100,17 +98,8 @@ fun PlayerScreen(
             is PlayerUiState.Ready -> {
                 val player = viewModel.playerController.exoPlayer
 
-                AndroidView(
-                    factory = { ctx ->
-                        FrameLayout(ctx).apply {
-                            val playerView = PlayerView(ctx).apply {
-                                this.player = player
-                                useController = false
-                                setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
-                            }
-                            addView(playerView)
-                        }
-                    },
+                PlayerSurface(
+                    player = player,
                     modifier = Modifier.fillMaxSize()
                 )
             }

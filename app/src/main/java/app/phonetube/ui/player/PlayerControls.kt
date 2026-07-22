@@ -19,10 +19,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.fastForward
-import androidx.compose.material.icons.filled.fastRewind
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.rounded.Forward10
+import androidx.compose.material.icons.rounded.Replay10
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import app.phonetube.player.PlayerPlaybackSnapshot
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 @Composable
 fun PlayerControls(
@@ -135,7 +136,7 @@ fun PlayerControls(
                 ) {
                     IconButton(onClick = { onSeekBy(-10_000) }) {
                         Icon(
-                            Icons.Default.fastRewind,
+                            Icons.Rounded.Replay10,
                             contentDescription = "Rewind 10s",
                             tint = Color.White,
                             modifier = Modifier.size(36.dp)
@@ -158,7 +159,7 @@ fun PlayerControls(
                     Spacer(modifier = Modifier.width(24.dp))
                     IconButton(onClick = { onSeekBy(10_000) }) {
                         Icon(
-                            Icons.Default.fastForward,
+                            Icons.Rounded.Forward10,
                             contentDescription = "Forward 10s",
                             tint = Color.White,
                             modifier = Modifier.size(36.dp)
