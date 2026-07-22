@@ -11,18 +11,24 @@ plugins {
 
 subprojects {
     afterEvaluate {
-        extensions.findByType(com.android.build.api.LibraryExtension::class.java)?.let { android ->
-            if (android.namespace == null) {
-                val namespaces = mapOf(
-                    ":sharedutils" to "com.liskovsoft.sharedutils",
-                    ":sharedtests" to "com.liskovsoft.sharedtests",
-                    ":commons-io-2.8.0" to "org.apache.commons.commonsio",
-                    ":j2v8" to "com.eclipsesource.v8",
-                    ":mediaserviceinterfaces" to "com.liskovsoft.mediaserviceinterfaces",
-                    ":youtubeapi" to "com.liskovsoft.youtubeapi"
-                )
-                namespaces[project.path]?.let { android.namespace = it }
-            }
+        if (extensions.findByName("android") != null) {
+            try {
+                val android = extensions.getByName("android")
+                val currentNs = android.javaClass.getMethod("getNamespace").invoke(android) as? String
+                if (currentNs.isNullOrEmpty()) {
+                    val namespaces = mapOf(
+                        ":sharedutils" to "com.liskovsoft.sharedutils",
+                        ":sharedtests" to "com.liskovsoft.sharedtests",
+                        ":commons-io-2.8.0" to "org.apache.commons.commonsio",
+                        ":j2v8" to "com.eclipsesource.v8",
+                        ":mediaserviceinterfaces" to "com.liskovsoft.mediaserviceinterfaces",
+                        ":youtubeapi" to "com.liskovsoft.youtubeapi"
+                    )
+                    namespaces[project.path]?.let { value ->
+                        android.javaClass.getMethod("setNamespace", String::class.java).invoke(android, value)
+                    }
+                }
+            } catch (_: Exception) {}
         }
     }
 }
