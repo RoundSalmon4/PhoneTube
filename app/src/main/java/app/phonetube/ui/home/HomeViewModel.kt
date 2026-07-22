@@ -28,7 +28,7 @@ class HomeViewModel @Inject constructor(
     fun loadHome() {
         _uiState.value = HomeUiState.Loading
         viewModelScope.launch {
-            engine.getHome()
+            engine.getTrending()
                 .catch { e ->
                     _uiState.value = HomeUiState.Error(e.message ?: "Unknown error")
                 }
