@@ -16,7 +16,7 @@
         android:paddingEnd="4dp">
 
         <ImageButton
-            android:id="@id/exo_back"
+            android:id="@+id/exo_back"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
@@ -25,7 +25,7 @@
             android:scaleType="centerInside" />
 
         <TextView
-            android:id="@id/exo_title"
+            android:id="@+id/exo_title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -36,7 +36,7 @@
             android:ellipsize="end" />
 
         <ImageButton
-            android:id="@id/exo_more"
+            android:id="@+id/exo_more"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
