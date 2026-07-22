@@ -1,0 +1,2 @@
+-dontwarn javax.annotation.**
+-keep class app.phonetube.core.database.entity.** { *; }
