@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.phonetube.core.engine.model.Video
-import coil.compose.AsyncImage
+import coil3.compose.AsyncImage
 
 @Composable
 fun HomeScreen(
