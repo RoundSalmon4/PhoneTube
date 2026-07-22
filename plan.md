@@ -6,7 +6,7 @@
 **Branch:** `new-ui` (branched from `phone-port`)
 **Goal:** Build a brand-new Kotlin + Jetpack Compose YouTube phone app that uses SmartTube's MediaServiceCore as its YouTube data engine. No TV UI, no Leanback, no MVP presenters -- completely fresh modern Android architecture.
 **Why:** The phone-port branch proved MediaServiceCore works on phones, but converting the TV-based Leanback UI is not worth the effort. Better to build a clean phone UI from scratch.
-**Current state:** Branch just created. Plan is being written. No code yet.
+**Current state:** Steps 1 and 2 are done. Gradle/catalog/build files are in place, the app shell (Application, MainActivity, theme, type-safe Navigation with bottom nav + 6 placeholder screens) compiles, and the Room/DI/engine skeleton from step 3/4 is already roughed in. Build is green on the `new-ui` CI after the KSP1 pin (§4 KSP note). Next real work is fleshing out YouTubeEngine + the Home screen.
 
 ### Before doing anything
 1. Read this entire document
@@ -76,8 +76,8 @@ These decisions were discussed and finalized. Do not suggest alternatives.
 | **Navigation** | Navigation Compose | Standard |
 | **Build system** | Kotlin DSL + Version Catalog | Modern Gradle |
 | **minSdk** | 24 (Android 7.0) | Covers 96%+ of devices |
-| **targetSdk** | 36 | Latest |
-| **compileSdk** | 36 | Matches targetSdk |
+| **targetSdk** | 35 (36 later) | Started on 35 to keep AGP 8.7.3 happy; bump to 36 comes with the AGP 9 move (§10.1) |
+| **compileSdk** | 35 (36 later) | Matches targetSdk |
 | **ExoPlayer** | NOT the SmartTube fork | Using Media3 1.8.0. SABR via sabr-exoplayer community library. |
 | **No sign-in** | Confirmed | All features local-only |
 | **UI reference** | Nuvio Mobile (https://github.com/NuvioMedia/NuvioMobile) | Good reference for Compose media player app in Kotlin |
@@ -122,27 +122,31 @@ These decisions were discussed and finalized. Do not suggest alternatives.
 
 ## 4. Tech Stack
 
+These are the versions actually in `gradle/libs.versions.toml` right now. They're deliberately conservative — the point was to get MediaServiceCore's old submodules building alongside a modern Compose app without a fight. See §10.1 for the eventual bump to Kotlin 2.3 / AGP 9.2.
+
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| **Language** | Kotlin | 2.3.0 |
-| **UI** | Jetpack Compose | BOM 2025.05.01 |
-| **Design** | Material 3 | 1.11.0-alpha07 |
+| **Language** | Kotlin | 2.2.21 |
+| **UI** | Jetpack Compose | BOM 2024.12.01 |
+| **Design** | Material 3 | 1.3.1 |
 | **Architecture** | MVVM + UDF | ViewModels + StateFlow |
-| **DI** | Hilt | 2.54 |
-| **Async** | Coroutines + Flow | KotlinX Coroutines 1.10.x |
-| **Local DB** | Room | 2.7.0 (KSP) |
-| **Prefs** | DataStore | 1.1.x |
-| **Images** | Coil 3 | 3.5.0 |
-| **Navigation** | Navigation Compose | 2.9.0 |
+| **DI** | Hilt | 2.53.1 |
+| **Async** | Coroutines + Flow | KotlinX Coroutines 1.9.0 |
+| **Local DB** | Room | 2.6.1 (KSP1 — see note) |
+| **Prefs** | DataStore | 1.1.1 |
+| **Images** | Coil 3 | 3.0.4 |
+| **Navigation** | Navigation Compose | 2.8.5 |
 | **Player** | Media3 ExoPlayer | 1.8.0 |
 | **Player UI** | media3-ui-compose | 1.8.0 |
 | **Media Session** | media3-session | 1.8.0 |
 | **Network** | OkHttp + Retrofit (from MediaServiceCore) | 3.12.13 (forced) |
-| **Build** | Kotlin DSL + Version Catalog | Gradle 8.11+ |
-| **AGP** | Android Gradle Plugin | 9.2.0 |
-| **KSP** | Kotlin Symbol Processing | 2.3.0-1.0.x |
+| **Build** | Kotlin DSL + Version Catalog | Gradle 8.11.1 |
+| **AGP** | Android Gradle Plugin | 8.7.3 |
+| **KSP** | Kotlin Symbol Processing | 2.2.21-2.0.5 (KSP1 — `ksp.useKSP2=false`) |
 | **minSdk** | 24 | Android 7.0 |
-| **targetSdk / compileSdk** | 36 | Android 16 |
+| **targetSdk / compileSdk** | 35 | Android 15 |
+
+**KSP note:** KSP2 (the default on Kotlin 2.x) blows up on Room's generated `suspend` DAOs with `IllegalStateException: unexpected jvm signature V` (google/ksp #2177, #2957; the broader Room+KSP2 saga is #1896, only closed mid-2026). We pin back to the stable KSP1 processor via `ksp.useKSP2=false` in `gradle.properties`. Revisit when we move to a Room/KSP that handles KSP2 cleanly — see §10.1.
 
 ### MediaServiceCore Dependencies (transitive)
 
@@ -682,6 +686,8 @@ Four tabs: Home | Search | Library | Settings
 
 ### Version Catalog (`gradle/libs.versions.toml`)
 
+The block below is the *original target*. The **actual** catalog in the repo uses the conservative versions from §4 (Kotlin 2.2.21, AGP 8.7.3, KSP 2.2.21-2.0.5, etc.) — check the real file, not this snippet. Kept here for the shape/structure reference only.
+
 ```toml
 [versions]
 kotlin = "2.3.0"
@@ -803,6 +809,25 @@ include(":app")
 ```
 
 **NOTE:** The exact include paths for MediaServiceCore and SharedModules depend on their `core_settings.gradle` files. We need to read those files to get the exact module names. They may need to be included differently. The key point is that `:youtubeapi` and `:mediaserviceinterfaces` from MediaServiceCore and `:sharedutils` from SharedModules must be included as local Gradle modules.
+
+### 10.1 Getting to Kotlin 2.3 / AGP 9.2 (later)
+
+We shipped on Kotlin 2.2.21 + AGP 8.7.3 + KSP1 on purpose — it's the combo that actually compiles today with MediaServiceCore's old submodules in the tree. Kotlin 2.3 / AGP 9.2 is still the target, just not worth the yak-shave until the app itself is further along. When we do the bump, do it as its own branch/PR (it touches the whole build), not mixed in with feature work. Rough order:
+
+1. **Clear the KSP2 blocker first.** The whole reason we're on KSP1 is `ksp.useKSP2=false` (Room's suspend DAOs crash KSP2 with "unexpected jvm signature V"). Before bumping Kotlin, flip that flag back on with the *current* versions and confirm Room builds. If it still crashes, move Room up (2.7.x+) first and retest. Don't bump Kotlin until KSP2 is green — otherwise you can't tell which change broke it.
+2. **Room → 2.7.x** (or whatever the latest is at bump time). 2.7 has real KSP2 support; that's what unlocks dropping the flag.
+3. **Hilt → 2.5x** that's built against the target Kotlin. Hilt lags Kotlin releases, so this is usually the gate on how new Kotlin can go — check Hilt's release notes for the max supported Kotlin before picking the Kotlin version.
+4. **Kotlin → 2.3.0 + KSP → 2.3.0-x.x.x.** KSP version must match the Kotlin version exactly (first part).
+5. **AGP → 9.2.0.** This is the big one:
+   - AGP 9 wants JDK 17+ (we're already on 17 in CI, good).
+   - `compileSdk`/`targetSdk` → 36, `buildToolsVersion` gets dropped (AGP picks it).
+   - AGP 9 is stricter about namespaces — the reflection hack in root `build.gradle.kts` that injects namespaces into the MediaServiceCore/SharedModules submodules may break or become unnecessary. Watch that closely; ideally we patch the submodule build files to declare their own namespace and delete the hack.
+   - `com.android.library` alias needs to exist in the catalog (it does) since submodules use it.
+6. **Gradle wrapper** to whatever AGP 9.2 requires (8.13+ range).
+7. **Compose BOM + Material3** forward to match the new Kotlin compose-compiler.
+8. Bump one layer at a time, run CI after each. Resist the urge to bump everything and debug the pile-up.
+
+Reality check: the pacing item is almost always Hilt + Room vs Kotlin. If Hilt doesn't support Kotlin 2.3 yet at bump time, stay on 2.2.x and just do the AGP 9 / SDK 36 half — those are more independent.
 
 ---
 
