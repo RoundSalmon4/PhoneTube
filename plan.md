@@ -275,16 +275,16 @@ Added `initEdgeSlide()` for swipe-from-left-edge back navigation on touch device
 7. **Delete `PhoneSubscriptionsFragment.java` and `PhoneLibraryFragment.java`**
 
 **What to test on device:**
-- [ ] Home feed loads with horizontal video rows, scrolling works
-- [ ] Tapping a video card opens the player
-- [ ] Long-pressing shows the context menu
+- [x] Home feed loads with horizontal video rows, scrolling works
+- [x] Tapping a video card opens the player
+- [x] Long-pressing shows the context menu
 - [ ] Subscriptions tab loads and displays 2-column grid (if signed in)
-- [ ] Library/History tab loads and displays 2-column grid
-- [ ] Channel page shows horizontal video rows
-- [ ] Channel uploads shows vertical list
-- [ ] Search results display correctly (video cards, channel cards, group headers)
+- [x] Library/History tab loads and displays 2-column grid
+- [x] Channel page shows horizontal video rows
+- [x] Channel uploads shows vertical list
+- [x] Search results display correctly (video cards, channel cards, group headers)
 - [ ] Swipe-to-refresh works on Home, Subscriptions, Library tabs
-- [ ] Pull-to-refresh on Home refreshes the first visible section
+- [x] Pull-to-refresh on Home refreshes the first visible section
 
 ---
 
