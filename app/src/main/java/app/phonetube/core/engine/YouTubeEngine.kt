@@ -65,7 +65,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getChannelVideos(channelId: String): Flow<List<MediaItem>> = flow {
         val groups = contentService.getChannelObserve(channelId).awaitSingle()
-        emit(groups.flatMap { it.mediaItems })
+        emit(groups.flatMap { (it.mediaItems ?: emptyList()).filterNotNull() })
     }.flowOn(Dispatchers.IO)
 
     fun getStreamInfo(videoId: String): Flow<MediaItemFormatInfo> = flow {
@@ -85,7 +85,7 @@ class YouTubeEngine @Inject constructor(
 
     fun continueGroup(group: MediaGroup): Flow<List<MediaItem>> = flow {
         val continued = contentService.continueGroupObserve(group).awaitSingle()
-        emit(continued.mediaItems)
+        emit((continued.mediaItems ?: emptyList()).filterNotNull())
     }.flowOn(Dispatchers.IO)
 
     fun isSignedIn(): Boolean {
