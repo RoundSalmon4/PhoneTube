@@ -321,7 +321,7 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
 
         mDoubleTapPlayerAdapter = new DoubleTapPlayerAdapter(getView());
         mDoubleTapPlayerAdapter.onSingleTap(v -> {
-            if (mPlayerView.isControllerFullyVisible()) {
+            if (mPlayerView.isControllerVisible()) {
                 mPlayerView.hideController();
                 mPlaybackPresenter.onControlsShown(false);
             } else {
@@ -755,7 +755,7 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
 
     @Override
     public boolean isOverlayShown() {
-        return mPlayerView != null && mPlayerView.isControllerFullyVisible();
+        return mPlayerView != null && mPlayerView.isControllerVisible();
     }
 
     @Override
