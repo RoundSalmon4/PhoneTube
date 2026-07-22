@@ -13,7 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.rx2.await
+import kotlinx.coroutines.rx2.awaitSingle
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -34,58 +34,58 @@ class YouTubeEngine @Inject constructor(
         get() = serviceManager.mediaItemService
 
     fun getHome(): Flow<List<MediaGroup>> = flow {
-        val groups = contentService.homeObserve.await()
+        val groups = contentService.homeObserve.awaitSingle()
         emit(groups)
     }.flowOn(Dispatchers.IO)
 
     fun getTrending(): Flow<List<MediaGroup>> = flow {
-        val groups = contentService.trendingObserve.await()
+        val groups = contentService.trendingObserve.awaitSingle()
         emit(groups)
     }.flowOn(Dispatchers.IO)
 
     fun getMusic(): Flow<List<MediaGroup>> = flow {
-        val groups = contentService.musicObserve.await()
+        val groups = contentService.musicObserve.awaitSingle()
         emit(groups)
     }.flowOn(Dispatchers.IO)
 
-    fun search(query: String): Flow<List<MediaItem>> = flow {
-        val results = contentService.getSearchObserve(query).await()
+    fun search(query: String): Flow<List<MediaGroup>> = flow {
+        val results = contentService.getSearchObserve(query).awaitSingle()
         emit(results)
     }.flowOn(Dispatchers.IO)
 
     fun getSearchSuggestions(query: String): Flow<List<String>> = flow {
-        val suggestions = contentService.getSearchTagsObserve(query).await()
+        val suggestions = contentService.getSearchTagsObserve(query).awaitSingle()
         emit(suggestions)
     }.flowOn(Dispatchers.IO)
 
-    fun getChannel(channelId: String): Flow<MediaGroup> = flow {
-        val channel = contentService.getChannelObserve(channelId).await()
+    fun getChannel(channelId: String): Flow<List<MediaGroup>> = flow {
+        val channel = contentService.getChannelObserve(channelId).awaitSingle()
         emit(channel)
     }.flowOn(Dispatchers.IO)
 
     fun getChannelVideos(channelId: String): Flow<List<MediaItem>> = flow {
-        val group = contentService.getChannelObserve(channelId).await()
-        emit(group.mediaItems)
+        val groups = contentService.getChannelObserve(channelId).awaitSingle()
+        emit(groups.flatMap { it.mediaItems })
     }.flowOn(Dispatchers.IO)
 
     fun getStreamInfo(videoId: String): Flow<MediaItemFormatInfo> = flow {
-        val info = mediaItemService.getFormatInfoObserve(videoId).await()
+        val info = mediaItemService.getFormatInfoObserve(videoId).awaitSingle()
         emit(info)
     }.flowOn(Dispatchers.IO)
 
     fun getMetadata(videoId: String): Flow<MediaItemMetadata> = flow {
-        val metadata = mediaItemService.getMetadataObserve(videoId).await()
+        val metadata = mediaItemService.getMetadataObserve(videoId).awaitSingle()
         emit(metadata)
     }.flowOn(Dispatchers.IO)
 
     fun getSponsorSegments(videoId: String): Flow<List<SponsorSegment>> = flow {
-        val segments = mediaItemService.getSponsorSegmentsObserve(videoId).await()
+        val segments = mediaItemService.getSponsorSegmentsObserve(videoId).awaitSingle()
         emit(segments)
     }.flowOn(Dispatchers.IO)
 
     fun continueGroup(group: MediaGroup): Flow<List<MediaItem>> = flow {
-        val items = contentService.continueGroupObserve(group).await()
-        emit(items)
+        val continued = contentService.continueGroupObserve(group).awaitSingle()
+        emit(continued.mediaItems)
     }.flowOn(Dispatchers.IO)
 
     fun isSignedIn(): Boolean {
