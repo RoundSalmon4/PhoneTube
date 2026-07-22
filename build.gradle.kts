@@ -42,12 +42,7 @@ subprojects {
                 }
             } catch (_: Exception) {}
             // Enable BuildConfig generation (disabled by default in AGP 8.x for library modules)
-            try {
-                val android = extensions.getByName("android")
-                val buildFeatures = android.javaClass.getMethod("getBuildFeatures").invoke(android)
-                buildFeatures.javaClass.getMethod("setBuildConfig", Boolean::class.java)
-                    .invoke(buildFeatures, true)
-            } catch (_: Exception) {}
+            apply(from = rootProject.file("enable-buildconfig.gradle"))
             // Force Java compileOptions to JVM 17 to match Kotlin default
             try {
                 val android = extensions.getByName("android")

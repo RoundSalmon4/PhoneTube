@@ -1,0 +1,7 @@
+// Applied from root build.gradle.kts to submodule library projects.
+// Enables BuildConfig generation which AGP 8.x disables by default.
+android {
+    buildFeatures {
+        buildConfig true
+    }
+}
