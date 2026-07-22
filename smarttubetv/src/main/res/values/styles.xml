@@ -286,10 +286,10 @@
     </style>
 
     <!-- Phone Preferences (dialog) -->
-    <style name="App.Theme.Phone.Preferences.Base" parent="Theme.AppCompat">
-        <item name="android:windowIsTranslucent">true</item>
-        <item name="android:windowBackground">@android:color/transparent</item>
-        <item name="android:backgroundDimEnabled">false</item>
+    <style name="App.Theme.Phone.Preferences.Base" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:windowBackground">@color/shelf_background_dark</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.6</item>
         <item name="colorAccent" tools:targetApi="21">@color/fastlane_background</item>
         <item name="android:colorAccent" tools:targetApi="21">@color/fastlane_background</item>
         <item name="colorPrimary" tools:targetApi="21">@color/fastlane_background_dark</item>
@@ -299,9 +299,7 @@
     </style>
     <style name="App.Theme.Phone.Preferences" parent="App.Theme.Phone.Preferences.Base" />
     <!-- Android 8 fallback -->
-    <style name="App.Theme.Phone.Preferences.Opaque" parent="App.Theme.Phone.Preferences.Base">
-        <item name="android:windowIsTranslucent">false</item>
-    </style>
+    <style name="App.Theme.Phone.Preferences.Opaque" parent="App.Theme.Phone.Preferences.Base" />
 
     <!-- Phone GuidedStep (sign-in, add-device) -->
     <style name="App.Theme.Phone.GuidedStep" parent="Theme.AppCompat.NoActionBar">

@@ -3,6 +3,8 @@ package com.liskovsoft.smartyoutubetv2.tv.ui.phone;
 import android.annotation.TargetApi;
 import android.app.PictureInPictureParams;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Bundle;
 import android.view.MotionEvent;
 
@@ -21,6 +23,9 @@ public class PhonePlaybackActivity extends PhoneActivity {
     private static final String TAG = PhonePlaybackActivity.class.getSimpleName();
     private PhonePlaybackFragment mPlaybackFragment;
     private boolean mIsBackPressed;
+    private boolean mPipPending;
+    private final Handler mHandler = new Handler(Looper.getMainLooper());
+    private final Runnable mPipPendingTimeout = () -> mPipPending = false;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -141,6 +146,8 @@ public class PhonePlaybackActivity extends PhoneActivity {
     @Override
     public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode);
+        mPipPending = false;
+        mHandler.removeCallbacks(mPipPendingTimeout);
         if (mPlaybackFragment != null) {
             mPlaybackFragment.onPIPChanged(isInPictureInPictureMode);
         }
@@ -151,6 +158,9 @@ public class PhonePlaybackActivity extends PhoneActivity {
     private void enterPipMode() {
         if (Helpers.isPictureInPictureSupported(this) && wannaEnterToPip()) {
             Log.d(TAG, "Entering PIP mode...");
+            mPipPending = true;
+            mHandler.removeCallbacks(mPipPendingTimeout);
+            mHandler.postDelayed(mPipPendingTimeout, 3_000);
             try {
                 if (Build.VERSION.SDK_INT >= 26) {
                     PictureInPictureParams.Builder params = new PictureInPictureParams.Builder();
@@ -160,6 +170,7 @@ public class PhonePlaybackActivity extends PhoneActivity {
                 }
             } catch (Exception e) {
                 Log.e(TAG, e.getMessage());
+                mPipPending = false;
             }
         }
     }
@@ -179,11 +190,15 @@ public class PhonePlaybackActivity extends PhoneActivity {
 
     private boolean doNotDestroy() {
         boolean isBackground = PlayerData.instance(this).getBackgroundMode() == PlayerData.BACKGROUND_MODE_SOUND || isEngineBlocked();
-        return isInPipMode() || isBackground;
+        return isInPipMode() || mPipPending || isBackground;
     }
 
     private boolean skipPip() {
         return mIsBackPressed && GeneralData.instance(this).getBackgroundPlaybackShortcut() == GeneralData.BACKGROUND_PLAYBACK_SHORTCUT_HOME;
+    }
+
+    public void setSkipPip(boolean skipPip) {
+        mIsBackPressed = skipPip;
     }
 
     private boolean isEngineBlocked() {

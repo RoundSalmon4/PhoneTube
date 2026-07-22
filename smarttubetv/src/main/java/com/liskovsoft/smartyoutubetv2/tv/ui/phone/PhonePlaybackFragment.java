@@ -1,5 +1,12 @@
 package com.liskovsoft.smartyoutubetv2.tv.ui.phone;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Build.VERSION;
 import android.os.Bundle;
 import android.os.Handler;
@@ -30,6 +37,7 @@ import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector;
 import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
 import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
 import com.google.android.exoplayer2.ui.PlayerView;
+import com.google.android.exoplayer2.ui.PlayerNotificationManager;
 import com.google.android.exoplayer2.ui.SubtitleView;
 import com.liskovsoft.mediaserviceinterfaces.data.MediaItemFormatInfo;
 import com.liskovsoft.sharedutils.helpers.Helpers;
@@ -51,10 +59,14 @@ import com.liskovsoft.smartyoutubetv2.tv.R;
 import com.liskovsoft.smartyoutubetv2.tv.ui.playback.other.BackboneQueueNavigator;
 
 import java.io.InputStream;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class PhonePlaybackFragment extends Fragment implements PlaybackView {
     private static final String TAG = PhonePlaybackFragment.class.getSimpleName();
+    private static final String NOTIFICATION_CHANNEL_ID = "phone_playback_channel";
+    private static final int NOTIFICATION_ID = 1;
 
     private SimpleExoPlayer mPlayer;
     private PlaybackPresenter mPlaybackPresenter;
@@ -70,9 +82,11 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
     private YouTubeOverlay mYouTubeOverlay;
     private MediaSessionCompat mMediaSession;
     private MediaSessionConnector mMediaSessionConnector;
+    private PlayerNotificationManager mNotificationManager;
 
     private boolean mIsEngineBlocked;
     private final Handler mUiHandler = new Handler(Looper.getMainLooper());
+    private final Map<Integer, Integer> mButtonStates = new HashMap<>();
 
     // --- Lifecycle ---
 
@@ -108,14 +122,20 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
         mBtnBackPersistent = view.findViewById(R.id.btn_back_persistent);
 
         mBtnBackPersistent.setOnClickListener(v -> {
-            if (getActivity() != null) {
-                getActivity().finish();
+            if (getActivity() instanceof PhonePlaybackActivity) {
+                ((PhonePlaybackActivity) getActivity()).setSkipPip(true);
             }
+            finish();
         });
 
         ImageButton btnMore = view.findViewById(R.id.exo_more);
         if (btnMore != null) {
             btnMore.setOnClickListener(v -> showPlayerMenu());
+        }
+
+        View btnBack = view.findViewById(R.id.exo_back);
+        if (btnBack != null) {
+            btnBack.setOnClickListener(v -> finishReally());
         }
 
         setupDoubleTap();
@@ -263,6 +283,67 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
                 return super.dispatchSetPlayWhenReady(player, playWhenReady);
             }
         });
+
+        if (!disableNotifications) {
+            createNotificationChannel();
+            setupNotificationManager();
+        }
+    }
+
+    private void createNotificationChannel() {
+        if (VERSION.SDK_INT >= 26 && getContext() != null) {
+            NotificationChannel channel = new NotificationChannel(
+                    NOTIFICATION_CHANNEL_ID,
+                    getContext().getString(R.string.app_name),
+                    NotificationManager.IMPORTANCE_LOW);
+            channel.setDescription("Media playback controls");
+            NotificationManager nm = (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm != null) {
+                nm.createNotificationChannel(channel);
+            }
+        }
+    }
+
+    private void setupNotificationManager() {
+        if (getContext() == null || mPlayer == null) {
+            return;
+        }
+
+        mNotificationManager = new PlayerNotificationManager(
+                getContext(),
+                NOTIFICATION_CHANNEL_ID,
+                NOTIFICATION_ID,
+                new PlayerNotificationManager.MediaDescriptionAdapter() {
+                    @Override
+                    public String getCurrentContentTitle(Player player) {
+                        Video video = getVideo();
+                        return video != null ? video.getTitleFull() : "";
+                    }
+
+                    @Override
+                    public PendingIntent createCurrentContentIntent(Player player) {
+                        Intent intent = new Intent(getContext(), PhonePlaybackActivity.class);
+                        return PendingIntent.getActivity(getContext(), 0, intent,
+                                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+                    }
+
+                    @Override
+                    public String getCurrentContentText(Player player) {
+                        Video video = getVideo();
+                        return video != null ? video.getAuthor() : null;
+                    }
+
+                    @Override
+                    public Bitmap getCurrentLargeIcon(Player player, PlayerNotificationManager.BitmapCallback callback) {
+                        return BitmapFactory.decodeResource(getResources(), R.mipmap.app_icon);
+                    }
+                });
+
+        mNotificationManager.setUseNavigationActions(false);
+        mNotificationManager.setUsePlayPauseActions(true);
+        mNotificationManager.setUseChronometer(false);
+        mNotificationManager.setMediaSessionToken(mMediaSession.getSessionToken());
+        mNotificationManager.setPlayer(mPlayer);
     }
 
     private void maybeReleasePlayer() {
@@ -280,6 +361,10 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
     }
 
     private void destroyPlayerObjects() {
+        if (mNotificationManager != null) {
+            mNotificationManager.setPlayer(null);
+            mNotificationManager = null;
+        }
         if (mMediaSessionConnector != null) {
             mMediaSessionConnector.setPlayer(null);
             mMediaSessionConnector.setControlDispatcher(null);
@@ -407,11 +492,60 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
         sheet.show(getChildFragmentManager(), "player_menu");
     }
 
-    // Touch forwarding for double-tap
+    // Touch forwarding for double-tap — guard with isOverlayShown() like the TV version.
+    // When overlay is visible, tap on empty space dismisses it; taps on buttons pass through.
     public void onDispatchTouchEvent(MotionEvent event) {
-        if (mDoubleTapPlayerAdapter != null) {
+        if (event.getAction() == MotionEvent.ACTION_DOWN && isOverlayShown()) {
+            View hitView = findViewAt(getView(), (int) event.getX(), (int) event.getY());
+            boolean hitButton = hitView instanceof android.widget.Button
+                    || hitView instanceof android.widget.ImageButton
+                    || hitView instanceof android.widget.TextView;
+            if (!hitButton) {
+                mPlayerView.hideController();
+                mPlaybackPresenter.onControlsShown(false);
+            }
+            return;
+        }
+        if (mDoubleTapPlayerAdapter != null && !isOverlayShown()) {
             mDoubleTapPlayerAdapter.onTouchEvent(event);
         }
+    }
+
+    private View findViewAt(View root, int x, int y) {
+        if (root == null || !root.isShown()) {
+            return null;
+        }
+        if (root instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) root;
+            for (int i = group.getChildCount() - 1; i >= 0; i--) {
+                View child = group.getChildAt(i);
+                if (child.getVisibility() != View.VISIBLE) {
+                    continue;
+                }
+                int[] loc = new int[2];
+                child.getLocationOnScreen(loc);
+                int[] rootLoc = new int[2];
+                root.getLocationOnScreen(rootLoc);
+                int childX = x - (loc[0] - rootLoc[0]);
+                int childY = y - (loc[1] - rootLoc[1]);
+                if (childX >= 0 && childX < child.getWidth() && childY >= 0 && childY < child.getHeight()) {
+                    View found = findViewAt(child, childX, childY);
+                    if (found != null) {
+                        return found;
+                    }
+                }
+            }
+        }
+        int[] loc = new int[2];
+        root.getLocationOnScreen(loc);
+        int[] rootLoc = new int[2];
+        root.getLocationOnScreen(rootLoc);
+        int localX = x - (loc[0] - rootLoc[0]);
+        int localY = y - (loc[1] - rootLoc[1]);
+        if (localX >= 0 && localX < root.getWidth() && localY >= 0 && localY < root.getHeight()) {
+            return root;
+        }
+        return null;
     }
 
     // --- PlaybackView: PlayerManager ---
@@ -422,6 +556,7 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
         if (video != null && mVideoTitle != null) {
             mVideoTitle.setText(video.getTitleFull());
         }
+        mButtonStates.clear();
     }
 
     @Override
@@ -780,12 +915,13 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
 
     @Override
     public int getButtonState(int buttonId) {
-        return PlayerUI.BUTTON_OFF;
+        Integer state = mButtonStates.get(buttonId);
+        return state != null ? state : PlayerUI.BUTTON_OFF;
     }
 
     @Override
     public void setButtonState(int buttonId, int buttonState) {
-        // No-op for now
+        mButtonStates.put(buttonId, buttonState);
     }
 
     @Override
