@@ -1,5 +1,6 @@
 package app.phonetube.core.engine
 
+import android.util.Log
 import app.phonetube.core.engine.model.ChannelInfo
 import app.phonetube.core.engine.model.ChannelSection
 import app.phonetube.core.engine.model.HomeFeed
@@ -31,6 +32,10 @@ import javax.inject.Singleton
 class YouTubeEngine @Inject constructor(
     private val initializer: YouTubeInitializer
 ) {
+    companion object {
+        private const val TAG = "YouTubeEngine"
+    }
+
     private val serviceManager: ServiceManager
         get() {
             initializer.init()
@@ -44,18 +49,51 @@ class YouTubeEngine @Inject constructor(
         get() = serviceManager.mediaItemService
 
     fun getHome(): Flow<HomeFeed> = flow {
-        val groups = contentService.homeObserve.awaitFirstOrDefault(emptyList())
-        emit(groups.toHomeFeed())
+        try {
+            Log.d(TAG, "getHome: calling homeObserve...")
+            val groups = contentService.homeObserve.awaitFirstOrDefault(emptyList())
+            Log.d(TAG, "getHome: got ${groups.size} groups")
+            for (g in groups) {
+                val items = g.mediaItems
+                Log.d(TAG, "  group: type=${g.type}, title='${g.title}', items=${items?.size ?: "null"}")
+            }
+            emit(groups.toHomeFeed())
+        } catch (e: Exception) {
+            Log.e(TAG, "getHome failed", e)
+            throw e
+        }
     }.flowOn(Dispatchers.IO)
 
     fun getTrending(): Flow<HomeFeed> = flow {
-        val groups = contentService.trendingObserve.awaitFirstOrDefault(emptyList())
-        emit(groups.toHomeFeed())
+        try {
+            Log.d(TAG, "getTrending: calling trendingObserve...")
+            val groups = contentService.trendingObserve.awaitFirstOrDefault(emptyList())
+            Log.d(TAG, "getTrending: got ${groups.size} groups")
+            for (g in groups) {
+                val items = g.mediaItems
+                Log.d(TAG, "  group: type=${g.type}, title='${g.title}', items=${items?.size ?: "null"}")
+            }
+            emit(groups.toHomeFeed())
+        } catch (e: Exception) {
+            Log.e(TAG, "getTrending failed", e)
+            throw e
+        }
     }.flowOn(Dispatchers.IO)
 
     fun getMusic(): Flow<HomeFeed> = flow {
-        val groups = contentService.musicObserve.awaitFirstOrDefault(emptyList())
-        emit(groups.toHomeFeed())
+        try {
+            Log.d(TAG, "getMusic: calling musicObserve...")
+            val groups = contentService.musicObserve.awaitFirstOrDefault(emptyList())
+            Log.d(TAG, "getMusic: got ${groups.size} groups")
+            for (g in groups) {
+                val items = g.mediaItems
+                Log.d(TAG, "  group: type=${g.type}, title='${g.title}', items=${items?.size ?: "null"}")
+            }
+            emit(groups.toHomeFeed())
+        } catch (e: Exception) {
+            Log.e(TAG, "getMusic failed", e)
+            throw e
+        }
     }.flowOn(Dispatchers.IO)
 
     fun search(query: String): Flow<SearchResult> = flow {
