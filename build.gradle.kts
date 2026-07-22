@@ -10,6 +10,15 @@ plugins {
 }
 
 subprojects {
+    configurations.all {
+        resolutionStrategy {
+            force("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+            force("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
+            force("org.jetbrains.kotlin:kotlin-stdlib:${libs.versions.kotlin.get()}")
+            force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:${libs.versions.kotlin.get()}")
+            force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:${libs.versions.kotlin.get()}")
+        }
+    }
     afterEvaluate {
         if (extensions.findByName("android") != null) {
             try {
