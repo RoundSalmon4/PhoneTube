@@ -6,7 +6,6 @@
 **Branch:** `new-ui` (branched from `phone-port`)
 **Goal:** Build a brand-new Kotlin + Jetpack Compose YouTube phone app that uses SmartTube's MediaServiceCore as its YouTube data engine. No TV UI, no Leanback, no MVP presenters -- completely fresh modern Android architecture.
 **Why:** The phone-port branch proved MediaServiceCore works on phones, but converting the TV-based Leanback UI is not worth the effort. Better to build a clean phone UI from scratch.
-**Current state:** Steps 1 and 2 are done. Gradle/catalog/build files are in place, the app shell (Application, MainActivity, theme, type-safe Navigation with bottom nav + 6 placeholder screens) compiles, and the Room/DI/engine skeleton from step 3/4 is already roughed in. Build is green on the `new-ui` CI after the KSP1 pin (§4 KSP note). Next real work is fleshing out YouTubeEngine + the Home screen.
 
 ### Before doing anything
 1. Read this entire document
@@ -336,10 +335,9 @@ data class PlayerUiState(
 - **Route:** `search`
 - **ViewModel:** `SearchViewModel` → `SearchUiState`
 - **What it does:** Search YouTube with autocomplete suggestions.
-- **Layout:** Search bar at top (with voice search button). Below: either autocomplete suggestions or search results grid.
+- **Layout:** Search bar at top. Below: either autocomplete suggestions or search results grid.
 - **Results:** Same video card component as home screen. 2-column grid.
 - **Autocomplete:** Debounced (300ms) text input → suggestions list.
-- **Voice search:** System speech recognizer intent.
 
 ```kotlin
 data class SearchUiState(
@@ -891,7 +889,6 @@ Reality check: the pacing item is almost always Hilt + Room vs Kotlin. If Hilt d
 - Create `SearchViewModel.kt` + `SearchScreen.kt`
 - Wire up to YouTubeEngine.search()
 - Add autocomplete suggestions
-- Add voice search
 - **Goal:** Can search YouTube and see results
 
 ### Step 9: Channel Screen
@@ -911,6 +908,7 @@ Reality check: the pacing item is almost always Hilt + Room vs Kotlin. If Hilt d
 - Create `SettingsViewModel.kt` + `SettingsScreen.kt`
 - Wire up to PlayerPreferences (DataStore)
 - Add SponsorBlock config, player defaults, theme selection
+- Add option to choose default feed (Home, Trending, etc.) — used on app launch
 - **Goal:** Can configure app settings
 
 ### Step 12: Mini Player
@@ -919,8 +917,9 @@ Reality check: the pacing item is almost always Hilt + Room vs Kotlin. If Hilt d
 - Add play/pause, close, tap-to-open-full-player
 - **Goal:** Persistent mini-player bar works
 
-### Step 13: Polish + Commit
+### Step 13: Polish + Release
 - Clean up all TODOs
+- Enable R8 minification and resource shrinking in `app/build.gradle.kts` (`isMinifyEnabled = true`, `isShrinkResources = true`)
 - Test all screens flow
 - Final commit
 
