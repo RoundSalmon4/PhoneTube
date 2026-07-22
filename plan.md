@@ -909,6 +909,7 @@ Reality check: the pacing item is almost always Hilt + Room vs Kotlin. If Hilt d
 - Wire up to PlayerPreferences (DataStore)
 - Add SponsorBlock config, player defaults, theme selection
 - Add option to choose default feed (Home, Trending, etc.) — used on app launch
+- Add landscape lock toggle for player (force landscape during playback)
 - **Goal:** Can configure app settings
 
 ### Step 12: Mini Player
