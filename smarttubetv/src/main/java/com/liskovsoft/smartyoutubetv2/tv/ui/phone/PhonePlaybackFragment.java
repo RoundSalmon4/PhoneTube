@@ -50,6 +50,7 @@ import com.liskovsoft.smartyoutubetv2.common.app.presenters.PlaybackPresenter;
 import com.liskovsoft.smartyoutubetv2.common.app.views.PlaybackView;
 import com.liskovsoft.smartyoutubetv2.common.exoplayer.controller.ExoPlayerController;
 import com.liskovsoft.smartyoutubetv2.common.exoplayer.other.ExoPlayerInitializer;
+import com.liskovsoft.smartyoutubetv2.common.exoplayer.other.SubtitleManager;
 import com.liskovsoft.smartyoutubetv2.common.exoplayer.selector.FormatItem;
 import com.liskovsoft.smartyoutubetv2.common.exoplayer.versions.renderer.CustomOverridesRenderersFactory;
 import com.liskovsoft.smartyoutubetv2.common.exoplayer.versions.selector.RestoreTrackSelector;
@@ -83,6 +84,7 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
     private MediaSessionCompat mMediaSession;
     private MediaSessionConnector mMediaSessionConnector;
     private PlayerNotificationManager mNotificationManager;
+    private SubtitleManager mSubtitleManager;
 
     private boolean mIsEngineBlocked;
     private final Handler mUiHandler = new Handler(Looper.getMainLooper());
@@ -120,6 +122,9 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
         mSubtitleView = view.findViewById(R.id.subtitle_view);
         mYouTubeOverlay = view.findViewById(R.id.youtube_overlay);
         mBtnBackPersistent = view.findViewById(R.id.btn_back_persistent);
+
+        // Ensure notification channel exists before any player notifications
+        createNotificationChannel();
 
         mBtnBackPersistent.setOnClickListener(v -> {
             if (getActivity() instanceof PhonePlaybackActivity) {
@@ -218,6 +223,8 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
 
         mPlayerView.setPlayer(mPlayer);
 
+        createSubtitleManager();
+
         mPlayer.addListener(new Player.EventListener() {
             @Override
             public void onPlaybackParametersChanged(com.google.android.exoplayer2.PlaybackParameters playbackParameters) {
@@ -285,7 +292,6 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
         });
 
         if (!disableNotifications) {
-            createNotificationChannel();
             setupNotificationManager();
         }
     }
@@ -388,6 +394,20 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
         }
         mDoubleTapPlayerAdapter = null;
         mPlayer = null;
+    }
+
+    private void createSubtitleManager() {
+        if (getView() == null || mPlayer == null) {
+            return;
+        }
+
+        if (mSubtitleManager == null) {
+            mSubtitleManager = new SubtitleManager(getView().findViewById(R.id.subtitle_view));
+
+            if (mPlayer.getTextComponent() != null) {
+                mPlayer.getTextComponent().addTextOutput(mSubtitleManager);
+            }
+        }
     }
 
     // --- Double-tap ---
@@ -496,13 +516,31 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
     // When the ExoPlayer controller overlay is visible, skip double-tap forwarding
     // so normal touch dispatch handles button clicks, seek bar drags, and overlay
     // dismissal via PlayerView's built-in behavior.
+    // Always let the persistent back button through — the double-tap adapter's
+    // singleTap handler would otherwise show controls instead of closing.
     public void onDispatchTouchEvent(MotionEvent event) {
+        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+            if (mBtnBackPersistent != null && mBtnBackPersistent.getVisibility() == View.VISIBLE
+                    && isTouchInsideView(mBtnBackPersistent, event)) {
+                return;
+            }
+        }
         if (isOverlayShown()) {
             return;
         }
         if (mDoubleTapPlayerAdapter != null) {
             mDoubleTapPlayerAdapter.onTouchEvent(event);
         }
+    }
+
+    private boolean isTouchInsideView(View view, MotionEvent event) {
+        if (view == null || view.getVisibility() != View.VISIBLE) return false;
+        int[] loc = new int[2];
+        view.getLocationOnScreen(loc);
+        float x = event.getRawX();
+        float y = event.getRawY();
+        return x >= loc[0] && x <= loc[0] + view.getWidth() &&
+               y >= loc[1] && y <= loc[1] + view.getHeight();
     }
 
     // --- PlaybackView: PlayerManager ---
@@ -903,8 +941,9 @@ public class PhonePlaybackFragment extends Fragment implements PlaybackView {
 
     @Override
     public void showSubtitles(boolean show) {
-        if (mSubtitleView != null) {
-            mSubtitleView.setVisibility(show ? View.VISIBLE : View.GONE);
+        createSubtitleManager();
+        if (mSubtitleManager != null) {
+            mSubtitleManager.show(show);
         }
     }
 

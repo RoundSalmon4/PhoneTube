@@ -41,8 +41,7 @@ public class PhoneAppDialogActivity extends PhoneActivity {
             mFragment.onFinish();
         }
 
-        getViewManager().removeTop(this);
-        super.finish();
+        finishReally();
     }
 
     @Override
