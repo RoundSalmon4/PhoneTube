@@ -37,17 +37,11 @@ public class PhoneAppDialogActivity extends PhoneActivity {
 
     @Override
     public void finish() {
-        if (mFragment != null) {
-            mFragment.onFinish();
-        }
-
         finishReally();
     }
 
     @Override
     public void finishReally() {
-        // Reached only on the app-exit path (properlyFinishTheApp). Keep the normal
-        // teardown so move-to-back still works, and let the dialog presenter clean up.
         super.finishReally();
 
         if (mFragment != null) {

@@ -6,17 +6,6 @@
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <ImageButton
-        android:id="@+id/btn_back_persistent"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_gravity="top|start"
-        android:layout_margin="12dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:src="@android:drawable/ic_menu_close_clear_cancel"
-        android:contentDescription="Back"
-        android:scaleType="centerInside" />
-
     <com.google.android.exoplayer2.ui.PlayerView
         android:id="@+id/exo_player_view"
         android:layout_width="match_parent"
@@ -40,5 +29,16 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone" />
+
+    <ImageButton
+        android:id="@+id/btn_back_persistent"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|start"
+        android:layout_margin="12dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/ic_menu_close_clear_cancel"
+        android:contentDescription="Back"
+        android:scaleType="centerInside" />
 
 </FrameLayout>
