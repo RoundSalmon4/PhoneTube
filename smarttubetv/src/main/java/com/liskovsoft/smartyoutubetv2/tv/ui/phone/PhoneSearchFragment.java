@@ -531,16 +531,10 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
                 thumbnailUrl = video.getCardImageUrl();
             }
 
-            Activity activity = null;
-            if (holder.itemView.getContext() instanceof Activity) {
-                activity = (Activity) holder.itemView.getContext();
-            }
-            if (activity != null && !activity.isDestroyed()) {
-                Glide.with(activity)
-                        .load(thumbnailUrl)
-                        .centerCrop()
-                        .into(holder.thumbnail);
-            }
+            Glide.with(holder.itemView)
+                    .load(thumbnailUrl)
+                    .centerCrop()
+                    .into(holder.thumbnail);
         }
 
         private void bindChannel(ChannelViewHolder holder, Video video) {
@@ -549,16 +543,10 @@ public class PhoneSearchFragment extends Fragment implements SearchView {
 
             String avatarUrl = video.getCardImageUrl();
 
-            Activity activity = null;
-            if (holder.itemView.getContext() instanceof Activity) {
-                activity = (Activity) holder.itemView.getContext();
-            }
-            if (activity != null && !activity.isDestroyed()) {
-                Glide.with(activity)
-                        .load(avatarUrl)
-                        .circleCrop()
-                        .into(holder.avatar);
-            }
+            Glide.with(holder.itemView)
+                    .load(avatarUrl)
+                    .circleCrop()
+                    .into(holder.avatar);
         }
 
         @Override

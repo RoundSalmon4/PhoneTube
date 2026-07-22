@@ -1,6 +1,5 @@
 package com.liskovsoft.smartyoutubetv2.tv.ui.phone;
 
-import android.app.Activity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -23,7 +22,6 @@ import com.liskovsoft.smartyoutubetv2.common.app.models.data.Video;
 import com.liskovsoft.smartyoutubetv2.common.app.models.data.VideoGroup;
 import com.liskovsoft.smartyoutubetv2.common.app.presenters.ChannelPresenter;
 import com.liskovsoft.smartyoutubetv2.common.app.views.ChannelView;
-import com.liskovsoft.smartyoutubetv2.common.utils.ClickbaitRemover;
 import com.liskovsoft.smartyoutubetv2.tv.R;
 import com.liskovsoft.sharedutils.helpers.Helpers;
 
@@ -246,13 +244,10 @@ public class PhoneChannelFragment extends Fragment implements ChannelView {
 
         String avatarUrl = channel.getCardImageUrl();
         if (mAvatar != null && avatarUrl != null && !avatarUrl.isEmpty()) {
-            Activity activity = getActivity();
-            if (activity != null && !activity.isDestroyed()) {
-                Glide.with(activity)
-                        .load(avatarUrl)
-                        .circleCrop()
-                        .into(mAvatar);
-            }
+            Glide.with(mAvatar)
+                    .load(avatarUrl)
+                    .circleCrop()
+                    .into(mAvatar);
         }
     }
 
@@ -306,7 +301,7 @@ public class PhoneChannelFragment extends Fragment implements ChannelView {
         class RowViewHolder extends RecyclerView.ViewHolder {
             TextView rowTitle;
             RecyclerView rowItems;
-            HorizontalVideoAdapter videoAdapter;
+            PhoneVideoCardAdapter videoAdapter;
 
             RowViewHolder(@NonNull View itemView) {
                 super(itemView);
@@ -315,79 +310,18 @@ public class PhoneChannelFragment extends Fragment implements ChannelView {
                 LinearLayoutManager lm = new LinearLayoutManager(
                         itemView.getContext(), LinearLayoutManager.HORIZONTAL, false);
                 rowItems.setLayoutManager(lm);
-                videoAdapter = new HorizontalVideoAdapter();
+                videoAdapter = new PhoneVideoCardAdapter(new PhoneVideoCardAdapter.OnVideoClickListener() {
+                    @Override
+                    public void onClick(com.liskovsoft.smartyoutubetv2.common.app.models.data.Video video) {
+                        mChannelPresenter.onVideoItemClicked(video);
+                    }
+
+                    @Override
+                    public void onLongClick(com.liskovsoft.smartyoutubetv2.common.app.models.data.Video video) {
+                        mChannelPresenter.onVideoItemLongClicked(video);
+                    }
+                });
                 rowItems.setAdapter(videoAdapter);
-            }
-        }
-    }
-
-    // ---------- Horizontal video adapter ----------
-
-    private class HorizontalVideoAdapter extends RecyclerView.Adapter<HorizontalVideoAdapter.VideoViewHolder> {
-        private List<Video> mVideos = new ArrayList<>();
-
-        void setVideos(List<Video> videos) {
-            mVideos = videos != null ? videos : new ArrayList<>();
-            notifyDataSetChanged();
-        }
-
-        @NonNull
-        @Override
-        public VideoViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View view = LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.item_phone_video_card, parent, false);
-            return new VideoViewHolder(view);
-        }
-
-        @Override
-        public void onBindViewHolder(@NonNull VideoViewHolder holder, int position) {
-            Video video = mVideos.get(position);
-
-            holder.title.setText(video.getTitle());
-            holder.channelName.setText(video.getAuthor());
-            holder.viewsDate.setText(video.getSecondTitle());
-
-            String thumbnailUrl = ClickbaitRemover.updateThumbnail(video, 0);
-            if (thumbnailUrl == null) {
-                thumbnailUrl = video.getCardImageUrl();
-            }
-
-            Activity activity = null;
-            if (holder.itemView.getContext() instanceof Activity) {
-                activity = (Activity) holder.itemView.getContext();
-            }
-            if (activity != null && !activity.isDestroyed()) {
-                Glide.with(activity)
-                        .load(thumbnailUrl)
-                        .centerCrop()
-                        .into(holder.thumbnail);
-            }
-
-            holder.itemView.setOnClickListener(v ->
-                    mChannelPresenter.onVideoItemClicked(video));
-            holder.itemView.setOnLongClickListener(v -> {
-                mChannelPresenter.onVideoItemLongClicked(video);
-                return true;
-            });
-        }
-
-        @Override
-        public int getItemCount() {
-            return mVideos != null ? mVideos.size() : 0;
-        }
-
-        class VideoViewHolder extends RecyclerView.ViewHolder {
-            ImageView thumbnail;
-            TextView title;
-            TextView channelName;
-            TextView viewsDate;
-
-            VideoViewHolder(@NonNull View itemView) {
-                super(itemView);
-                thumbnail = itemView.findViewById(R.id.video_thumbnail);
-                title = itemView.findViewById(R.id.video_title);
-                channelName = itemView.findViewById(R.id.video_channel_name);
-                viewsDate = itemView.findViewById(R.id.video_views_date);
             }
         }
     }

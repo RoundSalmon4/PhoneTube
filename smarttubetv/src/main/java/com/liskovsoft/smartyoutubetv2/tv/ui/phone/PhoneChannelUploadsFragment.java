@@ -1,6 +1,5 @@
 package com.liskovsoft.smartyoutubetv2.tv.ui.phone;
 
-import android.app.Activity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -207,16 +206,10 @@ public class PhoneChannelUploadsFragment extends Fragment implements ChannelUplo
                 thumbnailUrl = video.getCardImageUrl();
             }
 
-            Activity activity = null;
-            if (holder.itemView.getContext() instanceof Activity) {
-                activity = (Activity) holder.itemView.getContext();
-            }
-            if (activity != null && !activity.isDestroyed()) {
-                Glide.with(activity)
-                        .load(thumbnailUrl)
-                        .centerCrop()
-                        .into(holder.thumbnail);
-            }
+            Glide.with(holder.itemView)
+                    .load(thumbnailUrl)
+                    .centerCrop()
+                    .into(holder.thumbnail);
 
             holder.itemView.setOnClickListener(v ->
                     mPresenter.onVideoItemClicked(video));

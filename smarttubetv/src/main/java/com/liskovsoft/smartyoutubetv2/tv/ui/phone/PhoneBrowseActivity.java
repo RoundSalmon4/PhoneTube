@@ -39,8 +39,8 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView {
 
     private BottomNavigationView mBottomNav;
     private PhoneBrowseFragment mHomeFragment;
-    private PhoneSubscriptionsFragment mSubscriptionsFragment;
-    private PhoneLibraryFragment mLibraryFragment;
+    private PhoneVideoGridFragment mSubscriptionsFragment;
+    private PhoneVideoGridFragment mLibraryFragment;
     private PhoneSettingsFragment mSettingsFragment;
     private final Handler mHandler = new Handler(Looper.getMainLooper());
 
@@ -65,8 +65,10 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView {
 
     private void initFragments() {
         mHomeFragment = new PhoneBrowseFragment();
-        mSubscriptionsFragment = new PhoneSubscriptionsFragment();
-        mLibraryFragment = new PhoneLibraryFragment();
+        mSubscriptionsFragment = new PhoneVideoGridFragment();
+        mSubscriptionsFragment.setEmptyMessage("No subscriptions");
+        mLibraryFragment = new PhoneVideoGridFragment();
+        mLibraryFragment.setEmptyMessage("No watch history");
         mSettingsFragment = new PhoneSettingsFragment();
 
         mHomeFragment.setOnRefreshListener(sectionId ->
@@ -88,8 +90,8 @@ public class PhoneBrowseActivity extends PhoneActivity implements BrowseView {
     private void restoreFragments() {
         FragmentManager fm = getSupportFragmentManager();
         mHomeFragment = (PhoneBrowseFragment) fm.findFragmentByTag(TAG_HOME);
-        mSubscriptionsFragment = (PhoneSubscriptionsFragment) fm.findFragmentByTag(TAG_SUBSCRIPTIONS);
-        mLibraryFragment = (PhoneLibraryFragment) fm.findFragmentByTag(TAG_LIBRARY);
+        mSubscriptionsFragment = (PhoneVideoGridFragment) fm.findFragmentByTag(TAG_SUBSCRIPTIONS);
+        mLibraryFragment = (PhoneVideoGridFragment) fm.findFragmentByTag(TAG_LIBRARY);
         mSettingsFragment = (PhoneSettingsFragment) fm.findFragmentByTag(TAG_SETTINGS);
 
         if (mHomeFragment != null) {
