@@ -45,11 +45,11 @@ class HomeViewModel @Inject constructor(
                 // Home feed first, then categories in a fixed order
                 val orderedFeeds = listOf(
                     homeSections.await(),
-                    musicSections.await(),
-                    gamingSections.await(),
-                    newsSections.await(),
                     sportsSections.await(),
+                    gamingSections.await(),
                     liveSections.await(),
+                    newsSections.await(),
+                    musicSections.await(),
                     kidsSections.await()
                 )
 

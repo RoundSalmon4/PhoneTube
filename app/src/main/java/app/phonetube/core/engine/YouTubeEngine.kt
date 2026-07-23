@@ -5,6 +5,7 @@ import app.phonetube.core.engine.model.ChannelInfo
 import app.phonetube.core.engine.model.ChannelSection
 import app.phonetube.core.engine.model.HomeFeed
 import app.phonetube.core.engine.model.HomeSection
+import app.phonetube.core.engine.model.SearchChannel
 import app.phonetube.core.engine.model.SearchResult
 import app.phonetube.core.engine.model.SearchSection
 import app.phonetube.core.engine.model.StreamFormat
@@ -24,6 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.rx2.await
 import kotlinx.coroutines.rx2.awaitFirstOrDefault
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -51,8 +53,14 @@ class YouTubeEngine @Inject constructor(
     fun getHome(): Flow<HomeFeed> = flow {
         try {
             Log.d(TAG, "getHome: calling homeObserve...")
-            val groups = contentService.homeObserve.awaitFirstOrDefault(emptyList())
-            Log.d(TAG, "getHome: got ${groups.size} groups")
+            val allBatches = try {
+                contentService.homeObserve.toList().await()
+            } catch (e: Exception) {
+                Log.w(TAG, "getHome: toList failed, falling back to first emission", e)
+                listOf(contentService.homeObserve.awaitFirstOrDefault(emptyList()))
+            }
+            val groups = allBatches.flatten()
+            Log.d(TAG, "getHome: got ${groups.size} groups (from ${allBatches.size} batches)")
             for (g in groups) {
                 val items = g.mediaItems
                 Log.d(TAG, "  group: type=${g.type}, title='${g.title}', items=${items?.size ?: "null"}")
@@ -60,22 +68,6 @@ class YouTubeEngine @Inject constructor(
             emit(groups.toHomeFeed())
         } catch (e: Exception) {
             Log.e(TAG, "getHome failed", e)
-            emit(HomeFeed(emptyList()))
-        }
-    }.flowOn(Dispatchers.IO)
-
-    fun getTrending(): Flow<HomeFeed> = flow {
-        try {
-            Log.d(TAG, "getTrending: calling trendingObserve...")
-            val groups = contentService.trendingObserve.awaitFirstOrDefault(emptyList())
-            Log.d(TAG, "getTrending: got ${groups.size} groups")
-            for (g in groups) {
-                val items = g.mediaItems
-                Log.d(TAG, "  group: type=${g.type}, title='${g.title}', items=${items?.size ?: "null"}")
-            }
-            emit(groups.toHomeFeed())
-        } catch (e: Exception) {
-            Log.e(TAG, "getTrending failed", e)
             emit(HomeFeed(emptyList()))
         }
     }.flowOn(Dispatchers.IO)
@@ -370,14 +362,42 @@ class YouTubeEngine @Inject constructor(
         }
     )
 
-    private fun List<MediaGroup>.toSearchResult(): SearchResult = SearchResult(
-        sections = mapNotNull { group ->
-            val videos = (group.mediaItems ?: emptyList()).filterNotNull()
-                .mapNotNull { it.toVideo() }
-                .distinctBy { it.videoId }
-            if (videos.isNotEmpty()) {
-                SearchSection(title = group.title.orEmpty(), videos = videos)
-            } else null
+    private fun List<MediaGroup>.toSearchResult(): SearchResult {
+        val videos = mutableListOf<Video>()
+        val channels = mutableListOf<SearchChannel>()
+
+        for (group in this) {
+            for (item in (group.mediaItems ?: emptyList()).filterNotNull()) {
+                when (item.type) {
+                    MediaItem.TYPE_CHANNEL -> {
+                        val channelId = item.channelId
+                        if (!channelId.isNullOrBlank()) {
+                            channels.add(
+                                SearchChannel(
+                                    channelId = channelId,
+                                    name = item.title.orEmpty(),
+                                    thumbnailUrl = item.cardImageUrl
+                                )
+                            )
+                        }
+                    }
+                    else -> {
+                        val video = item.toVideo()
+                        if (video != null) {
+                            videos.add(video)
+                        }
+                    }
+                }
+            }
         }
-    )
+
+        val sections = if (videos.isNotEmpty()) {
+            listOf(SearchSection(title = "", videos = videos.distinctBy { it.videoId }))
+        } else emptyList()
+
+        return SearchResult(
+            sections = sections,
+            channels = channels.distinctBy { it.channelId }
+        )
+    }
 }

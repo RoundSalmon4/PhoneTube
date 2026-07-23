@@ -3,6 +3,8 @@ package app.phonetube.ui.search
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.phonetube.core.engine.YouTubeEngine
+import app.phonetube.core.engine.model.SearchChannel
+import app.phonetube.core.engine.model.SearchFilter
 import app.phonetube.core.engine.model.Video
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -30,6 +32,11 @@ class SearchViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<SearchUiState>(SearchUiState.Idle)
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
+    private val _filter = MutableStateFlow(SearchFilter.ALL)
+    val filter: StateFlow<SearchFilter> = _filter.asStateFlow()
+
+    private var allVideos: List<Video> = emptyList()
+    private var allChannels: List<SearchChannel> = emptyList()
     private var suggestionJob: Job? = null
 
     fun onQueryChange(newQuery: String) {
@@ -56,9 +63,36 @@ class SearchViewModel @Inject constructor(
         search(suggestion)
     }
 
+    fun onFilterChange(newFilter: SearchFilter) {
+        _filter.value = newFilter
+        applyFilter()
+    }
+
     fun clearResults() {
         _uiState.value = SearchUiState.Idle
         _suggestions.value = emptyList()
+        allVideos = emptyList()
+        allChannels = emptyList()
+    }
+
+    private fun applyFilter() {
+        val filteredVideos = when (_filter.value) {
+            SearchFilter.ALL, SearchFilter.VIDEOS -> allVideos
+            SearchFilter.CHANNELS -> emptyList()
+        }
+        val filteredChannels = when (_filter.value) {
+            SearchFilter.ALL, SearchFilter.CHANNELS -> allChannels
+            SearchFilter.VIDEOS -> emptyList()
+        }
+
+        if (filteredVideos.isEmpty() && filteredChannels.isEmpty()) {
+            _uiState.value = SearchUiState.Empty
+        } else {
+            _uiState.value = SearchUiState.Results(
+                videos = filteredVideos,
+                channels = filteredChannels
+            )
+        }
     }
 
     private fun fetchSuggestions(query: String) {
@@ -85,12 +119,9 @@ class SearchViewModel @Inject constructor(
                 }
                 .firstOrNull()
                 ?.let { result ->
-                    val videos = result.sections.flatMap { it.videos }.distinctBy { it.videoId }
-                    if (videos.isEmpty()) {
-                        _uiState.value = SearchUiState.Empty
-                    } else {
-                        _uiState.value = SearchUiState.Results(videos)
-                    }
+                    allVideos = result.sections.flatMap { it.videos }.distinctBy { it.videoId }
+                    allChannels = result.channels
+                    applyFilter()
                 }
         }
     }
@@ -101,7 +132,10 @@ sealed interface SearchUiState {
     data object Loading : SearchUiState
     data object Empty : SearchUiState
     data class Error(val message: String) : SearchUiState
-    data class Results(val videos: List<Video>) : SearchUiState
+    data class Results(
+        val videos: List<Video>,
+        val channels: List<SearchChannel>
+    ) : SearchUiState
 }
 
 private const val SUGGESTION_DEBOUNCE_MS = 300L
