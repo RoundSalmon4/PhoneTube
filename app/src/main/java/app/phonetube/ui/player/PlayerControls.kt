@@ -42,6 +42,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import app.phonetube.core.engine.model.SponsorSegment
+import app.phonetube.player.PlayerPlaybackSnapshot
 import app.phonetube.player.SponsorBlockService
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
