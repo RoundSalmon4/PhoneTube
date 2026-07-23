@@ -85,7 +85,16 @@ class ChannelViewModel @Inject constructor(
             } else {
                 val state = _uiState.value
                 val name = if (state is ChannelUiState.Success) state.name else channelId
-                val avatar = if (state is ChannelUiState.Success) state.avatarUrl else null
+                var avatar = if (state is ChannelUiState.Success) state.avatarUrl else null
+                if (avatar.isNullOrBlank() && state is ChannelUiState.Success) {
+                    val firstVideoId = state.sections.firstOrNull()?.videos?.firstOrNull()?.videoId
+                    if (!firstVideoId.isNullOrBlank()) {
+                        try {
+                            val metadata = engine.getMetadata(firstVideoId).firstOrNull()
+                            avatar = metadata?.video?.thumbnailUrl
+                        } catch (_: Exception) { }
+                    }
+                }
                 subscriptionDao.subscribe(
                     LocalSubscription(
                         channelId = channelId,

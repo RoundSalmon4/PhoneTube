@@ -117,6 +117,15 @@ class SearchViewModel @Inject constructor(
         }
     }
 
+    fun fetchChannelIdForVideo(videoId: String, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            engine.getMetadata(videoId)
+                .catch { /* ignore */ }
+                .firstOrNull()
+                ?.let { onResult(it.video.channelId) }
+        }
+    }
+
     private fun search(query: String) {
         _uiState.value = SearchUiState.Loading
         val channelOnly = _filter.value == SearchFilter.CHANNELS

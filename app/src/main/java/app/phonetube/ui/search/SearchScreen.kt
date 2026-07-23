@@ -147,7 +147,15 @@ fun SearchScreen(
                                             VideoCard(
                                                 video = video,
                                                 onClick = { onVideoClick(video.videoId) },
-                                                onChannelClick = onChannelClick
+                                                onChannelClick = { channelId ->
+                                                    if (channelId.isNotBlank()) {
+                                                        onChannelClick(channelId)
+                                                    } else if (video.videoId.isNotBlank()) {
+                                                        viewModel.fetchChannelIdForVideo(video.videoId) { id ->
+                                                            if (id.isNotBlank()) onChannelClick(id)
+                                                        }
+                                                    }
+                                                }
                                             )
                                         }
                                     }
@@ -178,7 +186,15 @@ fun SearchScreen(
                                 VideoCard(
                                     video = video,
                                     onClick = { onVideoClick(video.videoId) },
-                                    onChannelClick = onChannelClick
+                                    onChannelClick = { channelId ->
+                                        if (channelId.isNotBlank()) {
+                                            onChannelClick(channelId)
+                                        } else if (video.videoId.isNotBlank()) {
+                                            viewModel.fetchChannelIdForVideo(video.videoId) { id ->
+                                                if (id.isNotBlank()) onChannelClick(id)
+                                            }
+                                        }
+                                    }
                                 )
                             }
                         }
