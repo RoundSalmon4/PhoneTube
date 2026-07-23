@@ -162,8 +162,13 @@ class YouTubeEngine @Inject constructor(
     }.flowOn(Dispatchers.IO)
 
     fun getSponsorSegments(videoId: String): Flow<List<SponsorSegment>> = flow {
-        val segments = mediaItemService.getSponsorSegmentsObserve(videoId).awaitFirstOrDefault(emptyList())
-        emit(segments.map { it.toSponsorSegment() })
+        try {
+            val segments = mediaItemService.getSponsorSegmentsObserve(videoId).awaitFirstOrDefault(emptyList())
+            emit(segments.map { it.toSponsorSegment() })
+        } catch (e: Exception) {
+            Log.d(TAG, "No sponsor segments for $videoId: ${e.message?.take(80)}")
+            emit(emptyList())
+        }
     }.flowOn(Dispatchers.IO)
 
     fun continueGroup(group: MediaGroup): Flow<List<Video>> = flow {
