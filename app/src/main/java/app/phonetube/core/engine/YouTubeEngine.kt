@@ -26,7 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.rx2.awaitAll
+import kotlinx.coroutines.rx2.await
 import kotlinx.coroutines.rx2.awaitFirstOrDefault
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -53,7 +53,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getHome(): Flow<HomeFeed> = flow {
         try {
-            val groups = contentService.homeObserve.awaitAll()
+            val groups = contentService.homeObserve.toList().await()
             emit(groups.flatten().toHomeFeed("Home"))
         } catch (e: Exception) {
             Log.e(TAG, "getHome failed", e)
@@ -63,7 +63,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getMusic(): Flow<HomeFeed> = flow {
         try {
-            val groups = contentService.musicObserve.awaitAll()
+            val groups = contentService.musicObserve.toList().await()
             emit(groups.flatten().toHomeFeed("Music"))
         } catch (e: Exception) {
             Log.e(TAG, "getMusic failed", e)
@@ -73,7 +73,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getSports(): Flow<HomeFeed> = flow {
         try {
-            val groups = contentService.sportsObserve.awaitAll()
+            val groups = contentService.sportsObserve.toList().await()
             emit(groups.flatten().toHomeFeed("Sports"))
         } catch (e: Exception) {
             Log.e(TAG, "getSports failed", e)
@@ -83,7 +83,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getLive(): Flow<HomeFeed> = flow {
         try {
-            val groups = contentService.liveObserve.awaitAll()
+            val groups = contentService.liveObserve.toList().await()
             emit(groups.flatten().toHomeFeed("Live"))
         } catch (e: Exception) {
             Log.e(TAG, "getLive failed", e)
@@ -93,7 +93,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getNews(): Flow<HomeFeed> = flow {
         try {
-            val groups = contentService.newsObserve.awaitAll()
+            val groups = contentService.newsObserve.toList().await()
             emit(groups.flatten().toHomeFeed("News"))
         } catch (e: Exception) {
             Log.e(TAG, "getNews failed", e)
@@ -103,7 +103,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getGaming(): Flow<HomeFeed> = flow {
         try {
-            val groups = contentService.gamingObserve.awaitAll()
+            val groups = contentService.gamingObserve.toList().await()
             emit(groups.flatten().toHomeFeed("Gaming"))
         } catch (e: Exception) {
             Log.e(TAG, "getGaming failed", e)
@@ -113,7 +113,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getKidsHome(): Flow<HomeFeed> = flow {
         try {
-            val groups = contentService.kidsHomeObserve.awaitAll()
+            val groups = contentService.kidsHomeObserve.toList().await()
             emit(groups.flatten().toHomeFeed("Kids"))
         } catch (e: Exception) {
             Log.e(TAG, "getKidsHome failed", e)
