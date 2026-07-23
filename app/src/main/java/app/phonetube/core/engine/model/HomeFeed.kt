@@ -6,5 +6,6 @@ data class HomeFeed(
 
 data class HomeSection(
     val title: String,
-    val videos: List<Video>
+    val videos: List<Video>,
+    val source: String = ""
 )

@@ -20,6 +20,7 @@ import com.liskovsoft.mediaserviceinterfaces.data.MediaGroup
 import com.liskovsoft.mediaserviceinterfaces.data.MediaItem
 import com.liskovsoft.mediaserviceinterfaces.data.MediaItemFormatInfo
 import com.liskovsoft.mediaserviceinterfaces.data.MediaItemMetadata
+import com.liskovsoft.mediaserviceinterfaces.data.SearchOptions
 import com.liskovsoft.youtubeapi.service.YouTubeServiceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -53,7 +54,7 @@ class YouTubeEngine @Inject constructor(
     fun getHome(): Flow<HomeFeed> = flow {
         try {
             val groups = contentService.homeObserve.awaitFirstOrDefault(emptyList())
-            emit(groups.toHomeFeed())
+            emit(groups.toHomeFeed("Home"))
         } catch (e: Exception) {
             Log.e(TAG, "getHome failed", e)
             emit(HomeFeed(emptyList()))
@@ -63,7 +64,7 @@ class YouTubeEngine @Inject constructor(
     fun getMusic(): Flow<HomeFeed> = flow {
         try {
             val groups = contentService.musicObserve.awaitFirstOrDefault(emptyList())
-            emit(groups.toHomeFeed())
+            emit(groups.toHomeFeed("Music"))
         } catch (e: Exception) {
             Log.e(TAG, "getMusic failed", e)
             emit(HomeFeed(emptyList()))
@@ -73,7 +74,7 @@ class YouTubeEngine @Inject constructor(
     fun getSports(): Flow<HomeFeed> = flow {
         try {
             val groups = contentService.sportsObserve.awaitFirstOrDefault(emptyList())
-            emit(groups.toHomeFeed())
+            emit(groups.toHomeFeed("Sports"))
         } catch (e: Exception) {
             Log.e(TAG, "getSports failed", e)
             emit(HomeFeed(emptyList()))
@@ -83,7 +84,7 @@ class YouTubeEngine @Inject constructor(
     fun getLive(): Flow<HomeFeed> = flow {
         try {
             val groups = contentService.liveObserve.awaitFirstOrDefault(emptyList())
-            emit(groups.toHomeFeed())
+            emit(groups.toHomeFeed("Live"))
         } catch (e: Exception) {
             Log.e(TAG, "getLive failed", e)
             emit(HomeFeed(emptyList()))
@@ -93,7 +94,7 @@ class YouTubeEngine @Inject constructor(
     fun getNews(): Flow<HomeFeed> = flow {
         try {
             val groups = contentService.newsObserve.awaitFirstOrDefault(emptyList())
-            emit(groups.toHomeFeed())
+            emit(groups.toHomeFeed("News"))
         } catch (e: Exception) {
             Log.e(TAG, "getNews failed", e)
             emit(HomeFeed(emptyList()))
@@ -103,7 +104,7 @@ class YouTubeEngine @Inject constructor(
     fun getGaming(): Flow<HomeFeed> = flow {
         try {
             val groups = contentService.gamingObserve.awaitFirstOrDefault(emptyList())
-            emit(groups.toHomeFeed())
+            emit(groups.toHomeFeed("Gaming"))
         } catch (e: Exception) {
             Log.e(TAG, "getGaming failed", e)
             emit(HomeFeed(emptyList()))
@@ -113,16 +114,36 @@ class YouTubeEngine @Inject constructor(
     fun getKidsHome(): Flow<HomeFeed> = flow {
         try {
             val groups = contentService.kidsHomeObserve.awaitFirstOrDefault(emptyList())
-            emit(groups.toHomeFeed())
+            emit(groups.toHomeFeed("Kids"))
         } catch (e: Exception) {
             Log.e(TAG, "getKidsHome failed", e)
             emit(HomeFeed(emptyList()))
         }
     }.flowOn(Dispatchers.IO)
 
-    fun search(query: String): Flow<SearchResult> = flow {
-        val groups = contentService.getSearchObserve(query).awaitFirstOrDefault(emptyList())
-        emit(groups.toSearchResult())
+    fun search(query: String, channelOnly: Boolean = false): Flow<SearchResult> = flow {
+        try {
+            val videoGroups = if (!channelOnly) {
+                contentService.getSearchObserve(query).awaitFirstOrDefault(emptyList())
+            } else emptyList()
+
+            val channelGroups = contentService.getSearchObserve(query, SearchOptions.TYPE_CHANNEL).awaitFirstOrDefault(emptyList())
+
+            val videos = videoGroups.toSearchVideos()
+            val channels = channelGroups.toSearchChannels() + videoGroups.toSearchChannels()
+
+            val sections = if (videos.isNotEmpty()) {
+                listOf(SearchSection(title = "", videos = videos.distinctBy { it.videoId }))
+            } else emptyList()
+
+            emit(SearchResult(
+                sections = sections,
+                channels = channels.distinctBy { it.channelId }
+            ))
+        } catch (e: Exception) {
+            Log.e(TAG, "search('$query') failed", e)
+            emit(SearchResult(emptyList(), emptyList()))
+        }
     }.flowOn(Dispatchers.IO)
 
     fun getSearchSuggestions(query: String): Flow<List<String>> = flow {
@@ -134,21 +155,28 @@ class YouTubeEngine @Inject constructor(
         try {
             val groups = contentService.getChannelObserve(channelId).awaitFirstOrDefault(emptyList())
             val firstGroup = groups.firstOrNull()
-            val channelInfo = firstGroup?.let {
-                ChannelInfo(
-                    channelId = it.channelId.orEmpty(),
-                    name = it.title.orEmpty(),
-                    avatarUrl = null,
-                    subscriberCount = null,
-                    description = null,
-                    isSubscribed = false
-                )
-            }
             val sections = groups.mapNotNull { group ->
                 val videos = (group.mediaItems ?: emptyList()).filterNotNull().mapNotNull { it.toVideo() }
                 if (videos.isNotEmpty()) {
                     ChannelSection(title = group.title.orEmpty(), videos = videos)
                 } else null
+            }
+            val avatarUrl = try {
+                val firstVideoId = sections.firstOrNull()?.videos?.firstOrNull()?.videoId
+                if (!firstVideoId.isNullOrBlank()) {
+                    val metadata = mediaItemService.getMetadataObserve(firstVideoId).awaitFirstOrDefault(null)
+                    metadata?.authorImageUrl
+                } else null
+            } catch (_: Exception) { null }
+            val channelInfo = firstGroup?.let {
+                ChannelInfo(
+                    channelId = it.channelId.orEmpty(),
+                    name = it.title.orEmpty(),
+                    avatarUrl = avatarUrl,
+                    subscriberCount = null,
+                    description = null,
+                    isSubscribed = false
+                )
             }
             emit(ChannelResult(channelInfo, sections))
         } catch (e: Exception) {
@@ -314,53 +342,50 @@ class YouTubeEngine @Inject constructor(
 
     // --- Group-to-feed mappers ---
 
-    private fun List<MediaGroup>.toHomeFeed(): HomeFeed = HomeFeed(
+    private fun List<MediaGroup>.toHomeFeed(source: String = ""): HomeFeed = HomeFeed(
         sections = mapNotNull { group ->
             val videos = (group.mediaItems ?: emptyList()).filterNotNull()
                 .mapNotNull { it.toVideo() }
                 .distinctBy { it.videoId }
             if (videos.isNotEmpty()) {
-                HomeSection(title = group.title.orEmpty(), videos = videos)
+                HomeSection(title = group.title.orEmpty(), videos = videos, source = source)
             } else null
         }
     )
 
-    private fun List<MediaGroup>.toSearchResult(): SearchResult {
+    private fun List<MediaGroup>.toSearchVideos(): List<Video> {
         val videos = mutableListOf<Video>()
-        val channels = mutableListOf<SearchChannel>()
-
         for (group in this) {
             for (item in (group.mediaItems ?: emptyList()).filterNotNull()) {
-                when (item.type) {
-                    MediaItem.TYPE_CHANNEL -> {
-                        val channelId = item.channelId
-                        if (!channelId.isNullOrBlank()) {
-                            channels.add(
-                                SearchChannel(
-                                    channelId = channelId,
-                                    name = item.title.orEmpty(),
-                                    thumbnailUrl = item.cardImageUrl
-                                )
-                            )
-                        }
-                    }
-                    else -> {
-                        val video = item.toVideo()
-                        if (video != null) {
-                            videos.add(video)
-                        }
+                if (item.type != MediaItem.TYPE_CHANNEL) {
+                    val video = item.toVideo()
+                    if (video != null) {
+                        videos.add(video)
                     }
                 }
             }
         }
+        return videos
+    }
 
-        val sections = if (videos.isNotEmpty()) {
-            listOf(SearchSection(title = "", videos = videos.distinctBy { it.videoId }))
-        } else emptyList()
-
-        return SearchResult(
-            sections = sections,
-            channels = channels.distinctBy { it.channelId }
-        )
+    private fun List<MediaGroup>.toSearchChannels(): List<SearchChannel> {
+        val channels = mutableListOf<SearchChannel>()
+        for (group in this) {
+            for (item in (group.mediaItems ?: emptyList()).filterNotNull()) {
+                if (item.type == MediaItem.TYPE_CHANNEL) {
+                    val channelId = item.channelId
+                    if (!channelId.isNullOrBlank()) {
+                        channels.add(
+                            SearchChannel(
+                                channelId = channelId,
+                                name = item.title.orEmpty(),
+                                thumbnailUrl = item.cardImageUrl
+                            )
+                        )
+                    }
+                }
+            }
+        }
+        return channels
     }
 }

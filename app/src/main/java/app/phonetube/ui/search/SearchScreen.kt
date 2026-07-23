@@ -77,6 +77,7 @@ fun SearchScreen(
 
         when (val state = uiState) {
             is SearchUiState.Idle -> {
+                FilterChips(filter = filter, onFilterChange = viewModel::onFilterChange)
                 if (suggestions.isNotEmpty()) {
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
                         items(suggestions, key = { it }) { suggestion ->

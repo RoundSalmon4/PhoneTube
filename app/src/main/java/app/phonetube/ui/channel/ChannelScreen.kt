@@ -50,6 +50,7 @@ import coil3.compose.AsyncImage
 fun ChannelScreen(
     channelId: String,
     onVideoClick: (String) -> Unit,
+    onChannelClick: (String) -> Unit,
     onBackClick: () -> Unit,
     viewModel: ChannelViewModel = hiltViewModel()
 ) {
@@ -113,7 +114,8 @@ fun ChannelScreen(
                         ChannelVideoRow(
                             title = section.title,
                             videos = section.videos,
-                            onVideoClick = onVideoClick
+                            onVideoClick = onVideoClick,
+                            onChannelClick = onChannelClick
                         )
                     }
                 }
@@ -188,7 +190,8 @@ private fun ChannelHeader(
 private fun ChannelVideoRow(
     title: String,
     videos: List<Video>,
-    onVideoClick: (String) -> Unit
+    onVideoClick: (String) -> Unit,
+    onChannelClick: ((String) -> Unit)? = null
 ) {
     Column(modifier = Modifier.padding(bottom = 16.dp)) {
         if (title.isNotBlank()) {
@@ -206,6 +209,7 @@ private fun ChannelVideoRow(
                 VideoCard(
                     video = video,
                     onClick = { onVideoClick(video.videoId) },
+                    onChannelClick = onChannelClick,
                     modifier = Modifier.width(320.dp)
                 )
             }

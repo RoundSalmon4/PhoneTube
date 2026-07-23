@@ -120,6 +120,9 @@ fun AppNavigation() {
                     onVideoClick = { videoId ->
                         navController.navigate(Route.Player(videoId))
                     },
+                    onChannelClick = { channelId ->
+                        navController.navigate(Route.Channel(channelId))
+                    },
                     onBackClick = { navController.popBackStack() }
                 )
             }

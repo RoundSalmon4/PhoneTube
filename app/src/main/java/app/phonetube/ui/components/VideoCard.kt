@@ -29,28 +29,30 @@ fun VideoCard(
     onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier.combinedClickable(
-            onClick = onClick,
-            onLongClick = onLongClick
-        )
-    ) {
-        AsyncImage(
-            model = video.thumbnailUrl,
-            contentDescription = video.title,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(8.dp)),
-            contentScale = ContentScale.Crop
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = video.title,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
+    Column(modifier = modifier) {
+        Column(
+            modifier = Modifier.combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+        ) {
+            AsyncImage(
+                model = video.thumbnailUrl,
+                contentDescription = video.title,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = video.title,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = video.author,

@@ -85,18 +85,44 @@ fun HomeScreen(
                 state = pullRefreshState,
                 modifier = Modifier.fillMaxSize()
             ) {
+                val displayItems = buildList {
+                    var lastSource = ""
+                    for (section in s.sections) {
+                        if (section.source.isNotEmpty() && section.source != lastSource) {
+                            lastSource = section.source
+                            add(HomeDisplayItem.SourceHeader(section.source))
+                        }
+                        add(HomeDisplayItem.Section(section))
+                    }
+                }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(top = 48.dp, bottom = 16.dp)
                 ) {
-                    items(s.sections, key = { it.title }) { section ->
-                        VideoRow(
-                            title = section.title,
-                            videos = section.videos,
-                            onVideoClick = onVideoClick,
-                            onChannelClick = onChannelClick,
-                            onVideoLongClick = { viewModel.showAddToPlaylistDialog(it) }
-                        )
+                    items(displayItems, key = {
+                        when (it) {
+                            is HomeDisplayItem.SourceHeader -> "header-${it.source}"
+                            is HomeDisplayItem.Section -> "section-${it.section.source}-${it.section.title}"
+                        }
+                    }) { item ->
+                        when (item) {
+                            is HomeDisplayItem.SourceHeader -> {
+                                Text(
+                                    text = item.source,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                            is HomeDisplayItem.Section -> {
+                                VideoRow(
+                                    title = item.section.title,
+                                    videos = item.section.videos,
+                                    onVideoClick = onVideoClick,
+                                    onChannelClick = onChannelClick,
+                                    onVideoLongClick = { viewModel.showAddToPlaylistDialog(it) }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -112,6 +138,11 @@ fun HomeScreen(
             onCreatePlaylist = { viewModel.createPlaylistAndAdd(it) }
         )
     }
+}
+
+private sealed interface HomeDisplayItem {
+    data class SourceHeader(val source: String) : HomeDisplayItem
+    data class Section(val section: app.phonetube.core.engine.model.HomeSection) : HomeDisplayItem
 }
 
 @Composable

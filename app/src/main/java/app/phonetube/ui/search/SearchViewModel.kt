@@ -46,6 +46,9 @@ class SearchViewModel @Inject constructor(
             suggestionJob?.cancel()
             return
         }
+        if (_uiState.value is SearchUiState.Results || _uiState.value is SearchUiState.Empty) {
+            _uiState.value = SearchUiState.Idle
+        }
         fetchSuggestions(newQuery)
     }
 
@@ -65,7 +68,11 @@ class SearchViewModel @Inject constructor(
 
     fun onFilterChange(newFilter: SearchFilter) {
         _filter.value = newFilter
-        applyFilter()
+        if (allVideos.isNotEmpty() || allChannels.isNotEmpty()) {
+            applyFilter()
+        } else if (_query.value.isNotBlank()) {
+            search(_query.value.trim())
+        }
     }
 
     fun clearResults() {
@@ -112,8 +119,9 @@ class SearchViewModel @Inject constructor(
 
     private fun search(query: String) {
         _uiState.value = SearchUiState.Loading
+        val channelOnly = _filter.value == SearchFilter.CHANNELS
         viewModelScope.launch {
-            engine.search(query)
+            engine.search(query, channelOnly)
                 .catch { e ->
                     _uiState.value = SearchUiState.Error(e.message ?: "Search failed")
                 }
