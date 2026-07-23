@@ -1,5 +1,6 @@
 package app.phonetube.ui.home
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.phonetube.core.database.PlaylistDao
@@ -23,6 +24,10 @@ class HomeViewModel @Inject constructor(
     private val playlistDao: PlaylistDao
 ) : ViewModel() {
 
+    companion object {
+        private const val TAG = "HomeVM"
+    }
+
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
@@ -41,8 +46,9 @@ class HomeViewModel @Inject constructor(
     }
 
     fun loadHome() {
-        val isInitialLoad = _uiState.value is HomeUiState.Loading
-        if (!isInitialLoad) _isRefreshing.value = true
+        if (_uiState.value is HomeUiState.Success) {
+            _isRefreshing.value = true
+        }
 
         viewModelScope.launch {
             try {
@@ -54,7 +60,6 @@ class HomeViewModel @Inject constructor(
                 val gamingSections = async { engine.getGaming().firstOrNull() }
                 val kidsSections = async { engine.getKidsHome().firstOrNull() }
 
-                // Home feed first, then categories in a fixed order
                 val orderedFeeds = listOf(
                     homeSections.await(),
                     sportsSections.await(),
@@ -67,12 +72,13 @@ class HomeViewModel @Inject constructor(
 
                 val allSections = orderedFeeds.flatMap { it?.sections ?: emptyList() }
                 val nonEmpty = allSections.filter { it.videos.isNotEmpty() }
-                _uiState.value = if (nonEmpty.isEmpty()) {
-                    HomeUiState.Empty
-                } else {
-                    HomeUiState.Success(nonEmpty)
+                if (nonEmpty.isNotEmpty()) {
+                    _uiState.value = HomeUiState.Success(nonEmpty)
+                } else if (_uiState.value is HomeUiState.Loading) {
+                    _uiState.value = HomeUiState.Empty
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "loadHome failed", e)
                 if (_uiState.value is HomeUiState.Loading) {
                     _uiState.value = HomeUiState.Error(e.message ?: "Failed to load")
                 }

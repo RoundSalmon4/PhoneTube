@@ -10,9 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
@@ -120,83 +117,32 @@ fun SearchScreen(
                 Column(modifier = Modifier.fillMaxSize()) {
                     FilterChips(filter = filter, onFilterChange = viewModel::onFilterChange)
 
-                    if (state.videos.isNotEmpty() && state.channels.isNotEmpty()) {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 8.dp)
-                        ) {
-                            if (filter == SearchFilter.ALL && state.channels.isNotEmpty()) {
-                                items(state.channels, key = { it.channelId }) { channel ->
-                                    ChannelCard(
-                                        channel = channel,
-                                        onClick = { onChannelClick(channel.channelId) }
-                                    )
-                                }
-                            }
-                            if (state.videos.isNotEmpty()) {
-                                item {
-                                    LazyVerticalGrid(
-                                        columns = GridCells.Fixed(2),
-                                        modifier = Modifier.fillMaxWidth(),
-                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                                        userScrollEnabled = false
-                                    ) {
-                                        items(state.videos, key = { it.videoId }) { video ->
-                                            VideoCard(
-                                                video = video,
-                                                onClick = { onVideoClick(video.videoId) },
-                                                onChannelClick = { channelId ->
-                                                    if (channelId.isNotBlank()) {
-                                                        onChannelClick(channelId)
-                                                    } else if (video.videoId.isNotBlank()) {
-                                                        viewModel.fetchChannelIdForVideo(video.videoId) { id ->
-                                                            if (id.isNotBlank()) onChannelClick(id)
-                                                        }
-                                                    }
-                                                }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } else if (state.channels.isNotEmpty()) {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 8.dp)
-                        ) {
-                            items(state.channels, key = { it.channelId }) { channel ->
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        if (state.channels.isNotEmpty()) {
+                            items(state.channels, key = { "ch-${it.channelId}" }) { channel ->
                                 ChannelCard(
                                     channel = channel,
                                     onClick = { onChannelClick(channel.channelId) }
                                 )
                             }
                         }
-                    } else {
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(2),
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            items(state.videos, key = { it.videoId }) { video ->
-                                VideoCard(
-                                    video = video,
-                                    onClick = { onVideoClick(video.videoId) },
-                                    onChannelClick = { channelId ->
-                                        if (channelId.isNotBlank()) {
-                                            onChannelClick(channelId)
-                                        } else if (video.videoId.isNotBlank()) {
-                                            viewModel.fetchChannelIdForVideo(video.videoId) { id ->
-                                                if (id.isNotBlank()) onChannelClick(id)
-                                            }
+                        items(state.videos, key = { "vid-${it.videoId}" }) { video ->
+                            VideoCard(
+                                video = video,
+                                onClick = { onVideoClick(video.videoId) },
+                                onChannelClick = { channelId ->
+                                    if (channelId.isNotBlank()) {
+                                        onChannelClick(channelId)
+                                    } else if (video.videoId.isNotBlank()) {
+                                        viewModel.fetchChannelIdForVideo(video.videoId) { id ->
+                                            if (id.isNotBlank()) onChannelClick(id)
                                         }
                                     }
-                                )
-                            }
+                                }
+                            )
                         }
                     }
                 }
