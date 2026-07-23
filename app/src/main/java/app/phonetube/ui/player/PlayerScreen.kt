@@ -39,6 +39,7 @@ fun PlayerScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val playbackState by viewModel.playbackState.collectAsStateWithLifecycle()
+    val sponsorSegments by viewModel.sponsorSegments.collectAsStateWithLifecycle()
     var controlsVisible by remember { mutableStateOf(true) }
 
     val context = LocalContext.current
@@ -120,6 +121,7 @@ fun PlayerScreen(
                 is PlayerUiState.Ready -> state.streamInfo.title
                 else -> ""
             },
+            sponsorSegments = sponsorSegments,
             onBackClick = onBackClick,
             onTogglePlayPause = { viewModel.togglePlayPause() },
             onSeekTo = { viewModel.seekTo(it) },

@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Pause
@@ -37,9 +36,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import app.phonetube.player.PlayerPlaybackSnapshot
+import app.phonetube.core.engine.model.SponsorSegment
+import app.phonetube.player.SponsorBlockService
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
@@ -47,6 +50,7 @@ import kotlin.math.roundToLong
 fun PlayerControls(
     state: PlayerPlaybackSnapshot,
     title: String,
+    sponsorSegments: List<SponsorSegment>,
     onBackClick: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onSeekTo: (Long) -> Unit,
@@ -92,37 +96,45 @@ fun PlayerControls(
                 Column {
                     var scrubbing by remember { mutableStateOf(false) }
                     var scrubPosition by remember { mutableFloatStateOf(0f) }
+                    val duration = state.duration
                     val displayFraction = if (scrubbing) scrubPosition
-                        else if (state.duration > 0) state.currentPosition.toFloat() / state.duration else 0f
+                        else if (duration > 0) state.currentPosition.toFloat() / duration else 0f
 
-                    Slider(
-                        value = displayFraction,
-                        onValueChange = { fraction ->
-                            scrubbing = true
-                            scrubPosition = fraction
-                        },
-                        onValueChangeFinished = {
-                            onSeekTo((scrubPosition * state.duration).roundToInt().toLong())
-                            scrubbing = false
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = SliderDefaults.colors(
-                            thumbColor = MaterialTheme.colorScheme.primary,
-                            activeTrackColor = MaterialTheme.colorScheme.primary,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        SponsorBlockSeekbar(
+                            segments = sponsorSegments,
+                            durationMs = duration,
+                            modifier = Modifier.fillMaxWidth()
                         )
-                    )
+                        Slider(
+                            value = displayFraction,
+                            onValueChange = { fraction ->
+                                scrubbing = true
+                                scrubPosition = fraction
+                            },
+                            onValueChangeFinished = {
+                                onSeekTo((scrubPosition * duration).roundToInt().toLong())
+                                scrubbing = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                            )
+                        )
+                    }
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = formatTime(if (scrubbing) (scrubPosition * state.duration).roundToLong() else state.currentPosition),
+                            text = formatTime(if (scrubbing) (scrubPosition * duration).roundToLong() else state.currentPosition),
                             color = Color.White,
                             style = MaterialTheme.typography.labelSmall
                         )
                         Text(
-                            text = formatTime(state.duration),
+                            text = formatTime(duration),
                             color = Color.White,
                             style = MaterialTheme.typography.labelSmall
                         )
@@ -168,6 +180,46 @@ fun PlayerControls(
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SponsorBlockSeekbar(
+    segments: List<SponsorSegment>,
+    durationMs: Long,
+    modifier: Modifier = Modifier
+) {
+    if (segments.isEmpty() || durationMs <= 0) return
+
+    Box(
+        modifier = modifier
+            .height(20.dp)
+            .clip(MaterialTheme.shapes.extraSmall)
+    ) {
+        androidx.compose.foundation.Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.Center)
+                .height(4.dp)
+        ) {
+            val trackWidth = size.width
+            val trackHeight = size.height
+
+            for (segment in segments) {
+                val startFraction = (segment.startMs.toFloat() / durationMs).coerceIn(0f, 1f)
+                val endFraction = (segment.endMs.toFloat() / durationMs).coerceIn(0f, 1f)
+                val color = SponsorBlockService.getCategoryColor(segment.category)
+
+                drawRect(
+                    color = color.copy(alpha = 0.8f),
+                    topLeft = Offset(x = startFraction * trackWidth, y = 0f),
+                    size = Size(
+                        width = ((endFraction - startFraction) * trackWidth).coerceAtLeast(1f),
+                        height = trackHeight
+                    )
+                )
             }
         }
     }

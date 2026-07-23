@@ -6,14 +6,19 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import app.phonetube.core.engine.YouTubeEngine
+import app.phonetube.core.engine.model.SponsorSegment
 import app.phonetube.core.engine.model.StreamInfo
 import app.phonetube.player.PlayerEngineController
 import app.phonetube.player.PlayerPlaybackSnapshot
+import app.phonetube.player.SponsorBlockService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -21,7 +26,8 @@ import javax.inject.Inject
 class PlayerViewModel @Inject constructor(
     application: Application,
     savedStateHandle: SavedStateHandle,
-    private val engine: YouTubeEngine
+    private val engine: YouTubeEngine,
+    private val sponsorBlockService: SponsorBlockService
 ) : AndroidViewModel(application) {
 
     companion object {
@@ -33,12 +39,17 @@ class PlayerViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<PlayerUiState>(PlayerUiState.Loading)
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
+    private val _sponsorSegments = MutableStateFlow<List<SponsorSegment>>(emptyList())
+    val sponsorSegments: StateFlow<List<SponsorSegment>> = _sponsorSegments.asStateFlow()
+
     val playerController = PlayerEngineController(application)
 
     val playbackState: StateFlow<PlayerPlaybackSnapshot> = playerController.playbackState
 
     init {
         loadStreamInfo()
+        loadSponsorSegments()
+        startAutoSkip()
     }
 
     private fun loadStreamInfo() {
@@ -54,6 +65,37 @@ class PlayerViewModel @Inject constructor(
                     _uiState.value = PlayerUiState.Ready(info)
                     startPlayback(info)
                 }
+        }
+    }
+
+    private fun loadSponsorSegments() {
+        viewModelScope.launch {
+            sponsorBlockService.getSegments(videoId)
+                .catch { e ->
+                    Log.w(TAG, "Failed to load sponsor segments", e)
+                }
+                .collect { segments ->
+                    Log.d(TAG, "Loaded ${segments.size} sponsor segments")
+                    _sponsorSegments.value = segments
+                }
+        }
+    }
+
+    private fun startAutoSkip() {
+        viewModelScope.launch {
+            while (isActive) {
+                val segments = _sponsorSegments.value
+                if (segments.isNotEmpty()) {
+                    val positionMs = playerController.exoPlayer.currentPosition
+                    val skipAction = sponsorBlockService.checkForSkip(positionMs, segments)
+                    if (skipAction != null) {
+                        Log.d(TAG, "Auto-skipping ${skipAction.segment.category} " +
+                            "at ${skipAction.segment.startMs}ms -> ${skipAction.seekToMs}ms")
+                        playerController.seekTo(skipAction.seekToMs)
+                    }
+                }
+                delay(SKIP_CHECK_INTERVAL_MS)
+            }
         }
     }
 
@@ -117,3 +159,5 @@ sealed interface PlayerUiState {
     data class Error(val message: String) : PlayerUiState
     data class Ready(val streamInfo: StreamInfo) : PlayerUiState
 }
+
+private const val SKIP_CHECK_INTERVAL_MS = 500L
