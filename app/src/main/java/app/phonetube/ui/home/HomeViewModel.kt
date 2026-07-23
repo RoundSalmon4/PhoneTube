@@ -3,14 +3,13 @@ package app.phonetube.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.phonetube.core.engine.YouTubeEngine
-import app.phonetube.core.engine.model.HomeFeed
 import app.phonetube.core.engine.model.HomeSection
-import app.phonetube.core.engine.model.Video
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -29,18 +28,22 @@ class HomeViewModel @Inject constructor(
     fun loadHome() {
         _uiState.value = HomeUiState.Loading
         viewModelScope.launch {
-            engine.getMusic()
-                .catch { e ->
-                    _uiState.value = HomeUiState.Error(e.message ?: "Unknown error")
-                }
-                .collect { feed ->
-                    val nonEmpty = feed.sections.filter { it.videos.isNotEmpty() }
-                    _uiState.value = if (nonEmpty.isEmpty()) {
-                        HomeUiState.Empty
-                    } else {
-                        HomeUiState.Success(nonEmpty)
-                    }
-                }
+            val feeds = listOf(
+                async { engine.getHome().firstOrNull() },
+                async { engine.getMusic().firstOrNull() },
+                async { engine.getSports().firstOrNull() },
+                async { engine.getLive().firstOrNull() },
+                async { engine.getNews().firstOrNull() },
+                async { engine.getGaming().firstOrNull() },
+                async { engine.getKidsHome().firstOrNull() }
+            )
+            val allSections = feeds.flatMap { it.await()?.sections ?: emptyList() }
+            val nonEmpty = allSections.filter { it.videos.isNotEmpty() }
+            _uiState.value = if (nonEmpty.isEmpty()) {
+                HomeUiState.Empty
+            } else {
+                HomeUiState.Success(nonEmpty)
+            }
         }
     }
 }

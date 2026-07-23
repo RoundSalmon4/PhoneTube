@@ -60,7 +60,7 @@ class YouTubeEngine @Inject constructor(
             emit(groups.toHomeFeed())
         } catch (e: Exception) {
             Log.e(TAG, "getHome failed", e)
-            throw e
+            emit(HomeFeed(emptyList()))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -76,7 +76,7 @@ class YouTubeEngine @Inject constructor(
             emit(groups.toHomeFeed())
         } catch (e: Exception) {
             Log.e(TAG, "getTrending failed", e)
-            throw e
+            emit(HomeFeed(emptyList()))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -92,7 +92,67 @@ class YouTubeEngine @Inject constructor(
             emit(groups.toHomeFeed())
         } catch (e: Exception) {
             Log.e(TAG, "getMusic failed", e)
-            throw e
+            emit(HomeFeed(emptyList()))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    fun getSports(): Flow<HomeFeed> = flow {
+        try {
+            Log.d(TAG, "getSports: calling sportsObserve...")
+            val groups = contentService.sportsObserve.awaitFirstOrDefault(emptyList())
+            Log.d(TAG, "getSports: got ${groups.size} groups")
+            emit(groups.toHomeFeed())
+        } catch (e: Exception) {
+            Log.e(TAG, "getSports failed", e)
+            emit(HomeFeed(emptyList()))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    fun getLive(): Flow<HomeFeed> = flow {
+        try {
+            Log.d(TAG, "getLive: calling liveObserve...")
+            val groups = contentService.liveObserve.awaitFirstOrDefault(emptyList())
+            Log.d(TAG, "getLive: got ${groups.size} groups")
+            emit(groups.toHomeFeed())
+        } catch (e: Exception) {
+            Log.e(TAG, "getLive failed", e)
+            emit(HomeFeed(emptyList()))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    fun getNews(): Flow<HomeFeed> = flow {
+        try {
+            Log.d(TAG, "getNews: calling newsObserve...")
+            val groups = contentService.newsObserve.awaitFirstOrDefault(emptyList())
+            Log.d(TAG, "getNews: got ${groups.size} groups")
+            emit(groups.toHomeFeed())
+        } catch (e: Exception) {
+            Log.e(TAG, "getNews failed", e)
+            emit(HomeFeed(emptyList()))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    fun getGaming(): Flow<HomeFeed> = flow {
+        try {
+            Log.d(TAG, "getGaming: calling gamingObserve...")
+            val groups = contentService.gamingObserve.awaitFirstOrDefault(emptyList())
+            Log.d(TAG, "getGaming: got ${groups.size} groups")
+            emit(groups.toHomeFeed())
+        } catch (e: Exception) {
+            Log.e(TAG, "getGaming failed", e)
+            emit(HomeFeed(emptyList()))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    fun getKidsHome(): Flow<HomeFeed> = flow {
+        try {
+            Log.d(TAG, "getKidsHome: calling kidsHomeObserve...")
+            val groups = contentService.kidsHomeObserve.awaitFirstOrDefault(emptyList())
+            Log.d(TAG, "getKidsHome: got ${groups.size} groups")
+            emit(groups.toHomeFeed())
+        } catch (e: Exception) {
+            Log.e(TAG, "getKidsHome failed", e)
+            emit(HomeFeed(emptyList()))
         }
     }.flowOn(Dispatchers.IO)
 
