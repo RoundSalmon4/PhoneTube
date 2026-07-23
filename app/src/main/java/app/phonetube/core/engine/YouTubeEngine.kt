@@ -120,7 +120,7 @@ class YouTubeEngine @Inject constructor(
             )
         }
         val sections = groups.mapNotNull { group ->
-            val videos = (group.mediaItems ?: emptyList()).filterNotNull().map { it.toVideo() }
+            val videos = (group.mediaItems ?: emptyList()).filterNotNull().mapNotNull { it.toVideo() }
             if (videos.isNotEmpty()) {
                 ChannelSection(title = group.title.orEmpty(), videos = videos)
             } else null
@@ -131,7 +131,7 @@ class YouTubeEngine @Inject constructor(
     fun getChannelVideos(channelId: String): Flow<List<Video>> = flow {
         val groups = contentService.getChannelObserve(channelId).awaitFirstOrDefault(emptyList())
         val videos = groups.flatMap { (it.mediaItems ?: emptyList()).filterNotNull() }
-            .map { it.toVideo() }
+            .mapNotNull { it.toVideo() }
         emit(videos)
     }.flowOn(Dispatchers.IO)
 
@@ -168,7 +168,7 @@ class YouTubeEngine @Inject constructor(
 
     fun continueGroup(group: MediaGroup): Flow<List<Video>> = flow {
         val continued = contentService.continueGroupObserve(group).awaitFirstOrDefault(null)
-        val videos = (continued?.mediaItems ?: emptyList()).filterNotNull().map { it.toVideo() }
+        val videos = (continued?.mediaItems ?: emptyList()).filterNotNull().mapNotNull { it.toVideo() }
         emit(videos)
     }.flowOn(Dispatchers.IO)
 
@@ -179,19 +179,26 @@ class YouTubeEngine @Inject constructor(
 
     // --- Mapping functions ---
 
-    private fun MediaItem.toVideo(): Video = Video(
-        videoId = getVideoId().orEmpty(),
-        title = getTitle().orEmpty(),
-        author = getAuthor().orEmpty(),
-        channelId = getChannelId().orEmpty(),
-        thumbnailUrl = getCardImageUrl().orEmpty(),
-        durationMs = getDurationMs(),
-        viewCount = null,
-        publishedDate = getPublishedDate(),
-        isLive = isLive,
-        isShort = isShorts,
-        percentWatched = getPercentWatched()
-    )
+    private fun MediaItem.toVideo(): Video? {
+        val videoId = getVideoId()
+        if (videoId.isNullOrBlank()) {
+            Log.w(TAG, "toVideo: skipping item '${getTitle()}' — getVideoId() returned null/blank (type=${getType()})")
+            return null
+        }
+        return Video(
+            videoId = videoId,
+            title = getTitle().orEmpty(),
+            author = getAuthor().orEmpty(),
+            channelId = getChannelId().orEmpty(),
+            thumbnailUrl = getCardImageUrl().orEmpty(),
+            durationMs = getDurationMs(),
+            viewCount = null,
+            publishedDate = getPublishedDate(),
+            isLive = isLive,
+            isShort = isShorts,
+            percentWatched = getPercentWatched()
+        )
+    }
 
     private fun MediaItemFormatInfo.toStreamInfo(): StreamInfo = StreamInfo(
         videoId = getVideoId().orEmpty(),
@@ -254,7 +261,7 @@ class YouTubeEngine @Inject constructor(
         likeCount = getLikeCount().orEmpty(),
         subscriberCount = getSubscriberCount().orEmpty(),
         suggestions = (suggestions ?: emptyList()).flatMap { group ->
-            (group.mediaItems ?: emptyList()).filterNotNull().map { it.toVideo() }
+            (group.mediaItems ?: emptyList()).filterNotNull().mapNotNull { it.toVideo() }
         }
     )
 
@@ -287,8 +294,9 @@ class YouTubeEngine @Inject constructor(
     private fun List<MediaGroup>.toHomeFeed(): HomeFeed = HomeFeed(
         sections = mapNotNull { group ->
             val videos = (group.mediaItems ?: emptyList()).filterNotNull()
-                .map { it.toVideo() }
+                .mapNotNull { it.toVideo() }
                 .distinctBy { it.videoId }
+            Log.d(TAG, "toHomeFeed: section '${group.title}' → ${videos.size} playable videos (from ${(group.mediaItems?.size ?: 0)} items)")
             if (videos.isNotEmpty()) {
                 HomeSection(title = group.title.orEmpty(), videos = videos)
             } else null
@@ -298,7 +306,7 @@ class YouTubeEngine @Inject constructor(
     private fun List<MediaGroup>.toSearchResult(): SearchResult = SearchResult(
         sections = mapNotNull { group ->
             val videos = (group.mediaItems ?: emptyList()).filterNotNull()
-                .map { it.toVideo() }
+                .mapNotNull { it.toVideo() }
                 .distinctBy { it.videoId }
             if (videos.isNotEmpty()) {
                 SearchSection(title = group.title.orEmpty(), videos = videos)
