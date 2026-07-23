@@ -4,6 +4,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.phonetube.core.engine.model.SponsorSegment
 import app.phonetube.player.PlayerPlaybackSnapshot
@@ -56,6 +59,9 @@ fun PlayerControls(
     onTogglePlayPause: () -> Unit,
     onSeekTo: (Long) -> Unit,
     onSeekBy: (Long) -> Unit,
+    onSpeedClick: () -> Unit,
+    onQualityClick: () -> Unit,
+    onSubtitleClick: () -> Unit,
     visible: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -70,11 +76,12 @@ fun PlayerControls(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.6f))
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.SpaceBetween
             ) {
+                // Top bar: back, title, speed/quality/subtitle buttons
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBackClick) {
@@ -84,17 +91,67 @@ fun PlayerControls(
                             tint = Color.White
                         )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = title,
                         style = MaterialTheme.typography.bodyLarge,
                         color = Color.White,
                         maxLines = 1,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 8.dp)
+                    )
+                    // Speed indicator
+                    Text(
+                        text = formatSpeed(state.playbackSpeed),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { onSpeedClick() }
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                    // Quality button
+                    Text(
+                        text = "HQ",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { onQualityClick() }
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                    // Subtitles button
+                    Text(
+                        text = "CC",
+                        color = if (state.isSubtitlesEnabled) MaterialTheme.colorScheme.primary
+                            else Color.White.copy(alpha = 0.6f),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { onSubtitleClick() }
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
                     )
                 }
 
-                Column {
+                // Spacer pushes bottom section to the bottom
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Bottom section: seekbar + time + transport, pinned to bottom
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    // Seekbar
                     var scrubbing by remember { mutableStateOf(false) }
                     var scrubPosition by remember { mutableFloatStateOf(0f) }
                     val duration = state.duration
@@ -125,6 +182,8 @@ fun PlayerControls(
                             )
                         )
                     }
+
+                    // Time display
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
@@ -140,47 +199,48 @@ fun PlayerControls(
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
-                }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { onSeekBy(-10_000) }) {
-                        Icon(
-                            Icons.Rounded.Replay10,
-                            contentDescription = "Rewind 10s",
-                            tint = Color.White,
-                            modifier = Modifier.size(36.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(24.dp))
-                    IconButton(
-                        onClick = onTogglePlayPause,
-                        modifier = Modifier
-                            .size(64.dp)
-                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Transport controls: rewind, play/pause, forward
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (state.isPlaying) "Pause" else "Play",
-                            tint = Color.White,
-                            modifier = Modifier.size(40.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(24.dp))
-                    IconButton(onClick = { onSeekBy(10_000) }) {
-                        Icon(
-                            Icons.Rounded.Forward10,
-                            contentDescription = "Forward 10s",
-                            tint = Color.White,
-                            modifier = Modifier.size(36.dp)
-                        )
+                        IconButton(onClick = { onSeekBy(-10_000) }) {
+                            Icon(
+                                Icons.Rounded.Replay10,
+                                contentDescription = "Rewind 10s",
+                                tint = Color.White,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(24.dp))
+                        IconButton(
+                            onClick = onTogglePlayPause,
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(MaterialTheme.colorScheme.primary, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (state.isPlaying) "Pause" else "Play",
+                                tint = Color.White,
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(24.dp))
+                        IconButton(onClick = { onSeekBy(10_000) }) {
+                            Icon(
+                                Icons.Rounded.Forward10,
+                                contentDescription = "Forward 10s",
+                                tint = Color.White,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
             }
         }
     }
@@ -231,4 +291,8 @@ private fun formatTime(ms: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return "%d:%02d".format(minutes, seconds)
+}
+
+private fun formatSpeed(speed: Float): String {
+    return if (speed == 1.0f) "1x" else "%.2fx".format(speed).trimEnd('0').trimEnd('.')
 }

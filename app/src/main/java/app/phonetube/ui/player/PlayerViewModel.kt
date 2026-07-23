@@ -5,18 +5,21 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import app.phonetube.core.datastore.PlayerPreferences
 import app.phonetube.core.engine.YouTubeEngine
 import app.phonetube.core.engine.model.SponsorSegment
 import app.phonetube.core.engine.model.StreamInfo
 import app.phonetube.player.PlayerEngineController
 import app.phonetube.player.PlayerPlaybackSnapshot
 import app.phonetube.player.SponsorBlockService
+import app.phonetube.player.SubtitleTrackInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -27,7 +30,8 @@ class PlayerViewModel @Inject constructor(
     application: Application,
     savedStateHandle: SavedStateHandle,
     private val engine: YouTubeEngine,
-    private val sponsorBlockService: SponsorBlockService
+    private val sponsorBlockService: SponsorBlockService,
+    private val playerPreferences: PlayerPreferences
 ) : AndroidViewModel(application) {
 
     companion object {
@@ -42,6 +46,18 @@ class PlayerViewModel @Inject constructor(
     private val _sponsorSegments = MutableStateFlow<List<SponsorSegment>>(emptyList())
     val sponsorSegments: StateFlow<List<SponsorSegment>> = _sponsorSegments.asStateFlow()
 
+    private val _showSpeedPicker = MutableStateFlow(false)
+    val showSpeedPicker: StateFlow<Boolean> = _showSpeedPicker.asStateFlow()
+
+    private val _showQualityPicker = MutableStateFlow(false)
+    val showQualityPicker: StateFlow<Boolean> = _showQualityPicker.asStateFlow()
+
+    private val _showSubtitlePicker = MutableStateFlow(false)
+    val showSubtitlePicker: StateFlow<Boolean> = _showSubtitlePicker.asStateFlow()
+
+    private val _rotationLocked = MutableStateFlow(false)
+    val rotationLocked: StateFlow<Boolean> = _rotationLocked.asStateFlow()
+
     val playerController = PlayerEngineController(application)
 
     val playbackState: StateFlow<PlayerPlaybackSnapshot> = playerController.playbackState
@@ -50,6 +66,7 @@ class PlayerViewModel @Inject constructor(
         loadStreamInfo()
         loadSponsorSegments()
         startAutoSkip()
+        restoreSpeedPreference()
     }
 
     private fun loadStreamInfo() {
@@ -128,6 +145,13 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    private fun restoreSpeedPreference() {
+        viewModelScope.launch {
+            val savedSpeed = playerPreferences.playbackSpeed.first()
+            playerController.setPlaybackSpeed(savedSpeed)
+        }
+    }
+
     fun togglePlayPause() {
         playerController.togglePlayPause()
     }
@@ -142,7 +166,43 @@ class PlayerViewModel @Inject constructor(
 
     fun setPlaybackSpeed(speed: Float) {
         playerController.setPlaybackSpeed(speed)
+        viewModelScope.launch {
+            playerPreferences.setPlaybackSpeed(speed)
+        }
     }
+
+    fun toggleSubtitles() {
+        val currentEnabled = playbackState.value.isSubtitlesEnabled
+        playerController.setSubtitleEnabled(!currentEnabled)
+    }
+
+    fun selectSubtitle(subtitle: SubtitleTrackInfo?) {
+        if (subtitle == null) {
+            playerController.setSubtitleEnabled(false)
+        } else {
+            playerController.selectSubtitleTrack(subtitle)
+        }
+    }
+
+    fun selectVideoTrack(height: Int, fps: Int) {
+        playerController.selectVideoTrack(height, fps)
+    }
+
+    fun toggleRotationLock() {
+        _rotationLocked.value = !_rotationLocked.value
+        viewModelScope.launch {
+            playerPreferences.setRotationLocked(if (_rotationLocked.value) 1 else 0)
+        }
+    }
+
+    fun showSpeedPicker() { _showSpeedPicker.value = true }
+    fun hideSpeedPicker() { _showSpeedPicker.value = false }
+
+    fun showQualityPicker() { _showQualityPicker.value = true }
+    fun hideQualityPicker() { _showQualityPicker.value = false }
+
+    fun showSubtitlePicker() { _showSubtitlePicker.value = true }
+    fun hideSubtitlePicker() { _showSubtitlePicker.value = false }
 
     fun retry() {
         loadStreamInfo()

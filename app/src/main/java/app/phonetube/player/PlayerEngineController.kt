@@ -1,10 +1,13 @@
 package app.phonetube.player
 
 import android.content.Context
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
+import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
@@ -61,6 +64,10 @@ class PlayerEngineController(context: Context) {
         override fun onPlaybackParametersChanged(playbackParameters: PlaybackParameters) {
             updateSnapshot()
         }
+
+        override fun onVideoSizeChanged(videoSize: VideoSize) {
+            updateSnapshot()
+        }
     }
 
     init {
@@ -113,6 +120,63 @@ class PlayerEngineController(context: Context) {
         exoPlayer.playbackParameters = PlaybackParameters(speed)
     }
 
+    fun setSubtitleEnabled(enabled: Boolean) {
+        val tracks = exoPlayer.currentTracks
+        val textGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_TEXT }
+        if (textGroups.isEmpty()) return
+
+        val group = textGroups.first()
+        if (enabled) {
+            // Enable first subtitle track
+            val override = TrackSelectionOverride(group.mediaTrackGroup, listOf(0))
+            trackSelector.setParameters(
+                trackSelector.buildUponParameters().addOverride(override)
+            )
+        } else {
+            // Disable all subtitle tracks by disabling the group
+            val override = TrackSelectionOverride(group.mediaTrackGroup, emptyList())
+            trackSelector.setParameters(
+                trackSelector.buildUponParameters().addOverride(override)
+            )
+        }
+        updateSnapshot()
+    }
+
+    fun selectSubtitleTrack(track: SubtitleTrackInfo) {
+        val tracks = exoPlayer.currentTracks
+        val textGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_TEXT }
+        if (textGroups.isEmpty()) return
+
+        val group = textGroups.first()
+        val override = TrackSelectionOverride(group.mediaTrackGroup, listOf(track.index))
+        trackSelector.setParameters(
+            trackSelector.buildUponParameters().addOverride(override)
+        )
+        updateSnapshot()
+    }
+
+    fun selectVideoTrack(height: Int, fps: Int) {
+        val tracks = exoPlayer.currentTracks
+        val videoGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
+        if (videoGroups.isEmpty()) return
+
+        for (group in videoGroups) {
+            for (i in 0 until group.length) {
+                val format = group.getTrackFormat(i)
+                val matchesHeight = format.height == height
+                val matchesFps = if (fps > 0) format.frameRate.toInt() == fps else true
+                if (matchesHeight && matchesFps) {
+                    val override = TrackSelectionOverride(group.mediaTrackGroup, listOf(i))
+                    trackSelector.setParameters(
+                        trackSelector.buildUponParameters().addOverride(override)
+                    )
+                    updateSnapshot()
+                    return
+                }
+            }
+        }
+    }
+
     fun release() {
         exoPlayer.removeListener(playerListener)
         scope.cancel()
@@ -129,6 +193,36 @@ class PlayerEngineController(context: Context) {
     }
 
     private fun updateSnapshot() {
+        val tracks = exoPlayer.currentTracks
+        val videoGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
+        val textGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_TEXT }
+        val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+
+        // Current quality label from selected video track
+        val qualityLabel = videoGroups.firstOrNull { it.isSelected }?.let { group ->
+            val format = group.getTrackFormat(0)
+            val height = format.height
+            val fps = format.frameRate.toInt()
+            if (height > 0) {
+                if (fps > 0) "${height}p${fps}" else "${height}p"
+            } else null
+        } ?: ""
+
+        // Subtitle tracks
+        val subtitleTracks = textGroups.flatMap { group ->
+            (0 until group.length).map { i ->
+                val format = group.getTrackFormat(i)
+                SubtitleTrackInfo(
+                    index = i,
+                    languageCode = format.language ?: "unknown",
+                    name = format.label ?: format.language ?: "Unknown",
+                    mimeType = format.sampleMimeType ?: ""
+                )
+            }
+        }
+
+        val isSubEnabled = textGroups.any { it.isSelected }
+
         _playbackState.update {
             PlayerPlaybackSnapshot(
                 isPlaying = exoPlayer.isPlaying,
@@ -137,7 +231,13 @@ class PlayerEngineController(context: Context) {
                 bufferedPosition = exoPlayer.bufferedPosition.coerceAtLeast(0),
                 playbackSpeed = exoPlayer.playbackParameters.speed,
                 isBuffering = exoPlayer.playbackState == Player.STATE_BUFFERING,
-                isLive = exoPlayer.isCurrentMediaItemLive
+                isLive = exoPlayer.isCurrentMediaItemLive,
+                videoWidth = exoPlayer.videoSize.width,
+                videoHeight = exoPlayer.videoSize.height,
+                currentQualityLabel = qualityLabel,
+                isSubtitlesEnabled = isSubEnabled,
+                availableSubtitleTracks = subtitleTracks,
+                audioTrackCount = audioGroups.size
             )
         }
     }
