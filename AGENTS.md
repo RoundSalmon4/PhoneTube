@@ -1,3 +1,103 @@
+# PhoneTube Agent Guide
+
+## Project Overview
+
+YouTube phone app (Kotlin + Jetpack Compose) built on SmartTube's `MediaServiceCore` as its YouTube data engine. No TV UI, no Leanback, no MVP — modern Android architecture.
+
+**Package:** `app.phonetube`  
+**Min SDK:** 24 (Android 7.0) | **Target/Compile SDK:** 35
+
+## Critical Constraints
+
+1. **No Android SDK locally** — code-only commits. Do not run builds locally. Test via CI or on device.
+2. **`GlobalPreferences.instance(context)` MUST be called first** before ANY MediaServiceCore API call. See `YouTubeInitializer.kt`.
+3. **MediaServiceCore uses RxJava 2** — bridge to Coroutines/Flow at `YouTubeEngine` boundary. Never expose RxJava types to the rest of the app.
+4. **KSP pinned to KSP1** — `ksp.useKSP2=false` in `gradle.properties`. KSP2 crashes on Room's suspend DAOs.
+5. **OkHttp forced to 3.12.13** — root `build.gradle.kts` forces this version globally for MediaServiceCore compatibility.
+
+## Build Commands
+
+```bash
+# Build release APK (CI)
+./gradlew assembleRelease --no-daemon
+
+# Run lint
+./gradlew :app:lintDebug
+
+# Run unit tests
+./gradlew :app:testDebugUnitTest
+```
+
+**CI builds:** Push/PR to `new-ui` branch triggers GitHub Actions (JDK 17, `assembleRelease`).
+
+## Project Structure
+
+```
+SmartTube/
+├── app/                          # Compose app module (our code)
+│   └── src/main/java/app/phonetube/
+│       ├── core/
+│       │   ├── engine/           # MediaServiceCore wrapper (RxJava→Flow bridge)
+│       │   ├── database/         # Room: history, playlists, subscriptions
+│       │   ├── datastore/        # DataStore preferences
+│       │   └── di/               # Hilt modules
+│       ├── player/               # Media3 ExoPlayer + SponsorBlock
+│       └── ui/                   # Compose screens + components
+├── MediaServiceCore/             # Git submodule — YouTube API engine
+│   ├── youtubeapi/               # :youtubeapi module
+│   └── mediaserviceinterfaces/  # :mediaserviceinterfaces module
+└── SharedModules/                # Git submodule — utilities, GlobalPreferences
+    └── sharedutils/              # :sharedutils module
+```
+
+## Module Dependencies
+
+`app` depends on:
+- `:youtubeapi` (MediaServiceCore)
+- `:mediaserviceinterfaces` (MediaServiceCore)
+- `:sharedutils` (SharedModules)
+
+The root `build.gradle.kts` auto-applies `enable-buildconfig.gradle` and forces Java 17 compile options on all submodules.
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `app/src/main/java/app/phonetube/core/engine/YouTubeEngine.kt` | All YouTube API calls — RxJava→Flow bridge |
+| `app/src/main/java/app/phonetube/core/engine/YouTubeInitializer.kt` | MUST call `GlobalPreferences.instance(context)` first |
+| `app/src/main/java/app/phonetube/core/database/AppDatabase.kt` | Room DB: history, playlists, subscriptions |
+| `app/src/main/java/app/phonetube/player/PlayerEngineController.kt` | Media3 ExoPlayer abstraction |
+| `app/src/main/java/app/phonetube/ui/navigation/Route.kt` | Type-safe navigation routes |
+| `gradle/libs.versions.toml` | Version catalog — all dependency versions |
+| `SharedModules/constants.gradle` | Version variables for submodules |
+
+## Architecture
+
+- **MVVM + UDF:** Single immutable `UiState` per screen, ViewModels + StateFlow
+- **DI:** Hilt (`@HiltAndroidApp`, `@AndroidEntryPoint`, `@Inject`)
+- **Navigation:** Navigation Compose with type-safe `@Serializable` routes
+- **Async:** Kotlin Coroutines + Flow (RxJava only at MediaServiceCore boundary)
+- **Images:** Coil 3 with custom `HttpNetworkClient`
+- **Player:** Media3 ExoPlayer 1.8.0 with `media3-ui-compose`
+
+## Submodule Updates
+
+MediaServiceCore and SharedModules are git submodules. To update:
+1. `cd MediaServiceCore && git fetch origin && git checkout origin/master`
+2. `cd SharedModules && git fetch origin && git checkout origin/master`
+3. Commit the submodule pointer changes
+
+CI runs automated weekly updates via `.github/workflows/update-submodules.yml`.
+
+## Gotchas
+
+- **Version catalog mismatch:** `gradle/libs.versions.toml` has the real versions. `plan.md` contains aspirational versions for future bumps — do not use them.
+- **Submodule build files** use Groovy (`build.gradle`) and reference `SharedModules/constants.gradle` for versions. Do not modify these unless updating the submodules themselves.
+- **Room schema** exported to `app/schemas/` — check in schema changes.
+- **ProGuard:** Currently disabled for release builds (`isMinifyEnabled = false`). Keep it disabled until release polish.
+- **JVM target:** 17 everywhere. Root `build.gradle.kts` forces this on all submodules.
+- **Coroutines forced to 1.9.0** via root `build.gradle.kts` resolution strategy.
+
 ## Agent Workflow Rules
 
 1. **Read the repository** and become an expert on it and how it works before making changes.
