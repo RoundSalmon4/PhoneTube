@@ -1,7 +1,6 @@
 package app.phonetube.ui.player
 
 import android.app.Activity
-import android.content.pm.ActivityInfo
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -55,11 +54,8 @@ fun PlayerScreen(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
-    // Force landscape orientation on entry, restore on exit
-    DisposableEffect(activity) {
-        val originalOrientation = activity?.requestedOrientation
-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-
+    // Hide system bars while player is visible, restore on exit
+    DisposableEffect(Unit) {
         val controller = activity?.let {
             WindowCompat.getInsetsController(it.window, it.window.decorView)
         }
@@ -68,8 +64,6 @@ fun PlayerScreen(
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
 
         onDispose {
-            activity?.requestedOrientation = originalOrientation
-                ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             controller?.show(WindowInsetsCompat.Type.systemBars())
         }
     }
