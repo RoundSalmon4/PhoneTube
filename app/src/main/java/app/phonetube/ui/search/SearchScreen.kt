@@ -118,7 +118,8 @@ fun SearchScreen(
                     items(state.videos, key = { it.videoId }) { video ->
                         VideoCard(
                             video = video,
-                            onClick = { onVideoClick(video.videoId) }
+                            onClick = { onVideoClick(video.videoId) },
+                            onChannelClick = onChannelClick
                         )
                     }
                 }

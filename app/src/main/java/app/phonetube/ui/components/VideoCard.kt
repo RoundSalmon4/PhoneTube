@@ -22,6 +22,7 @@ import coil3.compose.AsyncImage
 fun VideoCard(
     video: Video,
     onClick: () -> Unit,
+    onChannelClick: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -49,7 +50,12 @@ fun VideoCard(
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = if (onChannelClick != null) {
+                Modifier.clickable { onChannelClick(video.channelId) }
+            } else {
+                Modifier
+            }
         )
     }
 }

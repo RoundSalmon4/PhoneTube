@@ -90,7 +90,8 @@ fun HomeScreen(
                         VideoRow(
                             title = section.title,
                             videos = section.videos,
-                            onVideoClick = onVideoClick
+                            onVideoClick = onVideoClick,
+                            onChannelClick = onChannelClick
                         )
                     }
                 }
@@ -103,7 +104,8 @@ fun HomeScreen(
 private fun VideoRow(
     title: String,
     videos: List<Video>,
-    onVideoClick: (String) -> Unit
+    onVideoClick: (String) -> Unit,
+    onChannelClick: ((String) -> Unit)? = null
 ) {
     Column(modifier = Modifier.padding(bottom = 16.dp)) {
         Text(
@@ -119,6 +121,7 @@ private fun VideoRow(
                 VideoCard(
                     video = video,
                     onClick = { onVideoClick(video.videoId) },
+                    onChannelClick = onChannelClick,
                     modifier = Modifier.width(320.dp)
                 )
             }
