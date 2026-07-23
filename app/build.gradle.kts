@@ -113,7 +113,7 @@ dependencies {
 
     // Coil
     implementation(libs.coil.compose)
-    implementation(libs.coil.network.okhttp)
+    implementation(libs.coil.network.core)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)

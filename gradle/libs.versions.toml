@@ -140,7 +140,7 @@ media3-datasource-okhttp = { group = "androidx.media3", name = "media3-datasourc
 
 # Coil
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
-coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
+coil-network-core = { group = "io.coil-kt.coil3", name = "coil-network-core", version.ref = "coil" }
 
 # Hilt
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }

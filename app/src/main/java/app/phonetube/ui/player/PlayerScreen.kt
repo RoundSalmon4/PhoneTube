@@ -6,7 +6,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -98,10 +100,17 @@ fun PlayerScreen(
             is PlayerUiState.Ready -> {
                 val player = viewModel.playerController.exoPlayer
 
-                PlayerSurface(
-                    player = player,
-                    modifier = Modifier.fillMaxSize()
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 9f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    PlayerSurface(
+                        player = player,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
 
