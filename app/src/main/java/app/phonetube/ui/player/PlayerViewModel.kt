@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import app.phonetube.core.database.HistoryDao
+import app.phonetube.core.database.entity.WatchHistoryEntry
 import app.phonetube.core.datastore.PlayerPreferences
 import app.phonetube.core.engine.YouTubeEngine
 import app.phonetube.core.engine.model.SponsorSegment
@@ -20,7 +22,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -31,7 +32,8 @@ class PlayerViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val engine: YouTubeEngine,
     private val sponsorBlockService: SponsorBlockService,
-    private val playerPreferences: PlayerPreferences
+    private val playerPreferences: PlayerPreferences,
+    private val historyDao: HistoryDao
 ) : AndroidViewModel(application) {
 
     companion object {
@@ -67,6 +69,7 @@ class PlayerViewModel @Inject constructor(
         loadSponsorSegments()
         startAutoSkip()
         restoreSpeedPreference()
+        startPeriodicHistorySave()
     }
 
     private fun loadStreamInfo() {
@@ -81,6 +84,7 @@ class PlayerViewModel @Inject constructor(
                     Log.d(TAG, "Stream info loaded: dash=${info.dashManifestUrl != null}, hls=${info.hlsManifestUrl != null}, urlFormats=${info.urlFormats.size}")
                     _uiState.value = PlayerUiState.Ready(info)
                     startPlayback(info)
+                    recordToHistory(info)
                 }
         }
     }
@@ -152,6 +156,28 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    private fun recordToHistory(info: StreamInfo) {
+        viewModelScope.launch {
+            try {
+                val entry = WatchHistoryEntry(
+                    videoId = videoId,
+                    title = info.title,
+                    channelName = info.author,
+                    channelId = info.channelId,
+                    thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                    durationMs = info.lengthSeconds * 1000,
+                    positionMs = 0L,
+                    speed = playerPreferences.playbackSpeed.first(),
+                    timestamp = System.currentTimeMillis()
+                )
+                historyDao.upsert(entry)
+                Log.d(TAG, "Recorded history for $videoId: ${info.title}")
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to record history", e)
+            }
+        }
+    }
+
     fun togglePlayPause() {
         playerController.togglePlayPause()
     }
@@ -212,6 +238,35 @@ class PlayerViewModel @Inject constructor(
         super.onCleared()
         playerController.release()
     }
+
+    private fun saveCurrentPosition() {
+        viewModelScope.launch {
+            try {
+                val positionMs = playerController.exoPlayer.currentPosition
+                val current = historyDao.getById(videoId)
+                if (current != null) {
+                    historyDao.upsert(current.copy(
+                        positionMs = positionMs,
+                        timestamp = System.currentTimeMillis()
+                    ))
+                    Log.d(TAG, "Saved history position for $videoId: ${positionMs}ms")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to save history position", e)
+            }
+        }
+    }
+
+    private fun startPeriodicHistorySave() {
+        viewModelScope.launch {
+            while (isActive) {
+                delay(POSITION_SAVE_INTERVAL_MS)
+                if (playbackState.value.isPlaying) {
+                    saveCurrentPosition()
+                }
+            }
+        }
+    }
 }
 
 sealed interface PlayerUiState {
@@ -221,3 +276,4 @@ sealed interface PlayerUiState {
 }
 
 private const val SKIP_CHECK_INTERVAL_MS = 500L
+private const val POSITION_SAVE_INTERVAL_MS = 10_000L

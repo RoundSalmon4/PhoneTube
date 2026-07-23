@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.phonetube.core.engine.model.Video
+import app.phonetube.ui.components.AddToPlaylistDialog
 import app.phonetube.ui.components.VideoCard
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,6 +39,8 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
+    val playlists by viewModel.playlists.collectAsStateWithLifecycle()
+    val addToPlaylistVideo by viewModel.addToPlaylistVideo.collectAsStateWithLifecycle()
     val pullRefreshState = rememberPullToRefreshState()
 
     when (val s = state) {
@@ -91,12 +94,23 @@ fun HomeScreen(
                             title = section.title,
                             videos = section.videos,
                             onVideoClick = onVideoClick,
-                            onChannelClick = onChannelClick
+                            onChannelClick = onChannelClick,
+                            onVideoLongClick = { viewModel.showAddToPlaylistDialog(it) }
                         )
                     }
                 }
             }
         }
+    }
+
+    addToPlaylistVideo?.let { video ->
+        AddToPlaylistDialog(
+            videoTitle = video.title,
+            playlists = playlists,
+            onDismiss = { viewModel.dismissAddToPlaylistDialog() },
+            onAddToPlaylist = { viewModel.addToPlaylist(it) },
+            onCreatePlaylist = { viewModel.createPlaylistAndAdd(it) }
+        )
     }
 }
 
@@ -105,7 +119,8 @@ private fun VideoRow(
     title: String,
     videos: List<Video>,
     onVideoClick: (String) -> Unit,
-    onChannelClick: ((String) -> Unit)? = null
+    onChannelClick: ((String) -> Unit)? = null,
+    onVideoLongClick: ((Video) -> Unit)? = null
 ) {
     Column(modifier = Modifier.padding(bottom = 16.dp)) {
         Text(
@@ -122,6 +137,7 @@ private fun VideoRow(
                     video = video,
                     onClick = { onVideoClick(video.videoId) },
                     onChannelClick = onChannelClick,
+                    onLongClick = { onVideoLongClick?.invoke(video) },
                     modifier = Modifier.width(320.dp)
                 )
             }

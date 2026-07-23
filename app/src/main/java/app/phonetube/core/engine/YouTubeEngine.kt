@@ -52,19 +52,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getHome(): Flow<HomeFeed> = flow {
         try {
-            Log.d(TAG, "getHome: calling homeObserve...")
-            val allBatches = try {
-                contentService.homeObserve.toList().await()
-            } catch (e: Exception) {
-                Log.w(TAG, "getHome: toList failed, falling back to first emission", e)
-                listOf(contentService.homeObserve.awaitFirstOrDefault(emptyList()))
-            }
-            val groups = allBatches.flatten()
-            Log.d(TAG, "getHome: got ${groups.size} groups (from ${allBatches.size} batches)")
-            for (g in groups) {
-                val items = g.mediaItems
-                Log.d(TAG, "  group: type=${g.type}, title='${g.title}', items=${items?.size ?: "null"}")
-            }
+            val groups = contentService.homeObserve.awaitFirstOrDefault(emptyList())
             emit(groups.toHomeFeed())
         } catch (e: Exception) {
             Log.e(TAG, "getHome failed", e)
@@ -74,13 +62,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getMusic(): Flow<HomeFeed> = flow {
         try {
-            Log.d(TAG, "getMusic: calling musicObserve...")
             val groups = contentService.musicObserve.awaitFirstOrDefault(emptyList())
-            Log.d(TAG, "getMusic: got ${groups.size} groups")
-            for (g in groups) {
-                val items = g.mediaItems
-                Log.d(TAG, "  group: type=${g.type}, title='${g.title}', items=${items?.size ?: "null"}")
-            }
             emit(groups.toHomeFeed())
         } catch (e: Exception) {
             Log.e(TAG, "getMusic failed", e)
@@ -90,9 +72,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getSports(): Flow<HomeFeed> = flow {
         try {
-            Log.d(TAG, "getSports: calling sportsObserve...")
             val groups = contentService.sportsObserve.awaitFirstOrDefault(emptyList())
-            Log.d(TAG, "getSports: got ${groups.size} groups")
             emit(groups.toHomeFeed())
         } catch (e: Exception) {
             Log.e(TAG, "getSports failed", e)
@@ -102,9 +82,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getLive(): Flow<HomeFeed> = flow {
         try {
-            Log.d(TAG, "getLive: calling liveObserve...")
             val groups = contentService.liveObserve.awaitFirstOrDefault(emptyList())
-            Log.d(TAG, "getLive: got ${groups.size} groups")
             emit(groups.toHomeFeed())
         } catch (e: Exception) {
             Log.e(TAG, "getLive failed", e)
@@ -114,9 +92,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getNews(): Flow<HomeFeed> = flow {
         try {
-            Log.d(TAG, "getNews: calling newsObserve...")
             val groups = contentService.newsObserve.awaitFirstOrDefault(emptyList())
-            Log.d(TAG, "getNews: got ${groups.size} groups")
             emit(groups.toHomeFeed())
         } catch (e: Exception) {
             Log.e(TAG, "getNews failed", e)
@@ -126,9 +102,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getGaming(): Flow<HomeFeed> = flow {
         try {
-            Log.d(TAG, "getGaming: calling gamingObserve...")
             val groups = contentService.gamingObserve.awaitFirstOrDefault(emptyList())
-            Log.d(TAG, "getGaming: got ${groups.size} groups")
             emit(groups.toHomeFeed())
         } catch (e: Exception) {
             Log.e(TAG, "getGaming failed", e)
@@ -138,9 +112,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getKidsHome(): Flow<HomeFeed> = flow {
         try {
-            Log.d(TAG, "getKidsHome: calling kidsHomeObserve...")
             val groups = contentService.kidsHomeObserve.awaitFirstOrDefault(emptyList())
-            Log.d(TAG, "getKidsHome: got ${groups.size} groups")
             emit(groups.toHomeFeed())
         } catch (e: Exception) {
             Log.e(TAG, "getKidsHome failed", e)
@@ -159,25 +131,30 @@ class YouTubeEngine @Inject constructor(
     }.flowOn(Dispatchers.IO)
 
     fun getChannel(channelId: String): Flow<ChannelResult> = flow {
-        val groups = contentService.getChannelObserve(channelId).awaitFirstOrDefault(emptyList())
-        val firstGroup = groups.firstOrNull()
-        val channelInfo = firstGroup?.let {
-            ChannelInfo(
-                channelId = it.channelId.orEmpty(),
-                name = it.title.orEmpty(),
-                avatarUrl = null,
-                subscriberCount = null,
-                description = null,
-                isSubscribed = false
-            )
+        try {
+            val groups = contentService.getChannelObserve(channelId).awaitFirstOrDefault(emptyList())
+            val firstGroup = groups.firstOrNull()
+            val channelInfo = firstGroup?.let {
+                ChannelInfo(
+                    channelId = it.channelId.orEmpty(),
+                    name = it.title.orEmpty(),
+                    avatarUrl = null,
+                    subscriberCount = null,
+                    description = null,
+                    isSubscribed = false
+                )
+            }
+            val sections = groups.mapNotNull { group ->
+                val videos = (group.mediaItems ?: emptyList()).filterNotNull().mapNotNull { it.toVideo() }
+                if (videos.isNotEmpty()) {
+                    ChannelSection(title = group.title.orEmpty(), videos = videos)
+                } else null
+            }
+            emit(ChannelResult(channelInfo, sections))
+        } catch (e: Exception) {
+            Log.e(TAG, "getChannel($channelId) failed", e)
+            emit(ChannelResult(null, emptyList()))
         }
-        val sections = groups.mapNotNull { group ->
-            val videos = (group.mediaItems ?: emptyList()).filterNotNull().mapNotNull { it.toVideo() }
-            if (videos.isNotEmpty()) {
-                ChannelSection(title = group.title.orEmpty(), videos = videos)
-            } else null
-        }
-        emit(ChannelResult(channelInfo, sections))
     }.flowOn(Dispatchers.IO)
 
     fun getChannelVideos(channelId: String): Flow<List<Video>> = flow {
@@ -191,17 +168,9 @@ class YouTubeEngine @Inject constructor(
         try {
             val info = mediaItemService.getFormatInfoObserve(videoId).awaitFirstOrDefault(null)
             if (info == null) {
-                Log.e(TAG, "getStreamInfo($videoId): null response")
                 throw IllegalStateException("No stream info available for $videoId")
             }
-            val mapped = info.toStreamInfo()
-            Log.d(TAG, "getStreamInfo($videoId): isUnplayable=${mapped.isUnplayable}, " +
-                "playabilityReason=${mapped.playabilityReason}, " +
-                "hasDash=${mapped.dashManifestUrl != null}, hasHls=${mapped.hlsManifestUrl != null}, " +
-                "urlFormats=${mapped.urlFormats.size}, adaptiveFormats=${mapped.adaptiveFormats.size}, " +
-                "containsMedia=${info.containsMedia()}, containsUrlFormats=${info.containsUrlFormats()}, " +
-                "containsDashFormats=${info.containsDashFormats()}, containsHlsUrl=${info.containsHlsUrl()}")
-            emit(mapped)
+            emit(info.toStreamInfo())
         } catch (e: Exception) {
             Log.e(TAG, "getStreamInfo($videoId) failed", e)
             throw e
@@ -238,18 +207,13 @@ class YouTubeEngine @Inject constructor(
 
     private fun MediaItem.toVideo(): Video? {
         val videoId = getVideoId()
-        if (videoId.isNullOrBlank()) {
-            Log.w(TAG, "toVideo: skipping item '${getTitle()}' — getVideoId() returned null/blank (type=${getType()})")
-            return null
-        }
-        val thumbnailUrl = getCardImageUrl().orEmpty()
-        Log.d(TAG, "toVideo: id=$videoId, thumb='${thumbnailUrl.take(80)}', title='${getTitle()?.take(40)}'")
+        if (videoId.isNullOrBlank()) return null
         return Video(
             videoId = videoId,
             title = getTitle().orEmpty(),
             author = getAuthor().orEmpty(),
             channelId = getChannelId().orEmpty(),
-            thumbnailUrl = thumbnailUrl,
+            thumbnailUrl = getCardImageUrl().orEmpty(),
             durationMs = getDurationMs(),
             viewCount = null,
             publishedDate = getPublishedDate(),
@@ -355,7 +319,6 @@ class YouTubeEngine @Inject constructor(
             val videos = (group.mediaItems ?: emptyList()).filterNotNull()
                 .mapNotNull { it.toVideo() }
                 .distinctBy { it.videoId }
-            Log.d(TAG, "toHomeFeed: section '${group.title}' → ${videos.size} playable videos (from ${(group.mediaItems?.size ?: 0)} items)")
             if (videos.isNotEmpty()) {
                 HomeSection(title = group.title.orEmpty(), videos = videos)
             } else null

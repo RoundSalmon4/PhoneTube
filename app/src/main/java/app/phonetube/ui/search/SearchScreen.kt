@@ -101,8 +101,11 @@ fun SearchScreen(
             }
 
             is SearchUiState.Empty -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No results found", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(modifier = Modifier.fillMaxSize()) {
+                    FilterChips(filter = filter, onFilterChange = viewModel::onFilterChange)
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("No results found", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
 
@@ -114,25 +117,7 @@ fun SearchScreen(
 
             is SearchUiState.Results -> {
                 Column(modifier = Modifier.fillMaxSize()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        SearchFilter.entries.forEach { entry ->
-                            val label = when (entry) {
-                                SearchFilter.ALL -> "All"
-                                SearchFilter.VIDEOS -> "Videos"
-                                SearchFilter.CHANNELS -> "Channels"
-                            }
-                            FilterChip(
-                                selected = filter == entry,
-                                onClick = { viewModel.onFilterChange(entry) },
-                                label = { Text(label) }
-                            )
-                        }
-                    }
+                    FilterChips(filter = filter, onFilterChange = viewModel::onFilterChange)
 
                     if (state.videos.isNotEmpty() && state.channels.isNotEmpty()) {
                         LazyColumn(
@@ -202,3 +187,27 @@ fun SearchScreen(
         }
     }
 }
+
+@Composable
+private fun FilterChips(filter: SearchFilter, onFilterChange: (SearchFilter) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SearchFilter.entries.forEach { entry ->
+            val label = when (entry) {
+                SearchFilter.ALL -> "All"
+                SearchFilter.VIDEOS -> "Videos"
+                SearchFilter.CHANNELS -> "Channels"
+            }
+            FilterChip(
+                selected = filter == entry,
+                onClick = { onFilterChange(entry) },
+                label = { Text(label) }
+            )
+        }
+    }
+}
+

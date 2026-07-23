@@ -1,5 +1,6 @@
 package app.phonetube.ui.channel
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -7,7 +8,6 @@ import app.phonetube.core.database.SubscriptionDao
 import app.phonetube.core.database.entity.LocalSubscription
 import app.phonetube.core.engine.YouTubeEngine
 import app.phonetube.core.engine.model.ChannelSection
-import app.phonetube.core.engine.model.Video
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +23,10 @@ class ChannelViewModel @Inject constructor(
     private val engine: YouTubeEngine,
     private val subscriptionDao: SubscriptionDao
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "ChannelVM"
+    }
 
     private val channelId: String = savedStateHandle["channelId"]!!
 
@@ -42,23 +46,26 @@ class ChannelViewModel @Inject constructor(
         viewModelScope.launch {
             engine.getChannel(channelId)
                 .catch { e ->
+                    Log.e(TAG, "getChannel failed", e)
                     _uiState.value = ChannelUiState.Error(e.message ?: "Failed to load channel")
                 }
                 .firstOrNull()
                 ?.let { result ->
                     val channel = result.channel
                     val sections = result.sections
-                    if (channel == null) {
+                    if (channel == null && sections.isEmpty()) {
                         _uiState.value = ChannelUiState.Error("Channel not found")
                     } else {
                         _uiState.value = ChannelUiState.Success(
-                            name = channel.name,
-                            avatarUrl = channel.avatarUrl,
-                            subscriberCount = channel.subscriberCount,
-                            description = channel.description,
+                            name = channel?.name ?: channelId,
+                            avatarUrl = channel?.avatarUrl,
+                            subscriberCount = channel?.subscriberCount,
+                            description = channel?.description,
                             sections = sections
                         )
                     }
+                } ?: run {
+                    _uiState.value = ChannelUiState.Error("Channel not found")
                 }
         }
     }

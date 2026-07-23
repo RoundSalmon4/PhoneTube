@@ -37,4 +37,7 @@ interface PlaylistDao {
 
     @Query("DELETE FROM playlist_videos WHERE playlistId = :playlistId")
     suspend fun clearPlaylist(playlistId: Long)
+
+    @Query("SELECT COUNT(*) FROM playlist_videos WHERE playlistId = :playlistId")
+    suspend fun getVideoCount(playlistId: Long): Int
 }

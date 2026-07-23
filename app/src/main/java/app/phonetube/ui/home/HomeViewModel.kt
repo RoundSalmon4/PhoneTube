@@ -2,8 +2,12 @@ package app.phonetube.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.phonetube.core.database.PlaylistDao
+import app.phonetube.core.database.entity.LocalPlaylist
+import app.phonetube.core.database.entity.PlaylistVideo
 import app.phonetube.core.engine.YouTubeEngine
 import app.phonetube.core.engine.model.HomeSection
+import app.phonetube.core.engine.model.Video
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +19,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val engine: YouTubeEngine
+    private val engine: YouTubeEngine,
+    private val playlistDao: PlaylistDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -24,8 +29,15 @@ class HomeViewModel @Inject constructor(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
+    private val _playlists = MutableStateFlow<List<LocalPlaylist>>(emptyList())
+    val playlists: StateFlow<List<LocalPlaylist>> = _playlists.asStateFlow()
+
+    private val _addToPlaylistVideo = MutableStateFlow<Video?>(null)
+    val addToPlaylistVideo: StateFlow<Video?> = _addToPlaylistVideo.asStateFlow()
+
     init {
         loadHome()
+        loadPlaylists()
     }
 
     fun loadHome() {
@@ -67,6 +79,62 @@ class HomeViewModel @Inject constructor(
             } finally {
                 _isRefreshing.value = false
             }
+        }
+    }
+
+    private fun loadPlaylists() {
+        viewModelScope.launch {
+            playlistDao.getAllPlaylists().collect { _playlists.value = it }
+        }
+    }
+
+    fun showAddToPlaylistDialog(video: Video) {
+        _addToPlaylistVideo.value = video
+    }
+
+    fun dismissAddToPlaylistDialog() {
+        _addToPlaylistVideo.value = null
+    }
+
+    fun addToPlaylist(playlist: LocalPlaylist) {
+        val video = _addToPlaylistVideo.value ?: return
+        viewModelScope.launch {
+            val count = playlistDao.getVideoCount(playlist.id)
+            playlistDao.insertVideo(
+                PlaylistVideo(
+                    playlistId = playlist.id,
+                    videoId = video.videoId,
+                    title = video.title,
+                    channelName = video.author,
+                    thumbnailUrl = video.thumbnailUrl,
+                    durationMs = video.durationMs,
+                    position = count
+                )
+            )
+            playlistDao.insertPlaylist(playlist.copy(videoCount = count + 1))
+            _addToPlaylistVideo.value = null
+        }
+    }
+
+    fun createPlaylistAndAdd(name: String) {
+        val video = _addToPlaylistVideo.value ?: return
+        viewModelScope.launch {
+            val id = playlistDao.insertPlaylist(
+                LocalPlaylist(name = name, createdAt = System.currentTimeMillis())
+            )
+            playlistDao.insertVideo(
+                PlaylistVideo(
+                    playlistId = id,
+                    videoId = video.videoId,
+                    title = video.title,
+                    channelName = video.author,
+                    thumbnailUrl = video.thumbnailUrl,
+                    durationMs = video.durationMs,
+                    position = 0
+                )
+            )
+            playlistDao.insertPlaylist(LocalPlaylist(id = id, name = name, createdAt = System.currentTimeMillis(), videoCount = 1))
+            _addToPlaylistVideo.value = null
         }
     }
 }

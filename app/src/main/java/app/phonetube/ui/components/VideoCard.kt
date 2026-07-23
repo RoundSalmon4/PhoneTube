@@ -1,5 +1,7 @@
 package app.phonetube.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -18,15 +20,20 @@ import androidx.compose.ui.unit.dp
 import app.phonetube.core.engine.model.Video
 import coil3.compose.AsyncImage
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VideoCard(
     video: Video,
     onClick: () -> Unit,
     onChannelClick: ((String) -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
-        modifier = modifier.clickable(onClick = onClick)
+        modifier = modifier.combinedClickable(
+            onClick = onClick,
+            onLongClick = onLongClick
+        )
     ) {
         AsyncImage(
             model = video.thumbnailUrl,
