@@ -105,7 +105,8 @@ private fun VideoRow(
             items(videos, key = { it.videoId }) { video ->
                 VideoCard(
                     video = video,
-                    onClick = { onVideoClick(video.videoId) }
+                    onClick = { onVideoClick(video.videoId) },
+                    modifier = Modifier.width(320.dp)
                 )
             }
         }
