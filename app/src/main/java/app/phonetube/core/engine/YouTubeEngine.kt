@@ -185,12 +185,14 @@ class YouTubeEngine @Inject constructor(
             Log.w(TAG, "toVideo: skipping item '${getTitle()}' — getVideoId() returned null/blank (type=${getType()})")
             return null
         }
+        val thumbnailUrl = getCardImageUrl().orEmpty()
+        Log.d(TAG, "toVideo: id=$videoId, thumb='${thumbnailUrl.take(80)}', title='${getTitle()?.take(40)}'")
         return Video(
             videoId = videoId,
             title = getTitle().orEmpty(),
             author = getAuthor().orEmpty(),
             channelId = getChannelId().orEmpty(),
-            thumbnailUrl = getCardImageUrl().orEmpty(),
+            thumbnailUrl = thumbnailUrl,
             durationMs = getDurationMs(),
             viewCount = null,
             publishedDate = getPublishedDate(),
@@ -213,7 +215,7 @@ class YouTubeEngine @Inject constructor(
         subtitles = (subtitles ?: emptyList()).map { it.toSubtitleTrack() },
         dashManifestUrl = getDashManifestUrl(),
         hlsManifestUrl = getHlsManifestUrl(),
-        storyboardUrl = createStoryboard()?.let { it.getGroupUrl(0) },
+        storyboardUrl = try { createStoryboard()?.let { it.getGroupUrl(0) } } catch (_: Exception) { null },
         isUnplayable = isUnplayable,
         playabilityReason = getPlayabilityReason()
     )
