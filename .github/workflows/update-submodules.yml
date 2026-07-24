@@ -24,12 +24,19 @@ jobs:
           git fetch upstream
           LOCAL=$(git rev-parse HEAD)
           REMOTE=$(git rev-parse upstream/master)
-          if [ "$LOCAL" != "$REMOTE" ]; then
-            echo "MediaServiceCore has new commits: $LOCAL -> $REMOTE"
-            git checkout upstream/master
-          else
+          if [ "$LOCAL" = "$REMOTE" ]; then
             echo "MediaServiceCore is up to date"
+            exit 0
           fi
+          echo "MediaServiceCore has new upstream commits: $LOCAL -> $REMOTE"
+          # create a branch from detached HEAD so we can rebase
+          git checkout -b phonetube-patches
+          if ! git rebase upstream/master; then
+            echo "::error::Rebase failed — manual conflict resolution needed"
+            git rebase --abort
+            exit 1
+          fi
+          echo "Rebased successfully. New HEAD: $(git rev-parse HEAD)"
 
       - name: Update SharedModules
         run: |
