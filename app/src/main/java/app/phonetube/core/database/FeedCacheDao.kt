@@ -14,8 +14,8 @@ import kotlinx.coroutines.flow.Flow
 data class CachedSectionWithVideos(
     @Embedded val section: CachedFeedSection,
     @Relation(
-        parentColumn = "source",
-        entityColumn = "source"
+        parentColumn = "id",
+        entityColumn = "sectionId"
     )
     val videos: List<CachedFeedVideo>
 )
@@ -24,7 +24,7 @@ data class CachedSectionWithVideos(
 interface FeedCacheDao {
 
     @Transaction
-    @Query("SELECT * FROM feed_sections ORDER BY source")
+    @Query("SELECT * FROM feed_sections ORDER BY id")
     fun getAllSections(): Flow<List<CachedSectionWithVideos>>
 
     @Transaction
@@ -35,7 +35,7 @@ interface FeedCacheDao {
     suspend fun getOldestFetchedAt(): Long?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertSections(sections: List<CachedFeedSection>)
+    suspend fun insertSections(sections: List<CachedFeedSection>): List<Long>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertVideos(videos: List<CachedFeedVideo>)

@@ -21,7 +21,7 @@ jobs:
         run: |
           cd MediaServiceCore
           git remote add upstream https://github.com/yuliskov/MediaServiceCore.git || true
-          git fetch upstream
+          git fetch upstream master
           LOCAL=$(git rev-parse HEAD)
           REMOTE=$(git rev-parse upstream/master)
           if [ "$LOCAL" = "$REMOTE" ]; then
@@ -29,14 +29,10 @@ jobs:
             exit 0
           fi
           echo "MediaServiceCore has new upstream commits: $LOCAL -> $REMOTE"
-          # create a branch from detached HEAD so we can rebase
-          git checkout -b phonetube-patches
-          if ! git rebase upstream/master; then
-            echo "::error::Rebase failed — manual conflict resolution needed"
-            git rebase --abort
-            exit 1
-          fi
-          echo "Rebased successfully. New HEAD: $(git rev-parse HEAD)"
+          git checkout -b auto/update-mediaservicecore upstream/master
+          # overwrite CommonHelper.kt with our patched version
+          git checkout origin/phonetube-patches -- youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
+          git commit -m "fix: overwrite CommonHelper.kt with PhoneTube patches" || echo "no changes to commit"
 
       - name: Update SharedModules
         run: |
@@ -51,7 +47,7 @@ jobs:
             echo "SharedModules is up to date"
           fi
 
-      - name: Check for changes
+      - name: Check for submodule changes
         id: changes
         run: |
           if git diff --quiet HEAD; then
@@ -71,9 +67,9 @@ jobs:
           body: |
             Automated submodule update from upstream repositories.
 
-            **MediaServiceCore:** [yuliskov/MediaServiceCore](https://github.com/yuliskov/MediaServiceCore) (via [RoundSalmon4/MediaServiceCore](https://github.com/RoundSalmon4/MediaServiceCore))
+            **MediaServiceCore:** synced to [upstream/master](https://github.com/yuliskov/MediaServiceCore), then `CommonHelper.kt` overwritten with our patched version to preserve `LockupItem.getVideoId()` fix.
             **SharedModules:** [yuliskov/SharedModules](https://github.com/yuliskov/SharedModules)
 
-            This PR was created by the `update-submodules` workflow. The build will verify compilation.
+            If `CommonHelper.kt` conflicts with upstream changes, this PR will need manual review.
           labels: automated
           delete-branch: true

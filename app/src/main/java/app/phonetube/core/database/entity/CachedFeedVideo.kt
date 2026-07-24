@@ -6,17 +6,17 @@ import androidx.room.Index
 
 @Entity(
     tableName = "feed_videos",
-    primaryKeys = ["source", "videoId"],
+    primaryKeys = ["sectionId", "videoId"],
     foreignKeys = [ForeignKey(
         entity = CachedFeedSection::class,
-        parentColumns = ["source"],
-        childColumns = ["source"],
+        parentColumns = ["id"],
+        childColumns = ["sectionId"],
         onDelete = ForeignKey.CASCADE
     )],
-    indices = [Index("source")]
+    indices = [Index("sectionId")]
 )
 data class CachedFeedVideo(
-    val source: String,
+    val sectionId: Long,
     val videoId: String,
     val title: String,
     val author: String,

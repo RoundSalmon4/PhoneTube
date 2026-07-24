@@ -20,7 +20,7 @@ import app.phonetube.core.database.entity.WatchHistoryEntry
         CachedFeedSection::class,
         CachedFeedVideo::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -56,6 +56,37 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                 """.trimIndent())
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_feed_videos_source ON feed_videos(source)")
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS feed_videos")
+                db.execSQL("DROP TABLE IF EXISTS feed_sections")
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS feed_sections (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        source TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        fetchedAt INTEGER NOT NULL
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS feed_videos (
+                        sectionId INTEGER NOT NULL,
+                        videoId TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        author TEXT NOT NULL,
+                        channelId TEXT NOT NULL,
+                        thumbnailUrl TEXT NOT NULL,
+                        durationMs INTEGER NOT NULL,
+                        viewCount TEXT NOT NULL,
+                        position INTEGER NOT NULL,
+                        PRIMARY KEY(sectionId, videoId),
+                        FOREIGN KEY(sectionId) REFERENCES feed_sections(id) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_feed_videos_sectionId ON feed_videos(sectionId)")
             }
         }
     }

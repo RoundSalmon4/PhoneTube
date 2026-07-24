@@ -147,11 +147,12 @@ class HomeViewModel @Inject constructor(
                     fetchedAt = now
                 )
             }
-            feedCacheDao.insertSections(dbSections)
+            val sectionIds = feedCacheDao.insertSections(dbSections)
             val dbVideos = sections.flatMapIndexed { sectionIndex, section ->
+                val sectionId = sectionIds[sectionIndex]
                 section.videos.mapIndexed { videoIndex, video ->
                     CachedFeedVideo(
-                        source = section.source,
+                        sectionId = sectionId,
                         videoId = video.videoId,
                         title = video.title,
                         author = video.author,
