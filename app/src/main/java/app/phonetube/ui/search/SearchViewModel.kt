@@ -128,9 +128,8 @@ class SearchViewModel @Inject constructor(
 
     private fun search(query: String) {
         _uiState.value = SearchUiState.Loading
-        val channelOnly = _filter.value == SearchFilter.CHANNELS
         viewModelScope.launch {
-            engine.search(query, channelOnly)
+            engine.search(query)
                 .catch { e ->
                     _uiState.value = SearchUiState.Error(e.message ?: "Search failed")
                 }

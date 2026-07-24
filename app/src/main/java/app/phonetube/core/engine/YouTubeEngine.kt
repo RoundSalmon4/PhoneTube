@@ -61,7 +61,21 @@ class YouTubeEngine @Inject constructor(
             for ((i, item) in sampleItems.withIndex()) {
                 Log.d(TAG, "getHome item[$i]: type=${item.type} videoId=${item.videoId?.take(12)} title='${item.title?.take(30)}'")
             }
-            emit(flat.toHomeFeed("Home"))
+            val feed = flat.toHomeFeed("Home")
+            if (feed.sections.isNotEmpty()) {
+                emit(feed)
+            } else {
+                Log.d(TAG, "getHome: homeObserve returned empty, falling back to trending")
+                try {
+                    val trendingGroups = contentService.trendingObserve.toList().await()
+                    val trendingFlat = trendingGroups.flatten()
+                    Log.d(TAG, "getHome trending fallback: ${trendingFlat.size} groups")
+                    emit(trendingFlat.toHomeFeed("Home"))
+                } catch (e2: Exception) {
+                    Log.e(TAG, "getHome trending fallback failed", e2)
+                    emit(HomeFeed(emptyList()))
+                }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "getHome failed", e)
             emit(HomeFeed(emptyList()))
@@ -421,11 +435,13 @@ class YouTubeEngine @Inject constructor(
                 if (isChannel) {
                     val channelId = item.channelId
                     if (!channelId.isNullOrBlank()) {
+                        val thumbUrl = item.cardImageUrl
+                            ?: item.backgroundImageUrl
                         channels.add(
                             SearchChannel(
                                 channelId = channelId,
                                 name = item.title.orEmpty(),
-                                thumbnailUrl = item.cardImageUrl
+                                thumbnailUrl = thumbUrl
                             )
                         )
                         debugCount++
