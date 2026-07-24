@@ -20,12 +20,13 @@ jobs:
       - name: Update MediaServiceCore
         run: |
           cd MediaServiceCore
-          git fetch origin
+          git remote add upstream https://github.com/yuliskov/MediaServiceCore.git || true
+          git fetch upstream
           LOCAL=$(git rev-parse HEAD)
-          REMOTE=$(git rev-parse origin/master)
+          REMOTE=$(git rev-parse upstream/master)
           if [ "$LOCAL" != "$REMOTE" ]; then
             echo "MediaServiceCore has new commits: $LOCAL -> $REMOTE"
-            git checkout origin/master
+            git checkout upstream/master
           else
             echo "MediaServiceCore is up to date"
           fi
@@ -63,7 +64,7 @@ jobs:
           body: |
             Automated submodule update from upstream repositories.
 
-            **MediaServiceCore:** [yuliskov/MediaServiceCore](https://github.com/yuliskov/MediaServiceCore)
+            **MediaServiceCore:** [yuliskov/MediaServiceCore](https://github.com/yuliskov/MediaServiceCore) (via [RoundSalmon4/MediaServiceCore](https://github.com/RoundSalmon4/MediaServiceCore))
             **SharedModules:** [yuliskov/SharedModules](https://github.com/yuliskov/SharedModules)
 
             This PR was created by the `update-submodules` workflow. The build will verify compilation.
