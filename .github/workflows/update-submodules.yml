@@ -30,7 +30,8 @@ jobs:
           fi
           echo "MediaServiceCore has new upstream commits: $LOCAL -> $REMOTE"
           git checkout -b auto/update-mediaservicecore upstream/master
-          # overwrite CommonHelper.kt with our patched version
+          # fetch our patched branch and overwrite CommonHelper.kt
+          git fetch origin phonetube-patches
           git checkout origin/phonetube-patches -- youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
           git commit -m "fix: overwrite CommonHelper.kt with PhoneTube patches" || echo "no changes to commit"
 
