@@ -61,7 +61,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.PAT }}
-          commit-message: 'chore: update submodules from upstream'
+          commit-message: 'chore: update submodules from upstream [skip ci]'
           branch: auto/update-submodules
           title: 'chore: update MediaServiceCore + SharedModules from upstream'
           body: |

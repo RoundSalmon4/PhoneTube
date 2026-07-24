@@ -3,8 +3,14 @@ name: Build
 on:
   push:
     branches: [ new-ui ]
+    paths-ignore:
+      - 'MediaServiceCore/**'
+      - 'SharedModules/**'
   pull_request:
     branches: [ new-ui ]
+    paths-ignore:
+      - 'MediaServiceCore/**'
+      - 'SharedModules/**'
   workflow_dispatch:
 
 jobs:
