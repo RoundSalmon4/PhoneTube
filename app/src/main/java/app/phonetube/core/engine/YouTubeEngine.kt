@@ -58,11 +58,8 @@ class YouTubeEngine @Inject constructor(
             val flat = groups.flatten()
             val totalItems = flat.sumOf { (it.mediaItems?.size ?: 0) }
             Log.d(TAG, "getHome: ${flat.size} groups, $totalItems total items")
-            val sampleItems = flat.flatMap { (it.mediaItems ?: emptyList()).filterNotNull() }.take(5)
-            for ((i, item) in sampleItems.withIndex()) {
-                Log.d(TAG, "getHome item[$i]: type=${item.type} videoId=${item.videoId?.take(12)} title='${item.title?.take(30)}'")
-            }
             val feed = flat.toHomeFeed("Home")
+            Log.d(TAG, "getHome: ${feed.sections.size} sections mapped")
             emit(feed)
         } catch (e: Exception) {
             Log.e(TAG, "getHome failed", e)
@@ -385,7 +382,10 @@ class YouTubeEngine @Inject constructor(
                 HomeSection(title = group.title.orEmpty(), videos = videos, source = source)
             } else {
                 if (allItems.isNotEmpty()) {
-                    Log.d(TAG, "toHomeFeed($source): group '${group.title?.take(30)}' had ${allItems.size} items but 0 videos mapped")
+                    val typeBreakdown = allItems.groupBy { it.type }
+                        .mapValues { it.value.size }
+                        .entries.joinToString { "${it.key}:${it.value}" }
+                    Log.d(TAG, "toHomeFeed($source): dropped section '${group.title?.take(30)}' (${allItems.size} items, types=$typeBreakdown, 0 videos)")
                 }
                 null
             }
