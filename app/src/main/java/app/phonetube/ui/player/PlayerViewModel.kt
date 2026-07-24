@@ -147,32 +147,6 @@ class PlayerViewModel @Inject constructor(
                 _uiState.value = PlayerUiState.Error("No stream URL available")
             }
         }
-        monitorPlaybackErrors()
-    }
-
-    private var playbackRetryCount = 0
-    private var errorListener: androidx.media3.common.Player.Listener? = null
-
-    private fun monitorPlaybackErrors() {
-        errorListener?.let { playerController.exoPlayer.removeListener(it) }
-        val listener = object : androidx.media3.common.Player.Listener {
-            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                val is403 = error.cause?.message?.contains("403") == true ||
-                    error.message?.contains("403") == true
-                Log.e(TAG, "Playback error: ${error.message}, is403=$is403")
-
-                if (is403 && playbackRetryCount < MAX_PLAYBACK_RETRIES) {
-                    playbackRetryCount++
-                    Log.d(TAG, "Retrying playback (attempt $playbackRetryCount/$MAX_PLAYBACK_RETRIES) with client switch")
-                    engine.applyPlaybackFix()
-                    loadStreamInfo()
-                } else {
-                    _uiState.value = PlayerUiState.Error(error.message ?: "Playback failed")
-                }
-            }
-        }
-        errorListener = listener
-        playerController.exoPlayer.addListener(listener)
     }
 
     private fun restoreSpeedPreference() {
@@ -257,13 +231,11 @@ class PlayerViewModel @Inject constructor(
     fun hideSubtitlePicker() { _showSubtitlePicker.value = false }
 
     fun retry() {
-        playbackRetryCount = 0
         loadStreamInfo()
     }
 
     override fun onCleared() {
         super.onCleared()
-        errorListener?.let { playerController.exoPlayer.removeListener(it) }
         playerController.release()
     }
 
@@ -305,4 +277,3 @@ sealed interface PlayerUiState {
 
 private const val SKIP_CHECK_INTERVAL_MS = 500L
 private const val POSITION_SAVE_INTERVAL_MS = 10_000L
-private const val MAX_PLAYBACK_RETRIES = 3
