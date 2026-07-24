@@ -28,7 +28,7 @@ media3 = "1.8.0"
 coil = "3.0.4"
 
 # Hilt
-hilt = "2.53.1"
+hilt = "2.54"
 hilt-navigation-compose = "1.2.0"
 
 # OkHttp
