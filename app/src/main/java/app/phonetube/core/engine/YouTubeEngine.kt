@@ -62,20 +62,7 @@ class YouTubeEngine @Inject constructor(
                 Log.d(TAG, "getHome item[$i]: type=${item.type} videoId=${item.videoId?.take(12)} title='${item.title?.take(30)}'")
             }
             val feed = flat.toHomeFeed("Home")
-            if (feed.sections.isNotEmpty()) {
-                emit(feed)
-            } else {
-                Log.d(TAG, "getHome: homeObserve returned empty, falling back to trending")
-                try {
-                    val trendingGroups = contentService.trendingObserve.toList().await()
-                    val trendingFlat = trendingGroups.flatten()
-                    Log.d(TAG, "getHome trending fallback: ${trendingFlat.size} groups")
-                    emit(trendingFlat.toHomeFeed("Home"))
-                } catch (e2: Exception) {
-                    Log.e(TAG, "getHome trending fallback failed", e2)
-                    emit(HomeFeed(emptyList()))
-                }
-            }
+            emit(feed)
         } catch (e: Exception) {
             Log.e(TAG, "getHome failed", e)
             emit(HomeFeed(emptyList()))
