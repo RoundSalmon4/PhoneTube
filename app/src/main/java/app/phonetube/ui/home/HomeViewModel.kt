@@ -13,12 +13,14 @@ import app.phonetube.core.engine.YouTubeEngine
 import app.phonetube.core.engine.model.HomeSection
 import app.phonetube.core.engine.model.Video
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -117,7 +119,7 @@ class HomeViewModel @Inject constructor(
                 val nonEmpty = allSections.filter { it.videos.isNotEmpty() }
                 if (nonEmpty.isNotEmpty()) {
                     _uiState.value = HomeUiState.Success(nonEmpty)
-                    writeToCache(nonEmpty)
+                    withContext(NonCancellable) { writeToCache(nonEmpty) }
                     Log.d(TAG, "Loaded ${nonEmpty.size} sections from network, cached")
                 } else if (_uiState.value is HomeUiState.Loading) {
                     _uiState.value = HomeUiState.Empty
