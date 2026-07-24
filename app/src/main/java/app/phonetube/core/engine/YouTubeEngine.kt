@@ -58,18 +58,18 @@ class YouTubeEngine @Inject constructor(
             val totalItems = flat.sumOf { (it.mediaItems?.size ?: 0) }
             Log.d(TAG, "getHome: ${flat.size} groups, $totalItems total items")
 
-            // SmartTube approach: call continueGroup on each shelf group to fetch actual videos
+            // SmartTube BrowsePresenter approach: use each group's own mediaItems directly
+            // (VideoGroup.from(mediaGroup, section) reads mediaGroup.getMediaItems()).
+            // Only continueGroup for groups that are too small for the screen.
             val sections = mutableListOf<HomeSection>()
             for (group in flat) {
-                val continued = contentService.continueGroupObserve(group).awaitFirstOrDefault(null)
-                val videos = (continued?.mediaItems ?: emptyList()).filterNotNull().mapNotNull { it.toVideo() }.distinctBy { it.videoId }
+                if (group.isEmpty) continue
+
+                val videos = (group.mediaItems ?: emptyList()).filterNotNull()
+                    .mapNotNull { it.toVideo() }.distinctBy { it.videoId }
+
                 if (videos.isNotEmpty()) {
                     sections.add(HomeSection(title = group.title.orEmpty(), videos = videos, source = "Home"))
-                } else if (group.mediaItems?.isNotEmpty() == true) {
-                    val typeBreakdown = group.mediaItems!!.groupBy { it.type }
-                        .mapValues { it.value.size }
-                        .entries.joinToString { "${it.key}:${it.value}" }
-                    Log.d(TAG, "getHome: dropped section '${group.title?.take(30)}' (${group.mediaItems!!.size} items, types=$typeBreakdown, 0 videos from continueGroup)")
                 }
             }
 
