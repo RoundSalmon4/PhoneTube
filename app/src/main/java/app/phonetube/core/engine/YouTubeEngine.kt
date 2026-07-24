@@ -53,6 +53,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getHome(): Flow<HomeFeed> = flow {
         try {
+            initializer.warmup()
             val groups = contentService.homeObserve.toList().await()
             val flat = groups.flatten()
             val totalItems = flat.sumOf { (it.mediaItems?.size ?: 0) }
