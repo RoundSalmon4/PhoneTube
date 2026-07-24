@@ -53,12 +53,27 @@ class YouTubeEngine @Inject constructor(
 
     fun getHome(): Flow<HomeFeed> = flow {
         try {
-            initializer.warmup()
             val groups = contentService.homeObserve.toList().await()
             val flat = groups.flatten()
             val totalItems = flat.sumOf { (it.mediaItems?.size ?: 0) }
             Log.d(TAG, "getHome: ${flat.size} groups, $totalItems total items")
-            val feed = flat.toHomeFeed("Home")
+
+            // SmartTube approach: call continueGroup on each shelf group to fetch actual videos
+            val sections = mutableListOf<HomeSection>()
+            for (group in flat) {
+                val continued = contentService.continueGroupObserve(group).awaitFirstOrDefault(null)
+                val videos = (continued?.mediaItems ?: emptyList()).filterNotNull().mapNotNull { it.toVideo() }.distinctBy { it.videoId }
+                if (videos.isNotEmpty()) {
+                    sections.add(HomeSection(title = group.title.orEmpty(), videos = videos, source = "Home"))
+                } else if (group.mediaItems?.isNotEmpty() == true) {
+                    val typeBreakdown = group.mediaItems!!.groupBy { it.type }
+                        .mapValues { it.value.size }
+                        .entries.joinToString { "${it.key}:${it.value}" }
+                    Log.d(TAG, "getHome: dropped section '${group.title?.take(30)}' (${group.mediaItems!!.size} items, types=$typeBreakdown, 0 videos from continueGroup)")
+                }
+            }
+
+            val feed = HomeFeed(sections = sections)
             Log.d(TAG, "getHome: ${feed.sections.size} sections mapped")
             emit(feed)
         } catch (e: Exception) {

@@ -27,9 +27,6 @@ class YouTubeInitializer @Inject constructor(
     fun init() {
         if (initialized) return
         GlobalPreferences.instance(context)
-        // Use embedded TV client for browse — standard TV client returns empty home feed for anonymous users
-        YouTubeServiceManager.instance().contentService
-            .configureBrowseClient("TVHTML5_SIMPLY_EMBEDDED_PLAYER")
         initialized = true
     }
 
