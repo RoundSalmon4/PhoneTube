@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
@@ -30,6 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,6 +52,7 @@ fun SearchScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
     val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -69,7 +74,12 @@ fun SearchScreen(
                     }
                 }
             },
-            singleLine = true
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = {
+                viewModel.onSearch()
+                keyboardController?.hide()
+            })
         )
 
         when (val state = uiState) {
@@ -121,14 +131,6 @@ fun SearchScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(vertical = 8.dp)
                     ) {
-                        if (state.channels.isNotEmpty()) {
-                            items(state.channels, key = { "ch-${it.channelId}" }) { channel ->
-                                ChannelCard(
-                                    channel = channel,
-                                    onClick = { onChannelClick(channel.channelId) }
-                                )
-                            }
-                        }
                         items(state.videos, key = { "vid-${it.videoId}" }) { video ->
                             VideoCard(
                                 video = video,
@@ -143,6 +145,14 @@ fun SearchScreen(
                                     }
                                 }
                             )
+                        }
+                        if (state.channels.isNotEmpty()) {
+                            items(state.channels, key = { "ch-${it.channelId}" }) { channel ->
+                                ChannelCard(
+                                    channel = channel,
+                                    onClick = { onChannelClick(channel.channelId) }
+                                )
+                            }
                         }
                     }
                 }

@@ -248,6 +248,16 @@ class YouTubeEngine @Inject constructor(
         }
     }.flowOn(Dispatchers.IO)
 
+    fun applyPlaybackFix() {
+        try {
+            initializer.init()
+            serviceManager.applyNoPlaybackFix()
+            Log.d(TAG, "applyPlaybackFix: switched to next client")
+        } catch (e: Exception) {
+            Log.e(TAG, "applyPlaybackFix failed", e)
+        }
+    }
+
     fun getMetadata(videoId: String): Flow<VideoMetadataResult> = flow {
         val metadata = mediaItemService.getMetadataObserve(videoId).awaitFirstOrDefault(null)
         emit((metadata ?: throw IllegalStateException("No metadata available for $videoId")).toVideoMetadataResult())
