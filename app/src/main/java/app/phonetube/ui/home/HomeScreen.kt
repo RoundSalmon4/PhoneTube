@@ -87,12 +87,12 @@ fun HomeScreen(
             ) {
                 val displayItems = buildList {
                     var lastSource = ""
-                    for (section in s.sections) {
+                    for ((index, section) in s.sections.withIndex()) {
                         if (section.source.isNotEmpty() && section.source != lastSource) {
                             lastSource = section.source
                             add(HomeDisplayItem.SourceHeader(section.source))
                         }
-                        add(HomeDisplayItem.Section(section))
+                        add(HomeDisplayItem.Section(section, index))
                     }
                 }
                 LazyColumn(
@@ -102,7 +102,7 @@ fun HomeScreen(
                     items(displayItems, key = {
                         when (it) {
                             is HomeDisplayItem.SourceHeader -> "header-${it.source}"
-                            is HomeDisplayItem.Section -> "section-${it.section.source}-${it.section.title}"
+                            is HomeDisplayItem.Section -> "section-${it.index}"
                         }
                     }) { item ->
                         when (item) {
@@ -142,7 +142,7 @@ fun HomeScreen(
 
 private sealed interface HomeDisplayItem {
     data class SourceHeader(val source: String) : HomeDisplayItem
-    data class Section(val section: app.phonetube.core.engine.model.HomeSection) : HomeDisplayItem
+    data class Section(val section: app.phonetube.core.engine.model.HomeSection, val index: Int) : HomeDisplayItem
 }
 
 @Composable

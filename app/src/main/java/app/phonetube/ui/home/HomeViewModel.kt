@@ -105,14 +105,18 @@ class HomeViewModel @Inject constructor(
                 val gamingSections = async { engine.getGaming().firstOrNull() }
                 val kidsSections = async { engine.getKidsHome().firstOrNull() }
 
+                val homeFeed = homeSections.await()
+                val musicFeed = musicSections.await()
+                val sportsFeed = sportsSections.await()
+                val liveFeed = liveSections.await()
+                val newsFeed = newsSections.await()
+                val gamingFeed = gamingSections.await()
+                val kidsFeed = kidsSections.await()
+
+                Log.d(TAG, "Feeds: home=${homeFeed?.sections?.size ?: 0} music=${musicFeed?.sections?.size ?: 0} sports=${sportsFeed?.sections?.size ?: 0} live=${liveFeed?.sections?.size ?: 0} news=${newsFeed?.sections?.size ?: 0} gaming=${gamingFeed?.sections?.size ?: 0} kids=${kidsFeed?.sections?.size ?: 0}")
+
                 val orderedFeeds = listOf(
-                    homeSections.await(),
-                    sportsSections.await(),
-                    gamingSections.await(),
-                    liveSections.await(),
-                    newsSections.await(),
-                    musicSections.await(),
-                    kidsSections.await()
+                    homeFeed, sportsFeed, gamingFeed, liveFeed, newsFeed, musicFeed, kidsFeed
                 )
 
                 val allSections = orderedFeeds.flatMap { it?.sections ?: emptyList() }
