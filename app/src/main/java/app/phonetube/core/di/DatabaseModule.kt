@@ -3,6 +3,7 @@ package app.phonetube.core.di
 import android.content.Context
 import androidx.room.Room
 import app.phonetube.core.database.AppDatabase
+import app.phonetube.core.database.FeedCacheDao
 import app.phonetube.core.database.HistoryDao
 import app.phonetube.core.database.PlaylistDao
 import app.phonetube.core.database.SubscriptionDao
@@ -26,7 +27,7 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "phonetube.db"
-        ).build()
+        ).addMigrations(AppDatabase.MIGRATION_1_2).build()
     }
 
     @Provides
@@ -42,5 +43,10 @@ object DatabaseModule {
     @Provides
     fun provideSubscriptionDao(database: AppDatabase): SubscriptionDao {
         return database.subscriptionDao()
+    }
+
+    @Provides
+    fun provideFeedCacheDao(database: AppDatabase): FeedCacheDao {
+        return database.feedCacheDao()
     }
 }

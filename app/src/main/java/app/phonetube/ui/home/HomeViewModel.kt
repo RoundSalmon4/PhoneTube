@@ -3,7 +3,10 @@ package app.phonetube.ui.home
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.phonetube.core.database.FeedCacheDao
 import app.phonetube.core.database.PlaylistDao
+import app.phonetube.core.database.entity.CachedFeedSection
+import app.phonetube.core.database.entity.CachedFeedVideo
 import app.phonetube.core.database.entity.LocalPlaylist
 import app.phonetube.core.database.entity.PlaylistVideo
 import app.phonetube.core.engine.YouTubeEngine
@@ -21,11 +24,13 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val engine: YouTubeEngine,
-    private val playlistDao: PlaylistDao
+    private val playlistDao: PlaylistDao,
+    private val feedCacheDao: FeedCacheDao
 ) : ViewModel() {
 
     companion object {
         private const val TAG = "HomeVM"
+        private const val CACHE_MAX_AGE_MS = 15 * 60 * 1000L
     }
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -41,15 +46,53 @@ class HomeViewModel @Inject constructor(
     val addToPlaylistVideo: StateFlow<Video?> = _addToPlaylistVideo.asStateFlow()
 
     init {
-        loadHome()
+        loadHomeFromCache()
         loadPlaylists()
     }
 
     fun loadHome() {
-        if (_uiState.value is HomeUiState.Success) {
+        val isRefresh = _uiState.value is HomeUiState.Success
+        if (isRefresh) {
             _isRefreshing.value = true
         }
+        loadFromNetwork(isRefresh)
+    }
 
+    private fun loadHomeFromCache() {
+        viewModelScope.launch {
+            try {
+                val cachedSections = feedCacheDao.getAllSections().firstOrNull()
+                if (!cachedSections.isNullOrEmpty()) {
+                    val sections = cachedSections.mapNotNull { cached ->
+                        if (cached.videos.isNotEmpty()) {
+                            HomeSection(
+                                title = cached.section.title,
+                                videos = cached.videos.sortedBy { it.position }.map { it.toVideo() },
+                                source = cached.section.source
+                            )
+                        } else null
+                    }
+                    if (sections.isNotEmpty()) {
+                        _uiState.value = HomeUiState.Success(sections)
+                        Log.d(TAG, "Loaded ${sections.size} sections from cache")
+                        val oldestFetchedAt = feedCacheDao.getOldestFetchedAt()
+                        if (oldestFetchedAt != null && System.currentTimeMillis() - oldestFetchedAt > CACHE_MAX_AGE_MS) {
+                            Log.d(TAG, "Cache is stale, refreshing in background")
+                            loadFromNetwork(isRefresh = false)
+                        }
+                        return@launch
+                    }
+                }
+                Log.d(TAG, "Cache empty, loading from network")
+                loadFromNetwork(isRefresh = false)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load cache", e)
+                loadFromNetwork(isRefresh = false)
+            }
+        }
+    }
+
+    private fun loadFromNetwork(isRefresh: Boolean) {
         viewModelScope.launch {
             try {
                 val homeSections = async { engine.getHome().firstOrNull() }
@@ -74,6 +117,8 @@ class HomeViewModel @Inject constructor(
                 val nonEmpty = allSections.filter { it.videos.isNotEmpty() }
                 if (nonEmpty.isNotEmpty()) {
                     _uiState.value = HomeUiState.Success(nonEmpty)
+                    writeToCache(nonEmpty)
+                    Log.d(TAG, "Loaded ${nonEmpty.size} sections from network, cached")
                 } else if (_uiState.value is HomeUiState.Loading) {
                     _uiState.value = HomeUiState.Empty
                 }
@@ -85,6 +130,40 @@ class HomeViewModel @Inject constructor(
             } finally {
                 _isRefreshing.value = false
             }
+        }
+    }
+
+    private suspend fun writeToCache(sections: List<HomeSection>) {
+        try {
+            feedCacheDao.clearAllVideos()
+            feedCacheDao.clearAllSections()
+            val now = System.currentTimeMillis()
+            val dbSections = sections.map { section ->
+                CachedFeedSection(
+                    source = section.source,
+                    title = section.title,
+                    fetchedAt = now
+                )
+            }
+            feedCacheDao.insertSections(dbSections)
+            val dbVideos = sections.flatMapIndexed { sectionIndex, section ->
+                section.videos.mapIndexed { videoIndex, video ->
+                    CachedFeedVideo(
+                        source = section.source,
+                        videoId = video.videoId,
+                        title = video.title,
+                        author = video.author,
+                        channelId = video.channelId,
+                        thumbnailUrl = video.thumbnailUrl,
+                        durationMs = video.durationMs,
+                        viewCount = video.viewCount ?: "",
+                        position = videoIndex
+                    )
+                }
+            }
+            feedCacheDao.insertVideos(dbVideos)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to write feed cache", e)
         }
     }
 
@@ -144,6 +223,20 @@ class HomeViewModel @Inject constructor(
         }
     }
 }
+
+private fun CachedFeedVideo.toVideo() = Video(
+    videoId = videoId,
+    title = title,
+    author = author,
+    channelId = channelId,
+    thumbnailUrl = thumbnailUrl,
+    durationMs = durationMs,
+    viewCount = viewCount.ifBlank { null },
+    publishedDate = 0L,
+    isLive = durationMs == Long.MAX_VALUE,
+    isShort = false,
+    percentWatched = 0
+)
 
 sealed interface HomeUiState {
     data object Loading : HomeUiState
