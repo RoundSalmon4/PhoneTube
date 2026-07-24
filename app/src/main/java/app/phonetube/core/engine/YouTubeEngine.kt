@@ -69,8 +69,22 @@ class YouTubeEngine @Inject constructor(
                 try {
                     val trendingGroups = contentService.trendingObserve.toList().await()
                     val trendingFlat = trendingGroups.flatten()
-                    Log.d(TAG, "getHome trending fallback: ${trendingFlat.size} groups")
-                    emit(trendingFlat.toHomeFeed("Home"))
+                    val trendingFeed = trendingFlat.toHomeFeed("Trending")
+                    if (trendingFeed.sections.isNotEmpty()) {
+                        Log.d(TAG, "getHome trending fallback: ${trendingFlat.size} groups")
+                        emit(trendingFeed)
+                    } else {
+                        Log.d(TAG, "getHome trending also empty, trying category combos")
+                        val comboFeeds = listOf(
+                            try { contentService.musicObserve.toList().await().flatten().toHomeFeed("Music") } catch (_: Exception) { null },
+                            try { contentService.sportsObserve.toList().await().flatten().toHomeFeed("Sports") } catch (_: Exception) { null },
+                            try { contentService.gamingObserve.toList().await().flatten().toHomeFeed("Gaming") } catch (_: Exception) { null },
+                            try { contentService.liveObserve.toList().await().flatten().toHomeFeed("Live") } catch (_: Exception) { null },
+                            try { contentService.newsObserve.toList().await().flatten().toHomeFeed("News") } catch (_: Exception) { null }
+                        )
+                        val mergedSections = comboFeeds.flatMap { it?.sections ?: emptyList() }
+                        emit(HomeFeed(mergedSections))
+                    }
                 } catch (e2: Exception) {
                     Log.e(TAG, "getHome trending fallback failed", e2)
                     emit(HomeFeed(emptyList()))
