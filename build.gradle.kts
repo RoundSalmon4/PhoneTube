@@ -20,6 +20,7 @@ subprojects {
             force("com.squareup.okhttp3:okhttp:3.12.13")
             force("com.squareup.okhttp3:okhttp-dnsoverhttps:3.12.13")
             force("com.squareup.okhttp3:logging-interceptor:3.12.13")
+            force("org.jetbrains.kotlin:kotlin-metadata-jvm:${libs.versions.kotlin.get()}")
         }
     }
     afterEvaluate {
