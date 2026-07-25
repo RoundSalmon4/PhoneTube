@@ -53,38 +53,24 @@ class YouTubeEngine @Inject constructor(
 
     fun getHome(): Flow<HomeFeed> = flow {
         try {
-            // homeObserve (browseId "default") needs visitor data from warmup to return content.
-            // Other feeds use topic browseIds that don't need it, so only block here.
             initializer.warmup()
 
-            // Debug: collect emissions the same way SmartTube's .subscribe() does,
-            // not via .toList() which may behave differently with RxJava2 bridge
-            val rawGroups = mutableListOf<List<MediaGroup>>()
-            kotlinx.coroutines.suspendCancellableCoroutine<Unit> { cont ->
-                contentService.homeObserve.subscribe(
-                    { batch ->
-                        Log.d(TAG, "getHome: received batch of ${batch.size} groups, types=${batch.map { it.type }}")
-                        rawGroups.add(batch)
-                    },
-                    { e ->
-                        Log.e(TAG, "getHome: observable error", e)
-                        if (cont.isActive) cont.resume(Unit) {}
-                    },
-                    {
-                        Log.d(TAG, "getHome: observable complete, ${rawGroups.size} batches total")
-                        if (cont.isActive) cont.resume(Unit) {}
-                    }
-                )
+            // Use Java HomeFeedLoader that subscribes like SmartTube's BrowsePresenter
+            val result = app.phonetube.core.engine.java.HomeFeedLoader.loadHomeSync(
+                contentService.homeObserve
+            )
+
+            if (!result.success) {
+                Log.e(TAG, "getHome failed: ${result.error}")
+                emit(HomeFeed(emptyList()))
+                return@flow
             }
 
-            val flat = rawGroups.flatten()
-            Log.d(TAG, "getHome: ${flat.size} groups from ${rawGroups.size} batches")
+            val flat = result.groups
+            Log.d(TAG, "getHome: ${flat.size} groups collected via Java subscriber")
             val totalItems = flat.sumOf { (it.mediaItems?.size ?: 0) }
             Log.d(TAG, "getHome: ${flat.size} groups, $totalItems total items")
 
-            // SmartTube BrowsePresenter approach: use each group's own mediaItems directly
-            // (VideoGroup.from(mediaGroup, section) reads mediaGroup.getMediaItems()).
-            // Only continueGroup for groups that are too small for the screen.
             val sections = mutableListOf<HomeSection>()
             for (group in flat) {
                 if (group.isEmpty) continue
