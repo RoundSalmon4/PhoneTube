@@ -40,14 +40,27 @@ public class HomeFeedLoader {
      * receiving groups from getHomeObserve().
      */
     public static Result loadHomeSync(ContentService contentService) {
+        return loadGroups(contentService, contentService.getHome(), "getHome");
+    }
+
+    /**
+     * Load WhatToWatch feed groups and expand empty ones via continueGroup().
+     */
+    public static Result loadHomeSync(ContentService contentService, String feedType) {
+        if ("WhatToWatch".equals(feedType)) {
+            return loadGroups(contentService, contentService.getWhatToWatch(), "getWhatToWatch");
+        }
+        return loadHomeSync(contentService);
+    }
+
+    private static Result loadGroups(ContentService contentService, List<MediaGroup> rawGroups, String source) {
         try {
-            List<MediaGroup> rawGroups = contentService.getHome();
             if (rawGroups == null) {
-                Log.d(TAG, "getHome returned null");
+                Log.d(TAG, source + " returned null");
                 return new Result(new ArrayList<>(), true, null);
             }
 
-            Log.d(TAG, "getHome returned " + rawGroups.size() + " groups");
+            Log.d(TAG, source + " returned " + rawGroups.size() + " groups");
 
             List<MediaGroup> expanded = new ArrayList<>();
 

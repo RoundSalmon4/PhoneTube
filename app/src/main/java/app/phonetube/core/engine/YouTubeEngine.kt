@@ -101,8 +101,26 @@ class YouTubeEngine @Inject constructor(
 
     fun getTrending(): Flow<HomeFeed> = flow {
         try {
-            val groups = contentService.trendingObserve.toList().await()
-            emit(groups.flatten().toHomeFeed("Trending"))
+            val result = app.phonetube.core.engine.java.HomeFeedLoader.loadHomeSync(
+                contentService, "WhatToWatch"
+            )
+
+            if (!result.success) {
+                Log.e(TAG, "getTrending failed: ${result.error}")
+                emit(HomeFeed(emptyList()))
+                return@flow
+            }
+
+            val flat = result.groups
+            val sections = mutableListOf<HomeSection>()
+            for (group in flat) {
+                val videos = expandGroupToVideos(group)
+                if (videos.isNotEmpty()) {
+                    sections.add(HomeSection(title = group.title.orEmpty(), videos = videos, source = "Trending"))
+                }
+            }
+
+            emit(HomeFeed(sections = sections))
         } catch (e: Exception) {
             Log.e(TAG, "getTrending failed", e)
             emit(HomeFeed(emptyList()))
