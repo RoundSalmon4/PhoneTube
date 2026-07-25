@@ -16,6 +16,7 @@ import app.phonetube.player.PlayerPlaybackSnapshot
 import app.phonetube.player.SponsorBlockService
 import app.phonetube.player.SubtitleTrackInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,6 +25,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -251,7 +253,9 @@ class PlayerViewModel @Inject constructor(
                     ))
                     Log.d(TAG, "Saved history position for $videoId: ${positionMs}ms")
                 }
-                engine.reportWatchProgress(videoId, positionMs / 1000f)
+                withContext(Dispatchers.IO) {
+                    engine.reportWatchProgress(videoId, positionMs / 1000f)
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to save history position", e)
             }

@@ -295,7 +295,7 @@ class YouTubeEngine @Inject constructor(
         try {
             mediaItemService.updateHistoryPosition(videoId, positionSec)
         } catch (e: Exception) {
-            Log.d(TAG, "reportWatchProgress failed for $videoId: ${e.message?.take(80)}")
+            Log.e(TAG, "reportWatchProgress failed for $videoId: ${e.javaClass.simpleName}: ${e.message}", e)
         }
     }
 
