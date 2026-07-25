@@ -154,7 +154,7 @@ class HomeViewModel @Inject constructor(
         if (homeRetryJob?.isActive == true) return
         homeRetryJob = viewModelScope.launch {
             Log.d(TAG, "Scheduling home retry in 30s after playback")
-            kotlinx.coroutines.delay(30_000L)
+            kotlinx.coroutines.delay(5_000L)
             Log.d(TAG, "Retrying home feed after playback")
             loadFromNetwork(isRefresh = true)
         }

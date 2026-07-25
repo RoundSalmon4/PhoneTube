@@ -23,6 +23,8 @@ import com.liskovsoft.mediaserviceinterfaces.data.MediaItemMetadata
 import com.liskovsoft.mediaserviceinterfaces.data.SearchOptions
 import com.liskovsoft.youtubeapi.service.YouTubeServiceManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -428,13 +430,52 @@ class YouTubeEngine @Inject constructor(
         }
     }
 
-    private fun List<MediaGroup>.toHomeFeed(source: String = ""): HomeFeed = HomeFeed(
-        sections = mapNotNull { group ->
+    private suspend fun List<MediaGroup>.toHomeFeed(source: String = ""): HomeFeed {
+        val sections = mutableListOf<HomeSection>()
+
+        for (group in this) {
             val allItems = (group.mediaItems ?: emptyList()).filterNotNull()
-            val videos = allItems.flatMap { it.resolveVideos() }
-                .distinctBy { it.videoId }
+
+            val directVideos = mutableListOf<Video>()
+            val needsGroup = mutableListOf<MediaItem>()
+
+            for (item in allItems) {
+                val video = item.toVideo()
+                if (video != null) {
+                    directVideos.add(video)
+                } else {
+                    val type = item.type
+                    if (type == MediaItem.TYPE_PLAYLIST || type == MediaItem.TYPE_CHANNEL) {
+                        needsGroup.add(item)
+                    }
+                }
+            }
+
+            val indirectVideos = if (needsGroup.isNotEmpty()) {
+                coroutineScope {
+                    needsGroup.map { item ->
+                        async {
+                            try {
+                                val childGroup = contentService.getGroup(item) ?: return@async emptyList()
+                                val childItems = (childGroup.mediaItems ?: emptyList()).filterNotNull()
+                                childItems.mapNotNull { it.toVideo() }
+                                    .distinctBy { it.videoId }
+                                    .take(MAX_SECTION_VIDEOS)
+                            } catch (e: Exception) {
+                                Log.d(TAG, "resolveVideos: failed for type=${item.type} title='${item.title?.take(30)}': ${e.message?.take(80)}")
+                                emptyList()
+                            }
+                        }
+                    }.flatMap { it.await() }
+                }
+            } else {
+                emptyList()
+            }
+
+            val videos = (directVideos + indirectVideos).distinctBy { it.videoId }
+
             if (videos.isNotEmpty()) {
-                HomeSection(title = group.title.orEmpty(), videos = videos, source = source)
+                sections.add(HomeSection(title = group.title.orEmpty(), videos = videos, source = source))
             } else {
                 if (allItems.isNotEmpty()) {
                     val typeBreakdown = allItems.groupBy { it.type }
@@ -442,10 +483,11 @@ class YouTubeEngine @Inject constructor(
                         .entries.joinToString { "${it.key}:${it.value}" }
                     Log.d(TAG, "toHomeFeed($source): dropped section '${group.title?.take(30)}' (${allItems.size} items, types=$typeBreakdown, 0 videos)")
                 }
-                null
             }
         }
-    )
+
+        return HomeFeed(sections = sections)
+    }
 
     private fun List<MediaGroup>.toSearchVideos(): List<Video> {
         val videos = mutableListOf<Video>()
