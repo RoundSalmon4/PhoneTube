@@ -58,7 +58,7 @@ class YouTubeEngine @Inject constructor(
 
             // Use Java HomeFeedLoader that subscribes like SmartTube's BrowsePresenter
             val result = app.phonetube.core.engine.java.HomeFeedLoader.loadHomeSync(
-                contentService.homeObserve
+                contentService
             )
 
             if (!result.success) {

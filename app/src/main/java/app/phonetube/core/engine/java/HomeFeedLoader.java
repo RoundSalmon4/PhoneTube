@@ -2,25 +2,22 @@ package app.phonetube.core.engine.java;
 
 import android.util.Log;
 
+import com.liskovsoft.mediaserviceinterfaces.ContentService;
 import com.liskovsoft.mediaserviceinterfaces.data.MediaGroup;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-
-import io.reactivex.Observable;
-import io.reactivex.disposables.Disposable;
 
 /**
- * Java wrapper for home feed loading that replicates SmartTube's BrowsePresenter behavior.
+ * Loads the home feed by calling contentService.getHome() (synchronous),
+ * then calling continueGroup() on every empty group to expand it into
+ * actual video items — matching what SmartTube's BrowsePresenter does.
  *
- * SmartTube's BrowsePresenter subscribes to homeObserve with .subscribe() and processes
- * each MediaGroup as it arrives. PhoneTube's Kotlin code uses .toList().await() which
- * waits for all batches before processing — this loses content because the Observable
- * completes with 0 batches for the "default" browseId on anonymous users.
- *
- * This class subscribes to the Observable exactly like SmartTube does and collects results.
+ * The Observable path (getHomeObserve) drops empty groups in
+ * emitGroupsPartial because continueEmptyGroup() returns null for
+ * groups without nextPageKey/channelId. The synchronous getHome()
+ * does the same. This loader fixes both by calling continueGroup()
+ * on every group that arrives empty.
  */
 public class HomeFeedLoader {
     private static final String TAG = "HomeFeedLoader";
@@ -38,43 +35,49 @@ public class HomeFeedLoader {
     }
 
     /**
-     * Subscribe to homeObserve using SmartTube's .subscribe() pattern.
-     * Blocks until the Observable completes and returns all collected MediaGroups.
+     * Load home feed groups and expand empty ones via continueGroup().
+     * This replicates what SmartTube's BrowsePresenter does after
+     * receiving groups from getHomeObserve().
      */
-    public static Result loadHomeSync(Observable<List<MediaGroup>> observable) {
-        List<MediaGroup> collected = new ArrayList<>();
-        CountDownLatch latch = new CountDownLatch(1);
-        final String[] error = {null};
-
-        Disposable disposable = observable.subscribe(
-            batch -> {
-                Log.d(TAG, "received batch of " + batch.size() + " groups");
-                collected.addAll(batch);
-            },
-            e -> {
-                Log.e(TAG, "homeObserve error: " + e.getMessage(), e);
-                error[0] = e.getMessage();
-                latch.countDown();
-            },
-            () -> {
-                Log.d(TAG, "homeObserve complete, " + collected.size() + " groups collected");
-                latch.countDown();
-            }
-        );
-
+    public static Result loadHomeSync(ContentService contentService) {
         try {
-            latch.await(30, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Log.e(TAG, "interrupted waiting for homeObserve", e);
-            error[0] = e.getMessage();
+            List<MediaGroup> rawGroups = contentService.getHome();
+            if (rawGroups == null) {
+                Log.d(TAG, "getHome returned null");
+                return new Result(new ArrayList<>(), true, null);
+            }
+
+            Log.d(TAG, "getHome returned " + rawGroups.size() + " groups");
+
+            List<MediaGroup> expanded = new ArrayList<>();
+
+            for (MediaGroup group : rawGroups) {
+                if (group == null) continue;
+
+                if (!group.isEmpty()) {
+                    expanded.add(group);
+                    continue;
+                }
+
+                try {
+                    MediaGroup continued = contentService.continueGroup(group);
+                    if (continued != null && !continued.isEmpty()) {
+                        Log.d(TAG, "continueGroup expanded '" + group.getTitle() + "' -> "
+                                + (continued.getMediaItems() != null ? continued.getMediaItems().size() : 0) + " items");
+                        expanded.add(continued);
+                    } else {
+                        Log.d(TAG, "continueGroup returned empty for '" + group.getTitle() + "'");
+                    }
+                } catch (Exception e) {
+                    Log.d(TAG, "continueGroup failed for '" + group.getTitle() + "': " + e.getMessage());
+                }
+            }
+
+            Log.d(TAG, "loadHomeSync complete, " + expanded.size() + " groups after expansion");
+            return new Result(expanded, true, null);
+        } catch (Exception e) {
+            Log.e(TAG, "loadHomeSync failed", e);
+            return new Result(new ArrayList<>(), false, e.getMessage());
         }
-
-        disposable.dispose();
-
-        if (error[0] != null) {
-            return new Result(new ArrayList<>(), false, error[0]);
-        }
-
-        return new Result(collected, true, null);
     }
 }
