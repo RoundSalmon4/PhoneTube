@@ -37,6 +37,7 @@ class YouTubeEngine @Inject constructor(
 ) {
     companion object {
         private const val TAG = "YouTubeEngine"
+        private const val MAX_SECTION_VIDEOS = 20
     }
 
     private val serviceManager: ServiceManager
@@ -76,7 +77,7 @@ class YouTubeEngine @Inject constructor(
                 if (group.isEmpty) continue
 
                 val videos = (group.mediaItems ?: emptyList()).filterNotNull()
-                    .mapNotNull { it.toVideo() }.distinctBy { it.videoId }
+                    .flatMap { it.resolveVideos() }.distinctBy { it.videoId }
 
                 if (videos.isNotEmpty()) {
                     sections.add(HomeSection(title = group.title.orEmpty(), videos = videos, source = "Home"))
@@ -408,10 +409,29 @@ class YouTubeEngine @Inject constructor(
 
     // --- Group-to-feed mappers ---
 
+    private fun MediaItem.resolveVideos(): List<Video> {
+        val directVideo = toVideo()
+        if (directVideo != null) return listOf(directVideo)
+
+        val type = type
+        if (type != MediaItem.TYPE_PLAYLIST && type != MediaItem.TYPE_CHANNEL) return emptyList()
+
+        return try {
+            val childGroup = contentService.getGroup(this) ?: return emptyList()
+            val childItems = (childGroup.mediaItems ?: emptyList()).filterNotNull()
+            childItems.mapNotNull { it.toVideo() }
+                .distinctBy { it.videoId }
+                .take(MAX_SECTION_VIDEOS)
+        } catch (e: Exception) {
+            Log.d(TAG, "resolveVideos: failed for type=$type title='${title?.take(30)}': ${e.message?.take(80)}")
+            emptyList()
+        }
+    }
+
     private fun List<MediaGroup>.toHomeFeed(source: String = ""): HomeFeed = HomeFeed(
         sections = mapNotNull { group ->
             val allItems = (group.mediaItems ?: emptyList()).filterNotNull()
-            val videos = allItems.mapNotNull { it.toVideo() }
+            val videos = allItems.flatMap { it.resolveVideos() }
                 .distinctBy { it.videoId }
             if (videos.isNotEmpty()) {
                 HomeSection(title = group.title.orEmpty(), videos = videos, source = source)

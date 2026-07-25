@@ -49,10 +49,14 @@ fun HomeScreen(
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
+        var isFirstResume = true
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.loadHome()
-                viewModel.retryHomeAfterPlayback()
+                if (isFirstResume) {
+                    viewModel.retryHomeAfterPlayback()
+                    isFirstResume = false
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

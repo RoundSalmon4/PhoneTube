@@ -151,7 +151,7 @@ class HomeViewModel @Inject constructor(
      * then starts returning personalized shelves (type 0 groups).
      */
     fun retryHomeAfterPlayback() {
-        homeRetryJob?.cancel()
+        if (homeRetryJob?.isActive == true) return
         homeRetryJob = viewModelScope.launch {
             Log.d(TAG, "Scheduling home retry in 30s after playback")
             kotlinx.coroutines.delay(30_000L)
