@@ -39,9 +39,7 @@ class YouTubeInitializer @Inject constructor(
                     init()
                     Log.d(TAG, "warmup: fetching visitor data and player info")
                     YouTubeServiceManager.instance().refreshCacheIfNeeded()
-                    // SmartTube SplashPresenter: enable history so browseId "default" can personalize
-                    YouTubeServiceManager.instance().contentService.enableHistory(true)
-                    Log.d(TAG, "warmup: history enabled")
+                    Log.d(TAG, "warmup: visitor data refreshed")
                 } catch (e: Exception) {
                     Log.e(TAG, "warmup failed", e)
                 }
