@@ -136,8 +136,26 @@ class YouTubeEngine @Inject constructor(
 
     fun getWhatToWatch(): Flow<HomeFeed> = flow {
         try {
-            val groups = contentService.whatToWatchObserve.toList().await()
-            emit(groups.flatten().toHomeFeed("What to Watch"))
+            val result = app.phonetube.core.engine.java.HomeFeedLoader.loadHomeSync(
+                contentService, "WhatToWatch"
+            )
+
+            if (!result.success) {
+                Log.e(TAG, "getWhatToWatch failed: ${result.error}")
+                emit(HomeFeed(emptyList()))
+                return@flow
+            }
+
+            val flat = result.groups
+            val sections = mutableListOf<HomeSection>()
+            for (group in flat) {
+                val videos = expandGroupToVideos(group)
+                if (videos.isNotEmpty()) {
+                    sections.add(HomeSection(title = group.title.orEmpty(), videos = videos, source = "What to Watch"))
+                }
+            }
+
+            emit(HomeFeed(sections = sections))
         } catch (e: Exception) {
             Log.e(TAG, "getWhatToWatch failed", e)
             emit(HomeFeed(emptyList()))
