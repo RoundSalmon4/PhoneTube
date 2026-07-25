@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -49,6 +51,7 @@ class HomeViewModel @Inject constructor(
     val addToPlaylistVideo: StateFlow<Video?> = _addToPlaylistVideo.asStateFlow()
 
     private var homeRetryJob: Job? = null
+    private val cacheMutex = Mutex()
 
     init {
         loadHomeFromCache()
@@ -74,11 +77,16 @@ class HomeViewModel @Inject constructor(
             Log.d(TAG, "Refreshing Home feed after resume")
             try {
                 val homeSections = engine.getHome().firstOrNull()
-                val allSections = homeSections?.sections?.filter { it.videos.isNotEmpty() }
-                if (!allSections.isNullOrEmpty()) {
-                    _uiState.value = HomeUiState.Success(allSections)
-                    withContext(NonCancellable) { writeToCache(allSections) }
-                    Log.d(TAG, "Home refresh: ${allSections.size} sections updated")
+                val homeVideos = homeSections?.sections?.filter { it.videos.isNotEmpty() }
+                if (!homeVideos.isNullOrEmpty()) {
+                    val currentSections = when (val s = _uiState.value) {
+                        is HomeUiState.Success -> s.sections
+                        else -> emptyList()
+                    }
+                    val merged = homeVideos + currentSections.filter { it.source != "Home" }
+                    _uiState.value = HomeUiState.Success(merged)
+                    withContext(NonCancellable) { writeToCache(merged) }
+                    Log.d(TAG, "Home refresh: ${homeVideos.size} home + ${currentSections.size} existing = ${merged.size} sections")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Home refresh failed", e)
@@ -170,37 +178,39 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun writeToCache(sections: List<HomeSection>) {
-        try {
-            feedCacheDao.clearAllVideos()
-            feedCacheDao.clearAllSections()
-            val now = System.currentTimeMillis()
-            val dbSections = sections.map { section ->
-                CachedFeedSection(
-                    source = section.source,
-                    title = section.title,
-                    fetchedAt = now
-                )
-            }
-            val sectionIds = feedCacheDao.insertSections(dbSections)
-            val dbVideos = sections.flatMapIndexed { sectionIndex, section ->
-                val sectionId = sectionIds[sectionIndex]
-                section.videos.mapIndexed { videoIndex, video ->
-                    CachedFeedVideo(
-                        sectionId = sectionId,
-                        videoId = video.videoId,
-                        title = video.title,
-                        author = video.author,
-                        channelId = video.channelId,
-                        thumbnailUrl = video.thumbnailUrl,
-                        durationMs = video.durationMs,
-                        viewCount = video.viewCount ?: "",
-                        position = videoIndex
+        cacheMutex.withLock {
+            try {
+                feedCacheDao.clearAllVideos()
+                feedCacheDao.clearAllSections()
+                val now = System.currentTimeMillis()
+                val dbSections = sections.map { section ->
+                    CachedFeedSection(
+                        source = section.source,
+                        title = section.title,
+                        fetchedAt = now
                     )
                 }
+                val sectionIds = feedCacheDao.insertSections(dbSections)
+                val dbVideos = sections.flatMapIndexed { sectionIndex, section ->
+                    val sectionId = sectionIds[sectionIndex]
+                    section.videos.mapIndexed { videoIndex, video ->
+                        CachedFeedVideo(
+                            sectionId = sectionId,
+                            videoId = video.videoId,
+                            title = video.title,
+                            author = video.author,
+                            channelId = video.channelId,
+                            thumbnailUrl = video.thumbnailUrl,
+                            durationMs = video.durationMs,
+                            viewCount = video.viewCount ?: "",
+                            position = videoIndex
+                        )
+                    }
+                }
+                feedCacheDao.insertVideos(dbVideos)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to write feed cache", e)
             }
-            feedCacheDao.insertVideos(dbVideos)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to write feed cache", e)
         }
     }
 

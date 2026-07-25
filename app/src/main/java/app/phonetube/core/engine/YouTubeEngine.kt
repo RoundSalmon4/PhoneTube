@@ -1,7 +1,5 @@
 package app.phonetube.core.engine
 
-import android.content.Context
-import android.net.Uri
 import android.util.Log
 import app.phonetube.core.engine.model.ChannelInfo
 import app.phonetube.core.engine.model.ChannelSection
@@ -24,9 +22,7 @@ import com.liskovsoft.mediaserviceinterfaces.data.MediaItemFormatInfo
 import com.liskovsoft.mediaserviceinterfaces.data.MediaItemMetadata
 import com.liskovsoft.mediaserviceinterfaces.data.SearchOptions
 import com.liskovsoft.youtubeapi.service.YouTubeServiceManager
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
-import java.io.File
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -37,8 +33,7 @@ import javax.inject.Singleton
 
 @Singleton
 class YouTubeEngine @Inject constructor(
-    private val initializer: YouTubeInitializer,
-    @ApplicationContext private val context: Context
+    private val initializer: YouTubeInitializer
 ) {
     companion object {
         private const val TAG = "YouTubeEngine"
@@ -292,23 +287,6 @@ class YouTubeEngine @Inject constructor(
                 throw IllegalStateException("No stream info available for $videoId")
             }
             var streamInfo = info.toStreamInfo()
-
-            if (streamInfo.dashManifestUrl == null
-                && (streamInfo.isLive || streamInfo.isLiveContent)
-                && streamInfo.adaptiveFormats.isNotEmpty()
-            ) {
-                try {
-                    val mpdStream = info.createMpdStream()
-                    if (mpdStream != null) {
-                        val mpdFile = File(context.cacheDir, "live_${videoId}.mpd")
-                        mpdFile.outputStream().use { out -> mpdStream.use { it.copyTo(out) } }
-                        streamInfo = streamInfo.copy(dashManifestUrl = Uri.fromFile(mpdFile).toString())
-                        Log.d(TAG, "Generated live DASH manifest for $videoId: ${mpdFile.length()} bytes")
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to generate live DASH manifest for $videoId", e)
-                }
-            }
 
             emit(streamInfo)
         } catch (e: Exception) {

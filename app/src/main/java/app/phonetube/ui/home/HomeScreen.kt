@@ -80,7 +80,7 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "Tap to retry",
-                        modifier = Modifier.clickable { viewModel.loadHome() },
+                        modifier = Modifier.clickable { viewModel.refreshAll() },
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -89,7 +89,7 @@ fun HomeScreen(
         is HomeUiState.Empty -> {
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
-                onRefresh = { viewModel.loadHome() },
+                onRefresh = { viewModel.refreshAll() },
                 state = pullRefreshState,
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -101,7 +101,7 @@ fun HomeScreen(
         is HomeUiState.Success -> {
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
-                onRefresh = { viewModel.loadHome() },
+                onRefresh = { viewModel.refreshAll() },
                 state = pullRefreshState,
                 modifier = Modifier.fillMaxSize()
             ) {
