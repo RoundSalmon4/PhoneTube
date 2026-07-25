@@ -129,16 +129,16 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun startPlayback(info: StreamInfo) {
+        val isLive = info.isLive || info.isLiveContent
         Log.d(TAG, "startPlayback: isUnplayable=${info.isUnplayable}, playabilityReason=${info.playabilityReason}, " +
             "dash=${info.dashManifestUrl != null}, hls=${info.hlsManifestUrl != null}, " +
-            "urlFormats=${info.urlFormats.size}, isLive=${info.isLive}")
-        val preferHls = info.isLive || info.isLiveContent
+            "urlFormats=${info.urlFormats.size}, isLive=$isLive")
         when {
             info.isUnplayable -> {
                 Log.w(TAG, "Video is unplayable: ${info.playabilityReason}")
                 _uiState.value = PlayerUiState.Error(info.playabilityReason ?: "Video is unavailable")
             }
-            preferHls && info.hlsManifestUrl != null -> {
+            isLive && info.hlsManifestUrl != null -> {
                 playerController.playHls(info.hlsManifestUrl)
             }
             info.dashManifestUrl != null -> {
@@ -276,9 +276,7 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             while (isActive) {
                 delay(POSITION_SAVE_INTERVAL_MS)
-                val streamInfo = (uiState.value as? PlayerUiState.Ready)?.streamInfo
-                if (playbackState.value.isPlaying && streamInfo != null
-                    && !streamInfo.isLive && !streamInfo.isLiveContent) {
+                if (playbackState.value.isPlaying) {
                     saveCurrentPosition()
                 }
             }
