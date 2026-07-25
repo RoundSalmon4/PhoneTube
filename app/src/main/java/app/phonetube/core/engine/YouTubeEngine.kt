@@ -53,6 +53,10 @@ class YouTubeEngine @Inject constructor(
 
     fun getHome(): Flow<HomeFeed> = flow {
         try {
+            // homeObserve (browseId "default") needs visitor data from warmup to return content.
+            // Other feeds use topic browseIds that don't need it, so only block here.
+            initializer.warmup()
+
             val groups = contentService.homeObserve.toList().await()
             val flat = groups.flatten()
             val totalItems = flat.sumOf { (it.mediaItems?.size ?: 0) }
