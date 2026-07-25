@@ -291,6 +291,14 @@ class YouTubeEngine @Inject constructor(
         return serviceManager.signInService.isSigned
     }
 
+    fun reportWatchProgress(videoId: String, positionSec: Float) {
+        try {
+            mediaItemService.updateHistoryPosition(videoId, positionSec)
+        } catch (e: Exception) {
+            Log.d(TAG, "reportWatchProgress failed for $videoId: ${e.message?.take(80)}")
+        }
+    }
+
     // --- Mapping functions ---
 
     private fun MediaItem.toVideo(): Video? {

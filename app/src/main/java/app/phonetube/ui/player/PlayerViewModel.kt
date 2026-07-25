@@ -251,6 +251,7 @@ class PlayerViewModel @Inject constructor(
                     ))
                     Log.d(TAG, "Saved history position for $videoId: ${positionMs}ms")
                 }
+                engine.reportWatchProgress(videoId, positionMs / 1000f)
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to save history position", e)
             }
