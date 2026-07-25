@@ -96,6 +96,16 @@ class YouTubeEngine @Inject constructor(
         }
     }.flowOn(Dispatchers.IO)
 
+    fun getTrending(): Flow<HomeFeed> = flow {
+        try {
+            val groups = contentService.trendingObserve.toList().await()
+            emit(groups.flatten().toHomeFeed("Trending"))
+        } catch (e: Exception) {
+            Log.e(TAG, "getTrending failed", e)
+            emit(HomeFeed(emptyList()))
+        }
+    }.flowOn(Dispatchers.IO)
+
     fun getSports(): Flow<HomeFeed> = flow {
         try {
             val groups = contentService.sportsObserve.toList().await()

@@ -52,6 +52,7 @@ fun HomeScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.loadHome()
+                viewModel.retryHomeAfterPlayback()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

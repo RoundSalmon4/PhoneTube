@@ -13,6 +13,7 @@ import app.phonetube.core.engine.YouTubeEngine
 import app.phonetube.core.engine.model.HomeSection
 import app.phonetube.core.engine.model.Video
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,6 +47,8 @@ class HomeViewModel @Inject constructor(
 
     private val _addToPlaylistVideo = MutableStateFlow<Video?>(null)
     val addToPlaylistVideo: StateFlow<Video?> = _addToPlaylistVideo.asStateFlow()
+
+    private var homeRetryJob: Job? = null
 
     init {
         loadHomeFromCache()
@@ -98,6 +101,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val homeSections = async { engine.getHome().firstOrNull() }
+                val trendingSections = async { engine.getTrending().firstOrNull() }
                 val musicSections = async { engine.getMusic().firstOrNull() }
                 val sportsSections = async { engine.getSports().firstOrNull() }
                 val liveSections = async { engine.getLive().firstOrNull() }
@@ -106,6 +110,7 @@ class HomeViewModel @Inject constructor(
                 val kidsSections = async { engine.getKidsHome().firstOrNull() }
 
                 val homeFeed = homeSections.await()
+                val trendingFeed = trendingSections.await()
                 val musicFeed = musicSections.await()
                 val sportsFeed = sportsSections.await()
                 val liveFeed = liveSections.await()
@@ -113,10 +118,10 @@ class HomeViewModel @Inject constructor(
                 val gamingFeed = gamingSections.await()
                 val kidsFeed = kidsSections.await()
 
-                Log.d(TAG, "Feeds: home=${homeFeed?.sections?.size ?: 0} music=${musicFeed?.sections?.size ?: 0} sports=${sportsFeed?.sections?.size ?: 0} live=${liveFeed?.sections?.size ?: 0} news=${newsFeed?.sections?.size ?: 0} gaming=${gamingFeed?.sections?.size ?: 0} kids=${kidsFeed?.sections?.size ?: 0}")
+                Log.d(TAG, "Feeds: home=${homeFeed?.sections?.size ?: 0} trending=${trendingFeed?.sections?.size ?: 0} music=${musicFeed?.sections?.size ?: 0} sports=${sportsFeed?.sections?.size ?: 0} live=${liveFeed?.sections?.size ?: 0} news=${newsFeed?.sections?.size ?: 0} gaming=${gamingFeed?.sections?.size ?: 0} kids=${kidsFeed?.sections?.size ?: 0}")
 
                 val orderedFeeds = listOf(
-                    homeFeed, sportsFeed, gamingFeed, liveFeed, newsFeed, musicFeed, kidsFeed
+                    homeFeed, trendingFeed, sportsFeed, gamingFeed, liveFeed, newsFeed, musicFeed, kidsFeed
                 )
 
                 val allSections = orderedFeeds.flatMap { it?.sections ?: emptyList() }
@@ -136,6 +141,22 @@ class HomeViewModel @Inject constructor(
             } finally {
                 _isRefreshing.value = false
             }
+        }
+    }
+
+    /**
+     * Retry the home feed after video playback.
+     * SmartTube BrowsePresenter uses Utils.postDelayed(mRefreshSection, 30_000) —
+     * the "default" browseId returns empty until YouTube builds enough history,
+     * then starts returning personalized shelves (type 0 groups).
+     */
+    fun retryHomeAfterPlayback() {
+        homeRetryJob?.cancel()
+        homeRetryJob = viewModelScope.launch {
+            Log.d(TAG, "Scheduling home retry in 30s after playback")
+            kotlinx.coroutines.delay(30_000L)
+            Log.d(TAG, "Retrying home feed after playback")
+            loadFromNetwork(isRefresh = true)
         }
     }
 
