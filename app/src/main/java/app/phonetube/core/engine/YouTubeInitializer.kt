@@ -36,6 +36,7 @@ class YouTubeInitializer @Inject constructor(
             if (warmedUp) return
             withContext(Dispatchers.IO) {
                 try {
+                    init()
                     Log.d(TAG, "warmup: fetching visitor data and player info")
                     YouTubeServiceManager.instance().refreshCacheIfNeeded()
                 } catch (e: Exception) {
