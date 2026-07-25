@@ -49,10 +49,15 @@ fun HomeScreen(
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
+        var isFirstResume = true
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 if (state is HomeUiState.Loading) {
                     viewModel.loadHome()
+                }
+                if (isFirstResume) {
+                    viewModel.refreshHomeOnly()
+                    isFirstResume = false
                 }
             }
         }
@@ -79,7 +84,7 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         "Tap to retry",
-                        modifier = Modifier.clickable { viewModel.loadHome() },
+                        modifier = Modifier.clickable { viewModel.refreshAll() },
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
@@ -88,7 +93,7 @@ fun HomeScreen(
         is HomeUiState.Empty -> {
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
-                onRefresh = { viewModel.loadHome() },
+                onRefresh = { viewModel.refreshAll() },
                 state = pullRefreshState,
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -100,7 +105,7 @@ fun HomeScreen(
         is HomeUiState.Success -> {
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
-                onRefresh = { viewModel.loadHome() },
+                onRefresh = { viewModel.refreshAll() },
                 state = pullRefreshState,
                 modifier = Modifier.fillMaxSize()
             ) {

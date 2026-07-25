@@ -56,11 +56,34 @@ class HomeViewModel @Inject constructor(
     }
 
     fun loadHome() {
-        val isRefresh = _uiState.value is HomeUiState.Success
-        if (isRefresh) {
-            _isRefreshing.value = true
+        if (_uiState.value is HomeUiState.Success || _uiState.value is HomeUiState.Empty) {
+            return
         }
-        loadFromNetwork(isRefresh)
+        loadFromNetwork(isRefresh = false)
+    }
+
+    fun refreshAll() {
+        _isRefreshing.value = true
+        loadFromNetwork(isRefresh = true)
+    }
+
+    fun refreshHomeOnly() {
+        if (homeRetryJob?.isActive == true) return
+        homeRetryJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(3_000L)
+            Log.d(TAG, "Refreshing Home feed after resume")
+            try {
+                val homeSections = engine.getHome().firstOrNull()
+                val allSections = homeSections?.sections?.filter { it.videos.isNotEmpty() }
+                if (!allSections.isNullOrEmpty()) {
+                    _uiState.value = HomeUiState.Success(allSections)
+                    withContext(NonCancellable) { writeToCache(allSections) }
+                    Log.d(TAG, "Home refresh: ${allSections.size} sections updated")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Home refresh failed", e)
+            }
+        }
     }
 
     private fun loadHomeFromCache() {
@@ -102,6 +125,7 @@ class HomeViewModel @Inject constructor(
             try {
                 val homeSections = async { engine.getHome().firstOrNull() }
                 val trendingSections = async { engine.getTrending().firstOrNull() }
+                val whatToWatchSections = async { engine.getWhatToWatch().firstOrNull() }
                 val musicSections = async { engine.getMusic().firstOrNull() }
                 val sportsSections = async { engine.getSports().firstOrNull() }
                 val liveSections = async { engine.getLive().firstOrNull() }
@@ -111,6 +135,7 @@ class HomeViewModel @Inject constructor(
 
                 val homeFeed = homeSections.await()
                 val trendingFeed = trendingSections.await()
+                val whatToWatchFeed = whatToWatchSections.await()
                 val musicFeed = musicSections.await()
                 val sportsFeed = sportsSections.await()
                 val liveFeed = liveSections.await()
@@ -118,10 +143,10 @@ class HomeViewModel @Inject constructor(
                 val gamingFeed = gamingSections.await()
                 val kidsFeed = kidsSections.await()
 
-                Log.d(TAG, "Feeds: home=${homeFeed?.sections?.size ?: 0} trending=${trendingFeed?.sections?.size ?: 0} music=${musicFeed?.sections?.size ?: 0} sports=${sportsFeed?.sections?.size ?: 0} live=${liveFeed?.sections?.size ?: 0} news=${newsFeed?.sections?.size ?: 0} gaming=${gamingFeed?.sections?.size ?: 0} kids=${kidsFeed?.sections?.size ?: 0}")
+                Log.d(TAG, "Feeds: home=${homeFeed?.sections?.size ?: 0} trending=${trendingFeed?.sections?.size ?: 0} whattowatch=${whatToWatchFeed?.sections?.size ?: 0} music=${musicFeed?.sections?.size ?: 0} sports=${sportsFeed?.sections?.size ?: 0} live=${liveFeed?.sections?.size ?: 0} news=${newsFeed?.sections?.size ?: 0} gaming=${gamingFeed?.sections?.size ?: 0} kids=${kidsFeed?.sections?.size ?: 0}")
 
                 val orderedFeeds = listOf(
-                    homeFeed, trendingFeed, sportsFeed, gamingFeed, liveFeed, newsFeed, musicFeed, kidsFeed
+                    homeFeed, whatToWatchFeed, trendingFeed, sportsFeed, gamingFeed, liveFeed, newsFeed, musicFeed, kidsFeed
                 )
 
                 val allSections = orderedFeeds.flatMap { it?.sections ?: emptyList() }
@@ -141,22 +166,6 @@ class HomeViewModel @Inject constructor(
             } finally {
                 _isRefreshing.value = false
             }
-        }
-    }
-
-    /**
-     * Retry the home feed after video playback.
-     * SmartTube BrowsePresenter uses Utils.postDelayed(mRefreshSection, 30_000) —
-     * the "default" browseId returns empty until YouTube builds enough history,
-     * then starts returning personalized shelves (type 0 groups).
-     */
-    fun retryHomeAfterPlayback() {
-        if (homeRetryJob?.isActive == true) return
-        homeRetryJob = viewModelScope.launch {
-            Log.d(TAG, "Scheduling home retry in 30s after playback")
-            kotlinx.coroutines.delay(5_000L)
-            Log.d(TAG, "Retrying home feed after playback")
-            loadFromNetwork(isRefresh = true)
         }
     }
 

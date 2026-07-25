@@ -1,5 +1,7 @@
 package app.phonetube.core.engine
 
+import android.content.Context
+import android.net.Uri
 import android.util.Log
 import app.phonetube.core.engine.model.ChannelInfo
 import app.phonetube.core.engine.model.ChannelSection
@@ -22,7 +24,9 @@ import com.liskovsoft.mediaserviceinterfaces.data.MediaItemFormatInfo
 import com.liskovsoft.mediaserviceinterfaces.data.MediaItemMetadata
 import com.liskovsoft.mediaserviceinterfaces.data.SearchOptions
 import com.liskovsoft.youtubeapi.service.YouTubeServiceManager
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import java.io.File
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -33,7 +37,8 @@ import javax.inject.Singleton
 
 @Singleton
 class YouTubeEngine @Inject constructor(
-    private val initializer: YouTubeInitializer
+    private val initializer: YouTubeInitializer,
+    @ApplicationContext private val context: Context
 ) {
     companion object {
         private const val TAG = "YouTubeEngine"
@@ -101,26 +106,8 @@ class YouTubeEngine @Inject constructor(
 
     fun getTrending(): Flow<HomeFeed> = flow {
         try {
-            val result = app.phonetube.core.engine.java.HomeFeedLoader.loadHomeSync(
-                contentService, "WhatToWatch"
-            )
-
-            if (!result.success) {
-                Log.e(TAG, "getTrending failed: ${result.error}")
-                emit(HomeFeed(emptyList()))
-                return@flow
-            }
-
-            val flat = result.groups
-            val sections = mutableListOf<HomeSection>()
-            for (group in flat) {
-                val videos = expandGroupToVideos(group)
-                if (videos.isNotEmpty()) {
-                    sections.add(HomeSection(title = group.title.orEmpty(), videos = videos, source = "Trending"))
-                }
-            }
-
-            emit(HomeFeed(sections = sections))
+            val groups = contentService.trendingObserve.toList().await()
+            emit(groups.flatten().toHomeFeed("Trending"))
         } catch (e: Exception) {
             Log.e(TAG, "getTrending failed", e)
             emit(HomeFeed(emptyList()))
@@ -143,6 +130,16 @@ class YouTubeEngine @Inject constructor(
             emit(groups.flatten().toHomeFeed("Live"))
         } catch (e: Exception) {
             Log.e(TAG, "getLive failed", e)
+            emit(HomeFeed(emptyList()))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    fun getWhatToWatch(): Flow<HomeFeed> = flow {
+        try {
+            val groups = contentService.whatToWatchObserve.toList().await()
+            emit(groups.flatten().toHomeFeed("What to Watch"))
+        } catch (e: Exception) {
+            Log.e(TAG, "getWhatToWatch failed", e)
             emit(HomeFeed(emptyList()))
         }
     }.flowOn(Dispatchers.IO)
@@ -276,7 +273,26 @@ class YouTubeEngine @Inject constructor(
             if (info == null) {
                 throw IllegalStateException("No stream info available for $videoId")
             }
-            emit(info.toStreamInfo())
+            var streamInfo = info.toStreamInfo()
+
+            if (streamInfo.dashManifestUrl == null
+                && (streamInfo.isLive || streamInfo.isLiveContent)
+                && streamInfo.adaptiveFormats.isNotEmpty()
+            ) {
+                try {
+                    val mpdStream = info.createMpdStream()
+                    if (mpdStream != null) {
+                        val mpdFile = File(context.cacheDir, "live_${videoId}.mpd")
+                        mpdFile.outputStream().use { out -> mpdStream.use { it.copyTo(out) } }
+                        streamInfo = streamInfo.copy(dashManifestUrl = Uri.fromFile(mpdFile).toString())
+                        Log.d(TAG, "Generated live DASH manifest for $videoId: ${mpdFile.length()} bytes")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to generate live DASH manifest for $videoId", e)
+                }
+            }
+
+            emit(streamInfo)
         } catch (e: Exception) {
             Log.e(TAG, "getStreamInfo($videoId) failed", e)
             throw e

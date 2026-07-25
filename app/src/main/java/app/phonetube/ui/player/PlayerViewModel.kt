@@ -83,10 +83,13 @@ class PlayerViewModel @Inject constructor(
                     _uiState.value = PlayerUiState.Error(e.message ?: "Failed to load video")
                 }
                 .collect { info ->
-                    Log.d(TAG, "Stream info loaded: dash=${info.dashManifestUrl != null}, hls=${info.hlsManifestUrl != null}, urlFormats=${info.urlFormats.size}")
+                    Log.d(TAG, "Stream info loaded: dash=${info.dashManifestUrl != null}, hls=${info.hlsManifestUrl != null}, " +
+                        "urlFormats=${info.urlFormats.size}, isLive=${info.isLive}, isLiveContent=${info.isLiveContent}")
                     _uiState.value = PlayerUiState.Ready(info)
                     startPlayback(info)
-                    recordToHistory(info)
+                    if (!info.isLive && !info.isLiveContent) {
+                        recordToHistory(info)
+                    }
                 }
         }
     }
@@ -107,14 +110,17 @@ class PlayerViewModel @Inject constructor(
     private fun startAutoSkip() {
         viewModelScope.launch {
             while (isActive) {
-                val segments = _sponsorSegments.value
-                if (segments.isNotEmpty()) {
-                    val positionMs = playerController.exoPlayer.currentPosition
-                    val skipAction = sponsorBlockService.checkForSkip(positionMs, segments)
-                    if (skipAction != null) {
-                        Log.d(TAG, "Auto-skipping ${skipAction.segment.category} " +
-                            "at ${skipAction.segment.startMs}ms -> ${skipAction.seekToMs}ms")
-                        playerController.seekTo(skipAction.seekToMs)
+                val streamInfo = (uiState.value as? PlayerUiState.Ready)?.streamInfo
+                if (streamInfo != null && !streamInfo.isLive && !streamInfo.isLiveContent) {
+                    val segments = _sponsorSegments.value
+                    if (segments.isNotEmpty()) {
+                        val positionMs = playerController.exoPlayer.currentPosition
+                        val skipAction = sponsorBlockService.checkForSkip(positionMs, segments)
+                        if (skipAction != null) {
+                            Log.d(TAG, "Auto-skipping ${skipAction.segment.category} " +
+                                "at ${skipAction.segment.startMs}ms -> ${skipAction.seekToMs}ms")
+                            playerController.seekTo(skipAction.seekToMs)
+                        }
                     }
                 }
                 delay(SKIP_CHECK_INTERVAL_MS)
@@ -266,7 +272,9 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             while (isActive) {
                 delay(POSITION_SAVE_INTERVAL_MS)
-                if (playbackState.value.isPlaying) {
+                val streamInfo = (uiState.value as? PlayerUiState.Ready)?.streamInfo
+                if (playbackState.value.isPlaying && streamInfo != null
+                    && !streamInfo.isLive && !streamInfo.isLiveContent) {
                     saveCurrentPosition()
                 }
             }

@@ -33,7 +33,7 @@ class PlayerEngineController(context: Context) {
     }
 
     private val loadControl = DefaultLoadControl.Builder()
-        .setBufferDurationsMs(10_000, 30_000, 500, 10_000)
+        .setBufferDurationsMs(15_000, 60_000, 2_500, 5_000)
         .build()
 
     val exoPlayer: ExoPlayer = ExoPlayer.Builder(context)
