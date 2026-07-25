@@ -159,6 +159,12 @@ class PlayerViewModel @Inject constructor(
                 _uiState.value = PlayerUiState.Error("No stream URL available")
             }
         }
+
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                engine.reportWatchProgress(videoId, 0f)
+            }
+        }
     }
 
     private fun restoreSpeedPreference() {
@@ -276,7 +282,8 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             while (isActive) {
                 delay(POSITION_SAVE_INTERVAL_MS)
-                if (playbackState.value.isPlaying) {
+                val positionMs = playerController.exoPlayer.currentPosition
+                if (positionMs > 0) {
                     saveCurrentPosition()
                 }
             }
