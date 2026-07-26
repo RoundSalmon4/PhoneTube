@@ -93,6 +93,25 @@
       "enabled": false
     },
     {
+      "description": "Disable deps requiring AGP 9.0.0+ — pinned until AGP bump",
+      "matchPackageNames": [
+        "com.google.dagger.hilt.android",
+        "com.google.dagger:hilt-android",
+        "com.google.dagger:hilt-android-compiler",
+        "androidx.room",
+        "androidx.room:room-runtime",
+        "androidx.room:room-ktx",
+        "androidx.room:room-compiler",
+        "androidx.lifecycle:lifecycle-runtime-ktx",
+        "androidx.lifecycle:lifecycle-runtime-compose",
+        "androidx.lifecycle:lifecycle-viewmodel-compose",
+        "androidx.navigation:navigation-compose",
+        "androidx.hilt:hilt-navigation-compose",
+        "androidx.activity:activity-compose"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Group all remaining updates into a single PR",
       "matchPackagePatterns": [".*"],
       "groupName": "all-dependencies",
