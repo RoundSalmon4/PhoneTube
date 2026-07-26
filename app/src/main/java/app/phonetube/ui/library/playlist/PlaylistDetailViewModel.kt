@@ -27,7 +27,11 @@ class PlaylistDetailViewModel @Inject constructor(
     private val playlistId: Long = savedStateHandle["playlistId"]!!
 
     val playlistName: StateFlow<String> = playlistDao.getAllPlaylists()
-        .map { playlists -> playlists.find { it.id == playlistId }?.name ?: "Playlist" }
+        .map { playlists ->
+            val name = playlists.find { it.id == playlistId }?.name ?: "Playlist"
+            Log.d(TAG, "playlistName: id=$playlistId, name=$name, total=${playlists.size}")
+            name
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "Playlist")
 
     val videos: StateFlow<List<PlaylistVideo>> = playlistDao.getPlaylistVideos(playlistId)

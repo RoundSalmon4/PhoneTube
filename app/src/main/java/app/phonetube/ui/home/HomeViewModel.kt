@@ -231,42 +231,58 @@ class HomeViewModel @Inject constructor(
     fun addToPlaylist(playlist: LocalPlaylist) {
         val video = _addToPlaylistVideo.value ?: return
         viewModelScope.launch {
-            val count = playlistDao.getVideoCount(playlist.id)
-            playlistDao.insertVideo(
-                PlaylistVideo(
-                    playlistId = playlist.id,
-                    videoId = video.videoId,
-                    title = video.title,
-                    channelName = video.author,
-                    thumbnailUrl = video.thumbnailUrl,
-                    durationMs = video.durationMs,
-                    position = count
+            try {
+                Log.d(TAG, "addToPlaylist: video=${video.videoId} -> playlist=${playlist.name} (id=${playlist.id})")
+                val count = playlistDao.getVideoCount(playlist.id)
+                Log.d(TAG, "addToPlaylist: current count=$count")
+                playlistDao.insertVideo(
+                    PlaylistVideo(
+                        playlistId = playlist.id,
+                        videoId = video.videoId,
+                        title = video.title,
+                        channelName = video.author,
+                        thumbnailUrl = video.thumbnailUrl,
+                        durationMs = video.durationMs,
+                        position = count
+                    )
                 )
-            )
-            playlistDao.insertPlaylist(playlist.copy(videoCount = count + 1))
-            _addToPlaylistVideo.value = null
+                Log.d(TAG, "addToPlaylist: video inserted")
+                playlistDao.insertPlaylist(playlist.copy(videoCount = count + 1))
+                Log.d(TAG, "addToPlaylist: playlist updated, videoCount=${count + 1}")
+                _addToPlaylistVideo.value = null
+            } catch (e: Exception) {
+                Log.e(TAG, "addToPlaylist failed", e)
+            }
         }
     }
 
     fun createPlaylistAndAdd(name: String) {
         val video = _addToPlaylistVideo.value ?: return
         viewModelScope.launch {
-            val id = playlistDao.insertPlaylist(
-                LocalPlaylist(name = name, createdAt = System.currentTimeMillis())
-            )
-            playlistDao.insertVideo(
-                PlaylistVideo(
-                    playlistId = id,
-                    videoId = video.videoId,
-                    title = video.title,
-                    channelName = video.author,
-                    thumbnailUrl = video.thumbnailUrl,
-                    durationMs = video.durationMs,
-                    position = 0
+            try {
+                Log.d(TAG, "createPlaylistAndAdd: name=$name, video=${video.videoId}")
+                val id = playlistDao.insertPlaylist(
+                    LocalPlaylist(name = name, createdAt = System.currentTimeMillis())
                 )
-            )
-            playlistDao.insertPlaylist(LocalPlaylist(id = id, name = name, createdAt = System.currentTimeMillis(), videoCount = 1))
-            _addToPlaylistVideo.value = null
+                Log.d(TAG, "createPlaylistAndAdd: playlist created with id=$id")
+                playlistDao.insertVideo(
+                    PlaylistVideo(
+                        playlistId = id,
+                        videoId = video.videoId,
+                        title = video.title,
+                        channelName = video.author,
+                        thumbnailUrl = video.thumbnailUrl,
+                        durationMs = video.durationMs,
+                        position = 0
+                    )
+                )
+                Log.d(TAG, "createPlaylistAndAdd: video inserted")
+                playlistDao.insertPlaylist(LocalPlaylist(id = id, name = name, createdAt = System.currentTimeMillis(), videoCount = 1))
+                Log.d(TAG, "createPlaylistAndAdd: playlist updated with videoCount=1")
+                _addToPlaylistVideo.value = null
+            } catch (e: Exception) {
+                Log.e(TAG, "createPlaylistAndAdd failed", e)
+            }
         }
     }
 }
