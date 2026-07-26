@@ -71,6 +71,7 @@
         "com.google.dagger.hilt*",
         "com.google.dagger:hilt*",
         "com.google.dagger:dagger*",
+        "com.google.dagger.hilt.android:com.google.dagger.hilt.android.gradle.plugin",
         "androidx.room*",
         "androidx.lifecycle*",
         "androidx.navigation*",

@@ -13,6 +13,7 @@
 -dontwarn org.chromium.net.**
 -dontwarn org.xbill.DNS.**
 -dontwarn com.j2v8.**
+-dontwarn com.eclipsesource.**
 -dontwarn javax.inject.**
 -dontwarn dagger.**
 
@@ -24,6 +25,8 @@
 -keep class okio.** { *; }
 -keep class org.nanojson.** { *; }
 -keep class org.chromium.net.** { *; }
+-keep class com.eclipsesource.** { *; }
+-keep class com.j2v8.** { *; }
 
 # Keep Gson TypeAdapter subclasses
 -keep class * extends com.google.gson.TypeAdapter
