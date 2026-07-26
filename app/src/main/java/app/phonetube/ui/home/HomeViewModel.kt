@@ -247,7 +247,7 @@ class HomeViewModel @Inject constructor(
                     )
                 )
                 Log.d(TAG, "addToPlaylist: video inserted")
-                playlistDao.insertPlaylist(playlist.copy(videoCount = count + 1))
+                playlistDao.updatePlaylist(playlist.copy(videoCount = count + 1))
                 Log.d(TAG, "addToPlaylist: playlist updated, videoCount=${count + 1}")
                 _addToPlaylistVideo.value = null
             } catch (e: Exception) {
@@ -277,7 +277,7 @@ class HomeViewModel @Inject constructor(
                     )
                 )
                 Log.d(TAG, "createPlaylistAndAdd: video inserted")
-                playlistDao.insertPlaylist(LocalPlaylist(id = id, name = name, createdAt = System.currentTimeMillis(), videoCount = 1))
+                playlistDao.updatePlaylist(LocalPlaylist(id = id, name = name, createdAt = System.currentTimeMillis(), videoCount = 1))
                 Log.d(TAG, "createPlaylistAndAdd: playlist updated with videoCount=1")
                 _addToPlaylistVideo.value = null
             } catch (e: Exception) {
