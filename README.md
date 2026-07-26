@@ -10,13 +10,20 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 |---------|-------------|
 | Home Feed | Browse YouTube recommendations, trending, music, sports, live, news, gaming, and kids content |
 | Search | Search YouTube with autocomplete suggestions and configurable result limits |
-| Video Playback | Play videos with DASH and HLS streaming support |
+| Video Playback | Play videos with DASH and HLS streaming, quality picker, and subtitle support |
 | Background Play | Continue listening with the mini player or notification controls |
-| Mini Player | Persistent playback bar with play/pause, seek, and rewind controls |
-| SponsorBlock | Skip sponsor segments and other interruptions automatically |
+| Mini Player | Persistent playback bar with play/pause, rewind, forward, and close controls |
+| SponsorBlock | Skip sponsor segments and other interruptions automatically with per-category controls |
 | Local Playlists | Create and manage playlists without a Google account |
+| Local Subscriptions | Subscribe to channels locally without a Google account |
 | Watch History | Your watch history is saved locally on your device |
 | Channel Pages | Browse channel videos and subscribe locally |
+| Deep Linking | Open YouTube links directly in PhoneTube (videos, playlists, channels, shorts) |
+| Share Support | Open shared YouTube links from other apps |
+| Speed Control | Adjust playback speed from 0.25x to 3.0x |
+| Quality Picker | Choose video quality from available formats |
+| Subtitles | Toggle and select subtitle tracks |
+| Feed Toggle | Enable or disable individual feed sources for faster loading |
 | Customization | Choose theme colors, enable AMOLED dark mode, or use your wallpaper colors on Android 12+ |
 | Settings | Configure playback defaults, SponsorBlock categories, search limits, and which feeds to show |
 
