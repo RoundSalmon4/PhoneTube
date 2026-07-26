@@ -88,6 +88,14 @@ class SettingsViewModel @Inject constructor(
         playerPreferences.setColorSchemeMode(mode)
     }
 
+    fun setVideoSearchLimit(limit: Int) = viewModelScope.launch {
+        playerPreferences.setVideoSearchLimit(limit)
+    }
+
+    fun setChannelSearchLimit(limit: Int) = viewModelScope.launch {
+        playerPreferences.setChannelSearchLimit(limit)
+    }
+
     fun showClearHistoryDialog() { _showClearHistoryDialog.value = true }
     fun dismissClearHistoryDialog() { _showClearHistoryDialog.value = false }
 

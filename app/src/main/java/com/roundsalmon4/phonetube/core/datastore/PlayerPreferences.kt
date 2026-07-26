@@ -42,6 +42,8 @@ private object Keys {
     val PRIMARY_COLOR = intPreferencesKey("primary_color")
     val SECONDARY_COLOR = intPreferencesKey("secondary_color")
     val COLOR_SCHEME_MODE = stringPreferencesKey("color_scheme_mode")
+    val VIDEO_SEARCH_LIMIT = intPreferencesKey("video_search_limit")
+    val CHANNEL_SEARCH_LIMIT = intPreferencesKey("channel_search_limit")
 }
 
 data class PreferencesUiState(
@@ -75,7 +77,9 @@ data class PreferencesUiState(
     val useAmoledTheme: Boolean = false,
     val primaryColor: Int = 0xFFFF0000.toInt(),
     val secondaryColor: Int = 0xFF282828.toInt(),
-    val colorSchemeMode: String = "STANDARD"
+    val colorSchemeMode: String = "STANDARD",
+    val videoSearchLimit: Int = 50,
+    val channelSearchLimit: Int = 20
 )
 
 @Singleton
@@ -105,7 +109,9 @@ class PlayerPreferences @Inject constructor(
             useAmoledTheme = prefs[Keys.USE_AMOLED_THEME] ?: false,
             primaryColor = prefs[Keys.PRIMARY_COLOR] ?: 0xFFFF0000.toInt(),
             secondaryColor = prefs[Keys.SECONDARY_COLOR] ?: 0xFF282828.toInt(),
-            colorSchemeMode = prefs[Keys.COLOR_SCHEME_MODE] ?: "STANDARD"
+            colorSchemeMode = prefs[Keys.COLOR_SCHEME_MODE] ?: "STANDARD",
+            videoSearchLimit = prefs[Keys.VIDEO_SEARCH_LIMIT] ?: 50,
+            channelSearchLimit = prefs[Keys.CHANNEL_SEARCH_LIMIT] ?: 20
         )
     }
 
@@ -195,5 +201,13 @@ class PlayerPreferences @Inject constructor(
 
     suspend fun setColorSchemeMode(mode: String) {
         context.playerDataStore.edit { it[Keys.COLOR_SCHEME_MODE] = mode }
+    }
+
+    suspend fun setVideoSearchLimit(limit: Int) {
+        context.playerDataStore.edit { it[Keys.VIDEO_SEARCH_LIMIT] = limit }
+    }
+
+    suspend fun setChannelSearchLimit(limit: Int) {
+        context.playerDataStore.edit { it[Keys.CHANNEL_SEARCH_LIMIT] = limit }
     }
 }

@@ -2,6 +2,7 @@ package com.roundsalmon4.phonetube.ui.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.model.SearchChannel
 import com.roundsalmon4.phonetube.core.engine.model.SearchFilter
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -20,7 +22,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    private val engine: YouTubeEngine
+    private val engine: YouTubeEngine,
+    private val playerPreferences: PlayerPreferences
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
@@ -76,12 +79,13 @@ class SearchViewModel @Inject constructor(
     }
 
     private fun applyFilter() {
+        val prefs = playerPreferences.uiState.value
         val filteredVideos = when (_filter.value) {
-            SearchFilter.ALL, SearchFilter.VIDEOS -> allVideos
+            SearchFilter.ALL, SearchFilter.VIDEOS -> allVideos.take(prefs.videoSearchLimit)
             SearchFilter.CHANNELS -> emptyList()
         }
         val filteredChannels = when (_filter.value) {
-            SearchFilter.ALL, SearchFilter.CHANNELS -> allChannels
+            SearchFilter.ALL, SearchFilter.CHANNELS -> allChannels.take(prefs.channelSearchLimit)
             SearchFilter.VIDEOS -> emptyList()
         }
 

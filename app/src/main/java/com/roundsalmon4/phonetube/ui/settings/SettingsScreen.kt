@@ -96,6 +96,7 @@ fun SettingsScreen(
             PlayerSection(uiState, viewModel)
             SponsorBlockSection(uiState, viewModel)
             FeedsSection(uiState, viewModel)
+            SearchSection(uiState, viewModel)
             AppearanceSection(uiState, viewModel)
             DataSection(viewModel)
             AboutSection(onLicenseClick, onCreditsClick)
@@ -342,6 +343,72 @@ private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewMod
                 checked = enabled,
                 onCheckedChange = { viewModel.setFeedEnabled(key, it) }
             )
+        }
+    }
+}
+
+@Composable
+private fun SearchSection(uiState: PreferencesUiState, viewModel: SettingsViewModel) {
+    Column {
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        SettingsCategory("Search")
+
+        var videoLimitExpanded by remember { mutableStateOf(false) }
+        val videoLimits = listOf(10, 20, 30, 50, 100)
+        val currentVideoLimit = uiState.videoSearchLimit
+
+        ExposedDropdownMenuBox(
+            expanded = videoLimitExpanded,
+            onExpandedChange = { videoLimitExpanded = it }
+        ) {
+            OutlinedTextField(
+                value = "$currentVideoLimit results",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Video Results Limit") },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = videoLimitExpanded) }
+            )
+            ExposedDropdownMenu(expanded = videoLimitExpanded, onDismissRequest = { videoLimitExpanded = false }) {
+                videoLimits.forEach { limit ->
+                    DropdownMenuItem(
+                        text = { Text("$limit results") },
+                        onClick = {
+                            viewModel.setVideoSearchLimit(limit)
+                            videoLimitExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        var channelLimitExpanded by remember { mutableStateOf(false) }
+        val channelLimits = listOf(5, 10, 20, 30, 50)
+        val currentChannelLimit = uiState.channelSearchLimit
+
+        ExposedDropdownMenuBox(
+            expanded = channelLimitExpanded,
+            onExpandedChange = { channelLimitExpanded = it }
+        ) {
+            OutlinedTextField(
+                value = "$currentChannelLimit results",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Channel Results Limit") },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = channelLimitExpanded) }
+            )
+            ExposedDropdownMenu(expanded = channelLimitExpanded, onDismissRequest = { channelLimitExpanded = false }) {
+                channelLimits.forEach { limit ->
+                    DropdownMenuItem(
+                        text = { Text("$limit results") },
+                        onClick = {
+                            viewModel.setChannelSearchLimit(limit)
+                            channelLimitExpanded = false
+                        }
+                    )
+                }
+            }
         }
     }
 }
