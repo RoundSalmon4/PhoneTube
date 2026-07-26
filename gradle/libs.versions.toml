@@ -1,6 +1,6 @@
 [versions]
-agp = "8.7.3"
-kotlin = "2.2.21"
+agp = "8.13.2"
+kotlin = "2.4.10"
 ksp = "2.2.21-2.0.5"
 
 # AndroidX
@@ -10,7 +10,7 @@ annotation = "1.10.0"
 activity-compose = "1.9.3"
 lifecycle = "2.8.7"
 navigation = "2.8.5"
-room = "2.6.1"
+room = "2.8.4"
 datastore = "1.2.1"
 media = "1.8.0"
 webkit = "1.16.0"
@@ -28,7 +28,7 @@ media3 = "1.8.0"
 coil = "3.0.4"
 
 # Hilt
-hilt = "2.58"
+hilt = "2.60.1"
 hilt-navigation-compose = "1.2.0"
 
 # OkHttp
