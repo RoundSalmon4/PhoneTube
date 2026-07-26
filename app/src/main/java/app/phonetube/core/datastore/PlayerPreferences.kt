@@ -19,6 +19,26 @@ private val Context.playerDataStore: DataStore<Preferences> by preferencesDataSt
     name = "player_preferences"
 )
 
+private object Keys {
+    val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
+    val DEFAULT_QUALITY = stringPreferencesKey("default_quality")
+    val RESUME_PLAYBACK = booleanPreferencesKey("resume_playback")
+    val LANDSCAPE_LOCK = booleanPreferencesKey("landscape_lock")
+    val SPONSOR_BLOCK_ENABLED = booleanPreferencesKey("sponsor_block_enabled")
+    val SPONSOR_BLOCK_CATEGORIES = stringSetPreferencesKey("sponsor_block_categories")
+    val FEED_HOME = booleanPreferencesKey("feed_home")
+    val FEED_TRENDING = booleanPreferencesKey("feed_trending")
+    val FEED_WHAT_TO_WATCH = booleanPreferencesKey("feed_what_to_watch")
+    val FEED_MUSIC = booleanPreferencesKey("feed_music")
+    val FEED_SPORTS = booleanPreferencesKey("feed_sports")
+    val FEED_LIVE = booleanPreferencesKey("feed_live")
+    val FEED_NEWS = booleanPreferencesKey("feed_news")
+    val FEED_GAMING = booleanPreferencesKey("feed_gaming")
+    val FEED_KIDS = booleanPreferencesKey("feed_kids")
+    val THEME_MODE = stringPreferencesKey("theme_mode")
+    val USE_AMOLED_THEME = booleanPreferencesKey("use_amoled_theme")
+}
+
 data class PreferencesUiState(
     val playbackSpeed: Float = 1.0f,
     val defaultQuality: String = "AUTO",
@@ -47,27 +67,7 @@ data class PreferencesUiState(
     val feedKids: Boolean = true,
     val themeMode: String = "SYSTEM",
     val useAmoledTheme: Boolean = false
-) {
-    object Keys {
-        val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
-        val DEFAULT_QUALITY = stringPreferencesKey("default_quality")
-        val RESUME_PLAYBACK = booleanPreferencesKey("resume_playback")
-        val LANDSCAPE_LOCK = booleanPreferencesKey("landscape_lock")
-        val SPONSOR_BLOCK_ENABLED = booleanPreferencesKey("sponsor_block_enabled")
-        val SPONSOR_BLOCK_CATEGORIES = stringSetPreferencesKey("sponsor_block_categories")
-        val FEED_HOME = booleanPreferencesKey("feed_home")
-        val FEED_TRENDING = booleanPreferencesKey("feed_trending")
-        val FEED_WHAT_TO_WATCH = booleanPreferencesKey("feed_what_to_watch")
-        val FEED_MUSIC = booleanPreferencesKey("feed_music")
-        val FEED_SPORTS = booleanPreferencesKey("feed_sports")
-        val FEED_LIVE = booleanPreferencesKey("feed_live")
-        val FEED_NEWS = booleanPreferencesKey("feed_news")
-        val FEED_GAMING = booleanPreferencesKey("feed_gaming")
-        val FEED_KIDS = booleanPreferencesKey("feed_kids")
-        val THEME_MODE = stringPreferencesKey("theme_mode")
-        val USE_AMOLED_THEME = booleanPreferencesKey("use_amoled_theme")
-    }
-}
+)
 
 @Singleton
 class PlayerPreferences @Inject constructor(
