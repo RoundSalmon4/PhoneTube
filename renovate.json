@@ -93,7 +93,7 @@
       "enabled": false
     },
     {
-      "description": "Disable deps requiring AGP 9.0.0+ — pinned until AGP bump",
+      "description": "Disable deps requiring compileSdk 36+ or AGP 9.0.0+ — pinned until SDK/AGP bump",
       "matchPackageNames": [
         "com.google.dagger.hilt.android",
         "com.google.dagger:hilt-android",
@@ -107,7 +107,10 @@
         "androidx.lifecycle:lifecycle-viewmodel-compose",
         "androidx.navigation:navigation-compose",
         "androidx.hilt:hilt-navigation-compose",
-        "androidx.activity:activity-compose"
+        "androidx.activity:activity-compose",
+        "androidx.media3:*",
+        "io.coil-kt.coil3:*",
+        "androidx.core:core-ktx"
       ],
       "enabled": false
     },
