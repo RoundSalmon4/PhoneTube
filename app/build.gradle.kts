@@ -8,11 +8,12 @@ plugins {
     alias(libs.plugins.room)
 }
 
-val keystorePropertiesFile = rootProject.file("keystore.properties")
-val keystoreProperties = java.util.Properties()
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(keystorePropertiesFile.inputStream())
-}
+apply(from = rootProject.file("gradle/version.gradle.kts"))
+
+val appVersionCode: Int by extra
+val appVersionMajor: Int by extra
+val appVersionMinor: Int by extra
+val appVersionPatch: Int by extra
 
 android {
     namespace = "com.roundsalmon4.phonetube"
@@ -22,8 +23,8 @@ android {
         applicationId = "com.roundsalmon4.phonetube"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appVersionCode
+        versionName = "$appVersionMajor.$appVersionMinor.$appVersionPatch"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -37,12 +38,13 @@ android {
     }
 
     signingConfigs {
-        if (keystorePropertiesFile.exists()) {
-            create("release") {
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
+        create("fromKeystore") {
+            val releaseKeystorePath = System.getenv("RELEASE_KEYSTORE_PATH")
+            if (releaseKeystorePath != null) {
+                storeFile = file(releaseKeystorePath)
+                storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD") ?: error("RELEASE_KEYSTORE_PASSWORD not set")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: error("RELEASE_KEY_ALIAS not set")
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD") ?: error("RELEASE_KEY_PASSWORD not set")
             }
         }
     }
@@ -51,8 +53,7 @@ android {
         release {
             isMinifyEnabled = false
             isShrinkResources = false
-            signingConfig = if (keystorePropertiesFile.exists())
-                signingConfigs.getByName("release") else signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("fromKeystore")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

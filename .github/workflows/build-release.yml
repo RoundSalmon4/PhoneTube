@@ -1,17 +1,10 @@
-name: Build
+name: Build and Release
 
 on:
-  push:
-    branches: [ new-ui ]
-    paths-ignore:
-      - 'MediaServiceCore/**'
-      - 'SharedModules/**'
-  pull_request:
-    branches: [ new-ui ]
-    paths-ignore:
-      - 'MediaServiceCore/**'
-      - 'SharedModules/**'
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -39,8 +32,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      - name: Determine version tag
+        id: version
+        run: echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+
       - name: Decode keystore
-        if: env.KEYSTORE_BASE64 != ''
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
@@ -57,9 +53,11 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Upload APK to release
+        uses: softprops/action-gh-release@v2
         with:
-          name: phonetube-release
-          path: app/build/outputs/apk/release/*.apk
-          if-no-files-found: error
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: ${{ steps.version.outputs.tag }}
+          files: app/build/outputs/apk/release/*.apk
+          generate_release_notes: true
+          draft: true
