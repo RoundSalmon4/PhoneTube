@@ -44,7 +44,7 @@ private val credits = listOf(
     ),
     CreditEntry(
         name = "SponsorBlock",
-        description = "Sponsor segment detection and DeArrow integration",
+        description = "Sponsor segment detection API",
         url = "https://github.com/ajay-ay/sponsorblock",
         license = "AGPL-3.0"
     ),

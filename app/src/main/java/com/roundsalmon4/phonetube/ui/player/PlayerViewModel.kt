@@ -225,9 +225,6 @@ class PlayerViewModel @Inject constructor(
 
     fun setPlaybackSpeed(speed: Float) {
         playerController.setPlaybackSpeed(speed)
-        viewModelScope.launch {
-            playerPreferences.setPlaybackSpeed(speed)
-        }
     }
 
     fun selectSubtitle(subtitle: SubtitleTrackInfo?) {
