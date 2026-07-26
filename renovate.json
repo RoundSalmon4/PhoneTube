@@ -1,0 +1,58 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "schedule": ["every weekend"],
+  "timezone": "America/New_York",
+  "labels": ["dependencies"],
+  "git-submodules": {
+    "enabled": false
+  },
+  "packageRules": [
+    {
+      "description": "Disable pinned deps that must not be updated for MediaServiceCore compatibility",
+      "matchPackageNames": [
+        "com.squareup.okhttp3:*"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Disable Kotlin — pinned to 2.2.21 for KSP1 + MediaServiceCore compatibility",
+      "matchPackageNames": [
+        "org.jetbrains.kotlin:*",
+        "org.jetbrains.kotlin.plugin.*"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Disable KSP — pinned to KSP1 (ksp.useKSP2=false)",
+      "matchPackageNames": [
+        "com.google.devtools.ksp:*"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Disable AGP — pinned to 8.7.3 until Kotlin 2.3 / AGP 9 bump",
+      "matchPackageNames": [
+        "com.android.application",
+        "com.android.library",
+        "com.android.tools.build:*"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Disable coroutines — forced to 1.9.0 via root build.gradle.kts resolution strategy",
+      "matchPackageNames": [
+        "org.jetbrains.kotlinx:kotlinx-coroutines-*"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Group all remaining updates into a single PR",
+      "matchPackagePatterns": [".*"],
+      "groupName": "all-dependencies",
+      "groupSlug": "all-deps"
+    }
+  ]
+}
