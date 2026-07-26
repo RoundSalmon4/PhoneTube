@@ -1,5 +1,6 @@
 package com.roundsalmon4.phonetube.ui.navigation
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -13,6 +14,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -26,6 +28,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
+import com.roundsalmon4.phonetube.core.engine.YouTubeUrlParser
 import com.roundsalmon4.phonetube.player.PlayerEngineController
 import com.roundsalmon4.phonetube.player.PlayerStateManager
 import com.roundsalmon4.phonetube.ui.channel.ChannelScreen
@@ -56,7 +59,8 @@ val bottomNavItems = listOf(
 fun AppNavigation(
     playerStateManager: PlayerStateManager,
     playerController: PlayerEngineController,
-    playerPreferences: PlayerPreferences
+    playerPreferences: PlayerPreferences,
+    deepLinkUri: kotlinx.coroutines.flow.StateFlow<Uri?>
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -72,6 +76,29 @@ fun AppNavigation(
 
     val miniPlayerState by playerStateManager.miniPlayerState.collectAsState()
     val prefs by playerPreferences.uiState.collectAsState(initial = PreferencesUiState())
+    val currentDeepLink by deepLinkUri.collectAsState()
+
+    LaunchedEffect(currentDeepLink) {
+        currentDeepLink?.let { uri ->
+            val link = YouTubeUrlParser.parse(uri)
+            if (link.isValid) {
+                when (link.type) {
+                    YouTubeUrlParser.YouTubeLink.Type.VIDEO,
+                    YouTubeUrlParser.YouTubeLink.Type.SHORT -> {
+                        navController.navigate(Route.Player(link.id))
+                    }
+                    YouTubeUrlParser.YouTubeLink.Type.PLAYLIST -> {
+                        // Play first video from playlist
+                        navController.navigate(Route.Player(link.id))
+                    }
+                    YouTubeUrlParser.YouTubeLink.Type.CHANNEL -> {
+                        navController.navigate(Route.Channel(link.id))
+                    }
+                    else -> {}
+                }
+            }
+        }
+    }
 
     Scaffold(
         bottomBar = {
