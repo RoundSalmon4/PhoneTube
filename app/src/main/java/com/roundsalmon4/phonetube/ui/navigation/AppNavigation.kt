@@ -29,6 +29,7 @@ import androidx.navigation.toRoute
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.core.engine.YouTubeUrlParser
+import com.roundsalmon4.phonetube.core.engine.YouTubeUrlParser.YouTubeLink
 import com.roundsalmon4.phonetube.player.PlayerEngineController
 import com.roundsalmon4.phonetube.player.PlayerStateManager
 import com.roundsalmon4.phonetube.ui.channel.ChannelScreen
