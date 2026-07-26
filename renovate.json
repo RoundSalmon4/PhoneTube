@@ -11,105 +11,72 @@
   },
   "packageRules": [
     {
-      "description": "Disable pinned deps that must not be updated for MediaServiceCore compatibility",
-      "matchPackageNames": [
-        "com.squareup.okhttp3:*"
-      ],
+      "description": "Disable OkHttp — MediaServiceCore compat, pinned at 3.12.13",
+      "matchPackageNames": ["com.squareup.okhttp3:*"],
       "enabled": false
     },
     {
-      "description": "Disable Kotlin — pinned to 2.2.21 for KSP1 + MediaServiceCore compatibility",
-      "matchPackageNames": [
-        "org.jetbrains.kotlin:*",
-        "org.jetbrains.kotlin.plugin.*"
-      ],
+      "description": "Disable Kotlin — pinned for KSP1 + MediaServiceCore compat",
+      "matchPackageNames": ["org.jetbrains.kotlin*", "org.jetbrains.kotlin.android*"],
       "enabled": false
     },
     {
-      "description": "Disable KSP — pinned to KSP1 (ksp.useKSP2=false)",
-      "matchPackageNames": [
-        "com.google.devtools.ksp:*"
-      ],
+      "description": "Disable KSP — pinned to KSP1",
+      "matchPackageNames": ["com.google.devtools.ksp*"],
       "enabled": false
     },
     {
-      "description": "Disable AGP — pinned to 8.7.3 until Kotlin 2.3 / AGP 9 bump",
-      "matchPackageNames": [
-        "com.android.application",
-        "com.android.library",
-        "com.android.tools.build:*"
-      ],
+      "description": "Disable AGP — pinned until Kotlin 2.3 / AGP 9 bump",
+      "matchPackageNames": ["com.android.application*", "com.android.library*", "com.android.tools.build*"],
       "enabled": false
     },
     {
-      "description": "Disable coroutines — forced to 1.9.0 via root build.gradle.kts resolution strategy",
-      "matchPackageNames": [
-        "org.jetbrains.kotlinx:kotlinx-coroutines-*"
-      ],
+      "description": "Disable coroutines — forced via resolution strategy",
+      "matchPackageNames": ["org.jetbrains.kotlinx:kotlinx-coroutines*"],
       "enabled": false
     },
     {
-      "description": "Disable retrofit — MediaServiceCore transitive dep, must stay at 2.5.0",
-      "matchPackageNames": [
-        "com.squareup.retrofit2:*"
-      ],
+      "description": "Disable retrofit — MediaServiceCore transitive dep",
+      "matchPackageNames": ["com.squareup.retrofit2*"],
       "enabled": false
     },
     {
-      "description": "Disable cronet — pinned for min SDK 24 compatibility",
-      "matchPackageNames": [
-        "org.chromium.net:*",
-        "com.google.net.cronet:*"
-      ],
+      "description": "Disable cronet — pinned for min SDK 24",
+      "matchPackageNames": ["org.chromium.net*", "com.google.net.cronet*"],
       "enabled": false
     },
     {
       "description": "Disable dnsjava — MediaServiceCore transitive dep",
-      "matchPackageNames": [
-        "dnsjava:*"
-      ],
+      "matchPackageNames": ["dnsjava*"],
       "enabled": false
     },
     {
       "description": "Disable json-path — MediaServiceCore transitive dep",
-      "matchPackageNames": [
-        "com.jayway.jsonpath:*"
-      ],
+      "matchPackageNames": ["com.jayway.jsonpath*"],
       "enabled": false
     },
     {
       "description": "Disable Gradle — stay on 8.x for AGP 8.7.3 compat",
-      "matchPackageNames": [
-        "gradle"
-      ],
+      "matchPackageNames": ["gradle"],
       "enabled": false
     },
     {
-      "description": "Disable build.yml and build-release.yml from updates",
-      "matchFileNames": [
-        ".github/workflows/build.yml",
-        ".github/workflows/build-release.yml"
-      ],
+      "description": "Disable CI workflow files from updates",
+      "matchFileNames": [".github/workflows/*"],
       "enabled": false
     },
     {
-      "description": "Disable deps requiring compileSdk 36+ or AGP 9.0.0+ — pinned until SDK/AGP bump",
+      "description": "Disable deps requiring compileSdk 36+ or AGP 9.0.0+",
       "matchPackageNames": [
-        "com.google.dagger.hilt.android",
-        "com.google.dagger:hilt-android",
-        "com.google.dagger:hilt-android-compiler",
-        "androidx.room",
-        "androidx.room:room-runtime",
-        "androidx.room:room-ktx",
-        "androidx.room:room-compiler",
-        "androidx.lifecycle:lifecycle-runtime-ktx",
-        "androidx.lifecycle:lifecycle-runtime-compose",
-        "androidx.lifecycle:lifecycle-viewmodel-compose",
-        "androidx.navigation:navigation-compose",
-        "androidx.hilt:hilt-navigation-compose",
-        "androidx.activity:activity-compose",
-        "androidx.media3:*",
-        "io.coil-kt.coil3:*",
+        "com.google.dagger.hilt*",
+        "com.google.dagger:dagger*",
+        "androidx.room*",
+        "androidx.lifecycle*",
+        "androidx.navigation*",
+        "androidx.hilt*",
+        "androidx.activity*",
+        "androidx.media3*",
+        "io.coil-kt.coil3*",
         "androidx.core:core-ktx"
       ],
       "enabled": false
