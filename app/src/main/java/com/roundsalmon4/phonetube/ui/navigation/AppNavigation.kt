@@ -28,8 +28,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
+import com.roundsalmon4.phonetube.core.engine.YouTubeLink
 import com.roundsalmon4.phonetube.core.engine.YouTubeUrlParser
-import com.roundsalmon4.phonetube.core.engine.YouTubeUrlParser.YouTubeLink
 import com.roundsalmon4.phonetube.player.PlayerEngineController
 import com.roundsalmon4.phonetube.player.PlayerStateManager
 import com.roundsalmon4.phonetube.ui.channel.ChannelScreen
@@ -84,15 +84,15 @@ fun AppNavigation(
             val link = YouTubeUrlParser.parse(uri)
             if (link.isValid) {
                 when (link.type) {
-                    YouTubeUrlParser.YouTubeLink.Type.VIDEO,
-                    YouTubeUrlParser.YouTubeLink.Type.SHORT -> {
+                    YouTubeLink.Type.VIDEO,
+                    YouTubeLink.Type.SHORT -> {
                         navController.navigate(Route.Player(link.id))
                     }
-                    YouTubeUrlParser.YouTubeLink.Type.PLAYLIST -> {
+                    YouTubeLink.Type.PLAYLIST -> {
                         // Play first video from playlist
                         navController.navigate(Route.Player(link.id))
                     }
-                    YouTubeUrlParser.YouTubeLink.Type.CHANNEL -> {
+                    YouTubeLink.Type.CHANNEL -> {
                         navController.navigate(Route.Channel(link.id))
                     }
                     else -> {}
