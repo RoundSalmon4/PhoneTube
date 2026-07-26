@@ -4,7 +4,7 @@
 
 YouTube phone app (Kotlin + Jetpack Compose) built on SmartTube's `MediaServiceCore` as its YouTube data engine. No TV UI, no Leanback, no MVP — modern Android architecture.
 
-**Package:** `app.phonetube`  
+**Package:** `com.roundsalmon4.phonetube`  
 **Min SDK:** 24 (Android 7.0) | **Target/Compile SDK:** 35
 
 ## Critical Constraints
@@ -33,9 +33,9 @@ YouTube phone app (Kotlin + Jetpack Compose) built on SmartTube's `MediaServiceC
 ## Project Structure
 
 ```
-SmartTube/
+PhoneTube/
 ├── app/                          # Compose app module (our code)
-│   └── src/main/java/app/phonetube/
+│   └── src/main/java/com/roundsalmon4/phonetube/
 │       ├── core/
 │       │   ├── engine/           # MediaServiceCore wrapper (RxJava→Flow bridge)
 │       │   ├── database/         # Room: history, playlists, subscriptions
@@ -63,11 +63,11 @@ The root `build.gradle.kts` auto-applies `enable-buildconfig.gradle` and forces 
 
 | File | Purpose |
 |------|---------|
-| `app/src/main/java/app/phonetube/core/engine/YouTubeEngine.kt` | All YouTube API calls — RxJava→Flow bridge |
-| `app/src/main/java/app/phonetube/core/engine/YouTubeInitializer.kt` | MUST call `GlobalPreferences.instance(context)` first |
-| `app/src/main/java/app/phonetube/core/database/AppDatabase.kt` | Room DB: history, playlists, subscriptions |
-| `app/src/main/java/app/phonetube/player/PlayerEngineController.kt` | Media3 ExoPlayer abstraction |
-| `app/src/main/java/app/phonetube/ui/navigation/Route.kt` | Type-safe navigation routes |
+| `app/src/main/java/com/roundsalmon4/phonetube/core/engine/YouTubeEngine.kt` | All YouTube API calls — RxJava→Flow bridge |
+| `app/src/main/java/com/roundsalmon4/phonetube/core/engine/YouTubeInitializer.kt` | MUST call `GlobalPreferences.instance(context)` first |
+| `app/src/main/java/com/roundsalmon4/phonetube/core/database/AppDatabase.kt` | Room DB: history, playlists, subscriptions |
+| `app/src/main/java/com/roundsalmon4/phonetube/player/PlayerEngineController.kt` | Media3 ExoPlayer abstraction |
+| `app/src/main/java/com/roundsalmon4/phonetube/ui/navigation/Route.kt` | Type-safe navigation routes |
 | `gradle/libs.versions.toml` | Version catalog — all dependency versions |
 | `SharedModules/constants.gradle` | Version variables for submodules |
 

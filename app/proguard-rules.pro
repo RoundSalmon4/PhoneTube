@@ -1,2 +1,2 @@
 -dontwarn javax.annotation.**
--keep class app.phonetube.core.database.entity.** { *; }
+-keep class com.roundsalmon4.phonetube.core.database.entity.** { *; }

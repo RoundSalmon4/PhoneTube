@@ -21,7 +21,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "SmartTube"
+rootProject.name = "PhoneTube"
 
 include(":app")
 

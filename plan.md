@@ -163,14 +163,14 @@ These come along because we depend on `:youtubeapi` and `:mediaserviceinterfaces
 ## 5. Project Structure
 
 ```
-SmartTube/                                  # Root repo
+PhoneTube/                                  # Root repo
 ├── MediaServiceCore/                       # Git submodule (YouTube API engine)
 ├── SharedModules/                          # Git submodule (utilities, GlobalPreferences)
 ├── app/                                    # NEW: Our Compose app module
 │   ├── build.gradle.kts
 │   └── src/main/
 │       ├── AndroidManifest.xml
-│       ├── java/com/youtube/phonetube/
+│       ├── java/com/roundsalmon4/phonetube/
 │       │   ├── PhoneTubeApp.kt             # @HiltAndroidApp Application
 │       │   ├── MainActivity.kt              # Single Activity, hosts NavHost
 │       │   │
@@ -797,7 +797,7 @@ dependencyResolution {
     }
 }
 
-// SmartTube submodules (YouTube API engine)
+// PhoneTube submodules (YouTube API engine)
 include(":sharedutils")
 include(":mediaserviceinterfaces")
 include(":youtubeapi")
