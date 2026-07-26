@@ -24,6 +24,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
+import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.player.PlayerEngineController
 import com.roundsalmon4.phonetube.player.PlayerStateManager
 import com.roundsalmon4.phonetube.ui.channel.ChannelScreen
@@ -53,7 +55,8 @@ val bottomNavItems = listOf(
 @Composable
 fun AppNavigation(
     playerStateManager: PlayerStateManager,
-    playerController: PlayerEngineController
+    playerController: PlayerEngineController,
+    playerPreferences: PlayerPreferences
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -68,6 +71,7 @@ fun AppNavigation(
     } == true
 
     val miniPlayerState by playerStateManager.miniPlayerState.collectAsState()
+    val prefs by playerPreferences.uiState.collectAsState(initial = PreferencesUiState())
 
     Scaffold(
         bottomBar = {
@@ -98,9 +102,11 @@ fun AppNavigation(
         Column(modifier = Modifier.padding(innerPadding)) {
             MiniPlayer(
                 state = miniPlayerState,
-                isVisible = showBottomBar && !isOnPlayerScreen,
+                isVisible = showBottomBar && !isOnPlayerScreen && prefs.showMiniPlayer,
                 onPlayPause = { playerController.togglePlayPause() },
-                onClose = { if (miniPlayerState.isPlaying) playerController.togglePlayPause(); playerStateManager.clear() },
+                onRewind = { playerController.seekBackward() },
+                onForward = { playerController.seekForward() },
+                onClose = { playerController.stop(); playerStateManager.clear() },
                 onTap = {
                     if (miniPlayerState.videoId.isNotEmpty()) {
                         navController.navigate(Route.Player(miniPlayerState.videoId))

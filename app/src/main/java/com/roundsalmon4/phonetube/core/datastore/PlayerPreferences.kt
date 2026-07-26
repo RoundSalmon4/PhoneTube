@@ -25,6 +25,7 @@ private object Keys {
     val DEFAULT_QUALITY = stringPreferencesKey("default_quality")
     val RESUME_PLAYBACK = booleanPreferencesKey("resume_playback")
     val LANDSCAPE_LOCK = booleanPreferencesKey("landscape_lock")
+    val SHOW_MINI_PLAYER = booleanPreferencesKey("show_mini_player")
     val SPONSOR_BLOCK_ENABLED = booleanPreferencesKey("sponsor_block_enabled")
     val SPONSOR_BLOCK_CATEGORIES = stringSetPreferencesKey("sponsor_block_categories")
     val FEED_HOME = booleanPreferencesKey("feed_home")
@@ -48,6 +49,7 @@ data class PreferencesUiState(
     val defaultQuality: String = "AUTO",
     val resumePlayback: Boolean = true,
     val landscapeLock: Boolean = false,
+    val showMiniPlayer: Boolean = true,
     val sponsorBlockEnabled: Boolean = true,
     val sponsorBlockCategories: Map<String, String> = mapOf(
         "sponsor" to "skip",
@@ -87,6 +89,7 @@ class PlayerPreferences @Inject constructor(
             defaultQuality = prefs[Keys.DEFAULT_QUALITY] ?: "AUTO",
             resumePlayback = prefs[Keys.RESUME_PLAYBACK] ?: true,
             landscapeLock = prefs[Keys.LANDSCAPE_LOCK] ?: false,
+            showMiniPlayer = prefs[Keys.SHOW_MINI_PLAYER] ?: true,
             sponsorBlockEnabled = prefs[Keys.SPONSOR_BLOCK_ENABLED] ?: true,
             sponsorBlockCategories = parseCategories(prefs[Keys.SPONSOR_BLOCK_CATEGORIES]),
             feedHome = prefs[Keys.FEED_HOME] ?: true,
@@ -141,6 +144,10 @@ class PlayerPreferences @Inject constructor(
 
     suspend fun setLandscapeLock(enabled: Boolean) {
         context.playerDataStore.edit { it[Keys.LANDSCAPE_LOCK] = enabled }
+    }
+
+    suspend fun setShowMiniPlayer(enabled: Boolean) {
+        context.playerDataStore.edit { it[Keys.SHOW_MINI_PLAYER] = enabled }
     }
 
     suspend fun setSponsorBlockEnabled(enabled: Boolean) {

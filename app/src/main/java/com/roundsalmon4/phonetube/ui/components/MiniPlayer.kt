@@ -14,6 +14,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +35,8 @@ fun MiniPlayer(
     state: MiniPlayerState,
     isVisible: Boolean,
     onPlayPause: () -> Unit,
+    onRewind: () -> Unit,
+    onForward: () -> Unit,
     onClose: () -> Unit,
     onTap: () -> Unit,
     modifier: Modifier = Modifier
@@ -46,10 +50,10 @@ fun MiniPlayer(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp)
+                .height(64.dp)
                 .background(MaterialTheme.colorScheme.surfaceContainer)
                 .clickable(onClick = onTap)
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
@@ -57,8 +61,8 @@ fun MiniPlayer(
                 contentDescription = state.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(MaterialTheme.shapes.small)
+                .size(44.dp)
+                .clip(MaterialTheme.shapes.small)
             )
 
             Text(
@@ -71,17 +75,35 @@ fun MiniPlayer(
                     .padding(horizontal = 8.dp)
             )
 
-            IconButton(onClick = onPlayPause) {
+            IconButton(onClick = onRewind, modifier = Modifier.size(36.dp)) {
                 Icon(
-                    imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (state.isPlaying) "Pause" else "Play"
+                    imageVector = Icons.Default.Replay10,
+                    contentDescription = "Rewind 10s",
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
-            IconButton(onClick = onClose) {
+            IconButton(onClick = onPlayPause, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (state.isPlaying) "Pause" else "Play",
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
+            IconButton(onClick = onForward, modifier = Modifier.size(36.dp)) {
+                Icon(
+                    imageVector = Icons.Default.Forward30,
+                    contentDescription = "Forward 30s",
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            IconButton(onClick = onClose, modifier = Modifier.size(36.dp)) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Close"
+                    contentDescription = "Close",
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }

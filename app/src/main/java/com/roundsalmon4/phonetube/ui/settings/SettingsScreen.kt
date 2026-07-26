@@ -233,6 +233,13 @@ private fun PlayerSection(uiState: PreferencesUiState, viewModel: SettingsViewMo
             checked = uiState.landscapeLock,
             onCheckedChange = { viewModel.setLandscapeLock(it) }
         )
+
+        SwitchItem(
+            name = "Mini Player",
+            description = "Show mini player bar when playback continues in background",
+            checked = uiState.showMiniPlayer,
+            onCheckedChange = { viewModel.setShowMiniPlayer(it) }
+        )
     }
 }
 

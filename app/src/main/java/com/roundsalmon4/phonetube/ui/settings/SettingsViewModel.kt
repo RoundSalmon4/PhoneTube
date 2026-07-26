@@ -52,6 +52,10 @@ class SettingsViewModel @Inject constructor(
         playerPreferences.setLandscapeLock(enabled)
     }
 
+    fun setShowMiniPlayer(enabled: Boolean) = viewModelScope.launch {
+        playerPreferences.setShowMiniPlayer(enabled)
+    }
+
     fun setSponsorBlockEnabled(enabled: Boolean) = viewModelScope.launch {
         playerPreferences.setSponsorBlockEnabled(enabled)
     }

@@ -58,7 +58,8 @@ class MainActivity : ComponentActivity() {
             ) {
                 AppNavigation(
                     playerStateManager = playerStateManager,
-                    playerController = playerController
+                    playerController = playerController,
+                    playerPreferences = playerPreferences
                 )
             }
         }

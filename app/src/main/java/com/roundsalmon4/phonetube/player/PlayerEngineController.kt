@@ -107,6 +107,19 @@ class PlayerEngineController(context: Context) {
         if (exoPlayer.isPlaying) exoPlayer.pause() else exoPlayer.play()
     }
 
+    fun stop() {
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
+    }
+
+    fun seekForward(seconds: Long = 10L) {
+        seekBy(seconds * 1000)
+    }
+
+    fun seekBackward(seconds: Long = 10L) {
+        seekBy(-seconds * 1000)
+    }
+
     fun seekTo(positionMs: Long) {
         exoPlayer.seekTo(positionMs.coerceAtLeast(0))
     }
