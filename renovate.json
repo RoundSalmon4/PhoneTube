@@ -68,7 +68,7 @@
     {
       "description": "Disable deps requiring compileSdk 36+ or AGP 9.0.0+",
       "matchPackageNames": [
-        "com.google.dagger.hilt*",
+        "com.google.dagger:hilt*",
         "com.google.dagger:dagger*",
         "androidx.room*",
         "androidx.lifecycle*",
@@ -76,6 +76,7 @@
         "androidx.hilt*",
         "androidx.activity*",
         "androidx.media3*",
+        "androidx.compose*",
         "io.coil-kt.coil3*",
         "androidx.core:core-ktx"
       ],
