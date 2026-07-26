@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -37,6 +38,8 @@ private object Keys {
     val FEED_KIDS = booleanPreferencesKey("feed_kids")
     val THEME_MODE = stringPreferencesKey("theme_mode")
     val USE_AMOLED_THEME = booleanPreferencesKey("use_amoled_theme")
+    val PRIMARY_COLOR = intPreferencesKey("primary_color")
+    val SECONDARY_COLOR = intPreferencesKey("secondary_color")
 }
 
 data class PreferencesUiState(
@@ -66,7 +69,9 @@ data class PreferencesUiState(
     val feedGaming: Boolean = true,
     val feedKids: Boolean = true,
     val themeMode: String = "SYSTEM",
-    val useAmoledTheme: Boolean = false
+    val useAmoledTheme: Boolean = false,
+    val primaryColor: Int = 0xFFFF0000.toInt(),
+    val secondaryColor: Int = 0xFF282828.toInt()
 )
 
 @Singleton
@@ -92,7 +97,9 @@ class PlayerPreferences @Inject constructor(
             feedGaming = prefs[Keys.FEED_GAMING] ?: true,
             feedKids = prefs[Keys.FEED_KIDS] ?: true,
             themeMode = prefs[Keys.THEME_MODE] ?: "SYSTEM",
-            useAmoledTheme = prefs[Keys.USE_AMOLED_THEME] ?: false
+            useAmoledTheme = prefs[Keys.USE_AMOLED_THEME] ?: false,
+            primaryColor = prefs[Keys.PRIMARY_COLOR] ?: 0xFFFF0000.toInt(),
+            secondaryColor = prefs[Keys.SECONDARY_COLOR] ?: 0xFF282828.toInt()
         )
     }
 
@@ -166,5 +173,13 @@ class PlayerPreferences @Inject constructor(
 
     suspend fun setUseAmoledTheme(enabled: Boolean) {
         context.playerDataStore.edit { it[Keys.USE_AMOLED_THEME] = enabled }
+    }
+
+    suspend fun setPrimaryColor(color: Int) {
+        context.playerDataStore.edit { it[Keys.PRIMARY_COLOR] = color }
+    }
+
+    suspend fun setSecondaryColor(color: Int) {
+        context.playerDataStore.edit { it[Keys.SECONDARY_COLOR] = color }
     }
 }

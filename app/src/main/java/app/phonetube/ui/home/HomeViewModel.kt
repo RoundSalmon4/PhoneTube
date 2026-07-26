@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import app.phonetube.core.database.FeedCacheDao
 import app.phonetube.core.database.PlaylistDao
 import app.phonetube.core.datastore.PlayerPreferences
+import app.phonetube.core.datastore.PreferencesUiState
 import app.phonetube.core.database.entity.CachedFeedSection
 import app.phonetube.core.database.entity.CachedFeedVideo
 import app.phonetube.core.database.entity.LocalPlaylist
@@ -39,6 +40,33 @@ class HomeViewModel @Inject constructor(
     companion object {
         private const val TAG = "HomeVM"
         private const val CACHE_MAX_AGE_MS = 15 * 60 * 1000L
+
+        private val SOURCE_TO_FEED_KEY = mapOf(
+            "Home" to "home",
+            "What to Watch" to "what_to_watch",
+            "Trending" to "trending",
+            "Music" to "music",
+            "Sports" to "sports",
+            "Live" to "live",
+            "News" to "news",
+            "Gaming" to "gaming",
+            "Kids" to "kids"
+        )
+
+        private fun isFeedEnabled(source: String, prefs: PreferencesUiState): Boolean {
+            return when (SOURCE_TO_FEED_KEY[source]) {
+                "home" -> prefs.feedHome
+                "what_to_watch" -> prefs.feedWhatToWatch
+                "trending" -> prefs.feedTrending
+                "music" -> prefs.feedMusic
+                "sports" -> prefs.feedSports
+                "live" -> prefs.feedLive
+                "news" -> prefs.feedNews
+                "gaming" -> prefs.feedGaming
+                "kids" -> prefs.feedKids
+                else -> true
+            }
+        }
     }
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -77,8 +105,8 @@ class HomeViewModel @Inject constructor(
         if (homeRetryJob?.isActive == true) return
         homeRetryJob = viewModelScope.launch {
             kotlinx.coroutines.delay(3_000L)
-            Log.d(TAG, "Refreshing Home feed after resume")
             try {
+                val prefs = playerPreferences.uiState.first()
                 val homeSections = engine.getHome().firstOrNull()
                 val homeVideos = homeSections?.sections?.filter { it.videos.isNotEmpty() }
                 if (!homeVideos.isNullOrEmpty()) {
@@ -86,10 +114,11 @@ class HomeViewModel @Inject constructor(
                         is HomeUiState.Success -> s.sections
                         else -> emptyList()
                     }
-                    val merged = homeVideos + currentSections.filter { it.source != "Home" }
+                    val merged = homeVideos + currentSections.filter {
+                        it.source != "Home" && isFeedEnabled(it.source, prefs)
+                    }
                     _uiState.value = HomeUiState.Success(merged)
                     withContext(NonCancellable) { writeToCache(merged) }
-                    Log.d(TAG, "Home refresh: ${homeVideos.size} home + ${currentSections.size} existing = ${merged.size} sections")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Home refresh failed", e)
@@ -100,6 +129,7 @@ class HomeViewModel @Inject constructor(
     private fun loadHomeFromCache() {
         viewModelScope.launch {
             try {
+                val prefs = playerPreferences.uiState.first()
                 val cachedSections = feedCacheDao.getAllSections().firstOrNull()
                 if (!cachedSections.isNullOrEmpty()) {
                     val sections = cachedSections.mapNotNull { cached ->
@@ -110,19 +140,16 @@ class HomeViewModel @Inject constructor(
                                 source = cached.section.source
                             )
                         } else null
-                    }
+                    }.filter { isFeedEnabled(it.source, prefs) }
                     if (sections.isNotEmpty()) {
                         _uiState.value = HomeUiState.Success(sections)
-                        Log.d(TAG, "Loaded ${sections.size} sections from cache")
                         val oldestFetchedAt = feedCacheDao.getOldestFetchedAt()
                         if (oldestFetchedAt != null && System.currentTimeMillis() - oldestFetchedAt > CACHE_MAX_AGE_MS) {
-                            Log.d(TAG, "Cache is stale, refreshing in background")
                             loadFromNetwork(isRefresh = false)
                         }
                         return@launch
                     }
                 }
-                Log.d(TAG, "Cache empty, loading from network")
                 loadFromNetwork(isRefresh = false)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load cache", e)

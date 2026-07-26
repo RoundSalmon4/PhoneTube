@@ -1,12 +1,18 @@
 package app.phonetube.ui.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
@@ -36,13 +42,46 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import app.phonetube.core.datastore.PreferencesUiState
+
+private val PRIMARY_COLORS = listOf(
+    0xFFFF0000.toInt() to "Red",
+    0xFFE91E63.toInt() to "Pink",
+    0xFF9C27B0.toInt() to "Purple",
+    0xFF673AB7.toInt() to "Deep Purple",
+    0xFF3F51B5.toInt() to "Indigo",
+    0xFF2196F3.toInt() to "Blue",
+    0xFF03A9F4.toInt() to "Light Blue",
+    0xFF00BCD4.toInt() to "Cyan",
+    0xFF009688.toInt() to "Teal",
+    0xFF4CAF50.toInt() to "Green",
+    0xFFFF9800.toInt() to "Orange",
+    0xFF795548.toInt() to "Brown"
+)
+
+private val SECONDARY_COLORS = listOf(
+    0xFF282828.toInt() to "Dark Gray",
+    0xFF424242.toInt() to "Gray",
+    0xFF616161.toInt() to "Medium Gray",
+    0xFF757575.toInt() to "Gray 500",
+    0xFF9E9E9E.toInt() to "Gray 400",
+    0xFFBDBDBD.toInt() to "Light Gray",
+    0xFFE0E0E0.toInt() to "Gray 300",
+    0xFFF5F5F5.toInt() to "Gray 100",
+    0xFFFF5722.toInt() to "Deep Orange",
+    0xFFFF9800.toInt() to "Orange",
+    0xFF4CAF50.toInt() to "Green",
+    0xFF2196F3.toInt() to "Blue"
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -359,6 +398,60 @@ private fun AppearanceSection(uiState: PreferencesUiState, viewModel: SettingsVi
             checked = uiState.useAmoledTheme,
             onCheckedChange = { viewModel.setUseAmoledTheme(it) }
         )
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp, horizontal = 16.dp))
+        SettingsCategory("Colors")
+
+        Text(
+            text = "Primary Color",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+        ColorSwatchRow(
+            colors = PRIMARY_COLORS,
+            selectedColor = uiState.primaryColor,
+            onColorSelected = { viewModel.setPrimaryColor(it) }
+        )
+
+        Text(
+            text = "Secondary Color",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        )
+        ColorSwatchRow(
+            colors = SECONDARY_COLORS,
+            selectedColor = uiState.secondaryColor,
+            onColorSelected = { viewModel.setSecondaryColor(it) }
+        )
+    }
+}
+
+@Composable
+private fun ColorSwatchRow(
+    colors: List<Pair<Int, String>>,
+    selectedColor: Int,
+    onColorSelected: (Int) -> Unit
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+    ) {
+        colors.forEach { (colorInt, name) ->
+            val isSelected = colorInt == selectedColor
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(colorInt))
+                    .then(
+                        if (isSelected) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                        else Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), CircleShape)
+                    )
+                    .clickable { onColorSelected(colorInt) }
+            )
+        }
     }
 }
 

@@ -72,6 +72,14 @@ class SettingsViewModel @Inject constructor(
         playerPreferences.setUseAmoledTheme(enabled)
     }
 
+    fun setPrimaryColor(color: Int) = viewModelScope.launch {
+        playerPreferences.setPrimaryColor(color)
+    }
+
+    fun setSecondaryColor(color: Int) = viewModelScope.launch {
+        playerPreferences.setSecondaryColor(color)
+    }
+
     fun showClearHistoryDialog() { _showClearHistoryDialog.value = true }
     fun dismissClearHistoryDialog() { _showClearHistoryDialog.value = false }
 

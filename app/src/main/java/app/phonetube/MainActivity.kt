@@ -43,7 +43,9 @@ class MainActivity : ComponentActivity() {
 
             PhoneTubeTheme(
                 darkTheme = darkTheme,
-                useAmoled = prefs.useAmoledTheme
+                useAmoled = prefs.useAmoledTheme,
+                primaryColor = prefs.primaryColor,
+                secondaryColor = prefs.secondaryColor
             ) {
                 AppNavigation()
             }
