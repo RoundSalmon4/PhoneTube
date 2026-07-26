@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import app.phonetube.core.database.entity.LocalPlaylist
 import app.phonetube.core.database.entity.PlaylistVideo
 import kotlinx.coroutines.flow.Flow
@@ -17,7 +18,7 @@ interface PlaylistDao {
     @Query("SELECT * FROM playlists WHERE id = :playlistId")
     suspend fun getPlaylistById(playlistId: Long): LocalPlaylist?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPlaylist(playlist: LocalPlaylist): Long
 
     @Update
