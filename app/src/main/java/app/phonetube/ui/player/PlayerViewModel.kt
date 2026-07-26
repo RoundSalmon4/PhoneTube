@@ -59,9 +59,6 @@ class PlayerViewModel @Inject constructor(
     private val _showSubtitlePicker = MutableStateFlow(false)
     val showSubtitlePicker: StateFlow<Boolean> = _showSubtitlePicker.asStateFlow()
 
-    private val _rotationLocked = MutableStateFlow(false)
-    val rotationLocked: StateFlow<Boolean> = _rotationLocked.asStateFlow()
-
     val playerController = PlayerEngineController(application)
 
     val playbackState: StateFlow<PlayerPlaybackSnapshot> = playerController.playbackState
@@ -215,11 +212,6 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    fun toggleSubtitles() {
-        val currentEnabled = playbackState.value.isSubtitlesEnabled
-        playerController.setSubtitleEnabled(!currentEnabled)
-    }
-
     fun selectSubtitle(subtitle: SubtitleTrackInfo?) {
         if (subtitle == null) {
             playerController.setSubtitleEnabled(false)
@@ -232,13 +224,6 @@ class PlayerViewModel @Inject constructor(
         playerController.selectVideoTrack(height, fps)
     }
 
-    fun toggleRotationLock() {
-        _rotationLocked.value = !_rotationLocked.value
-        viewModelScope.launch {
-            playerPreferences.setRotationLocked(if (_rotationLocked.value) 1 else 0)
-        }
-    }
-
     fun showSpeedPicker() { _showSpeedPicker.value = true }
     fun hideSpeedPicker() { _showSpeedPicker.value = false }
 
@@ -247,10 +232,6 @@ class PlayerViewModel @Inject constructor(
 
     fun showSubtitlePicker() { _showSubtitlePicker.value = true }
     fun hideSubtitlePicker() { _showSubtitlePicker.value = false }
-
-    fun retry() {
-        loadStreamInfo()
-    }
 
     override fun onCleared() {
         super.onCleared()

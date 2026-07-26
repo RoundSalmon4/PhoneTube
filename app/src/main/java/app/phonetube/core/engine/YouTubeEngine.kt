@@ -187,12 +187,12 @@ class YouTubeEngine @Inject constructor(
         }
     }.flowOn(Dispatchers.IO)
 
-    fun search(query: String, channelOnly: Boolean = false): Flow<SearchResult> = flow {
+    fun search(query: String): Flow<SearchResult> = flow {
         try {
             val groups = contentService.getSearchObserve(query).awaitFirstOrDefault(emptyList())
 
             val totalItems = groups.sumOf { (it.mediaItems?.size ?: 0) }
-            Log.d(TAG, "search('$query'): ${groups.size} groups, $totalItems total items, channelOnly=$channelOnly")
+            Log.d(TAG, "search('$query'): ${groups.size} groups, $totalItems total items")
 
             if (groups.isNotEmpty()) {
                 val sampleItems = groups.flatMap { (it.mediaItems ?: emptyList()).filterNotNull() }.take(5)
@@ -201,7 +201,7 @@ class YouTubeEngine @Inject constructor(
                 }
             }
 
-            val videos = if (!channelOnly) groups.toSearchVideos() else emptyList()
+            val videos = groups.toSearchVideos()
             val channelsFromSearch = groups.toSearchChannels()
 
             Log.d(TAG, "search('$query'): ${videos.size} videos, ${channelsFromSearch.size} channels from search")
@@ -273,13 +273,6 @@ class YouTubeEngine @Inject constructor(
         }
     }.flowOn(Dispatchers.IO)
 
-    fun getChannelVideos(channelId: String): Flow<List<Video>> = flow {
-        val groups = contentService.getChannelObserve(channelId).awaitFirstOrDefault(emptyList())
-        val videos = groups.flatMap { (it.mediaItems ?: emptyList()).filterNotNull() }
-            .mapNotNull { it.toVideo() }
-        emit(videos)
-    }.flowOn(Dispatchers.IO)
-
     fun getStreamInfo(videoId: String): Flow<StreamInfo> = flow {
         try {
             val info = mediaItemService.getFormatInfoObserve(videoId).awaitFirstOrDefault(null)
@@ -309,17 +302,6 @@ class YouTubeEngine @Inject constructor(
             emit(emptyList())
         }
     }.flowOn(Dispatchers.IO)
-
-    fun continueGroup(group: MediaGroup): Flow<List<Video>> = flow {
-        val continued = contentService.continueGroupObserve(group).awaitFirstOrDefault(null)
-        val videos = (continued?.mediaItems ?: emptyList()).filterNotNull().mapNotNull { it.toVideo() }
-        emit(videos)
-    }.flowOn(Dispatchers.IO)
-
-    fun isSignedIn(): Boolean {
-        initializer.init()
-        return serviceManager.signInService.isSigned
-    }
 
     fun reportWatchProgress(videoId: String, positionSec: Float) {
         try {

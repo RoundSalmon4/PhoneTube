@@ -75,13 +75,6 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    fun clearResults() {
-        _uiState.value = SearchUiState.Idle
-        _suggestions.value = emptyList()
-        allVideos = emptyList()
-        allChannels = emptyList()
-    }
-
     private fun applyFilter() {
         val filteredVideos = when (_filter.value) {
             SearchFilter.ALL, SearchFilter.VIDEOS -> allVideos

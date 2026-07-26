@@ -36,7 +36,6 @@ class SponsorBlockService @Inject constructor(
     )
 
     companion object {
-        private const val ACTION_SKIP = "skip"
         private const val ACTION_MUTE = "mute"
 
         val CATEGORY_COLORS = mapOf(
