@@ -13,6 +13,7 @@ import com.roundsalmon4.phonetube.core.engine.model.SponsorSegment
 import com.roundsalmon4.phonetube.core.engine.model.StreamInfo
 import com.roundsalmon4.phonetube.player.PlayerEngineController
 import com.roundsalmon4.phonetube.player.PlayerPlaybackSnapshot
+import com.roundsalmon4.phonetube.player.PlayerStateManager
 import com.roundsalmon4.phonetube.player.SponsorBlockService
 import com.roundsalmon4.phonetube.player.SubtitleTrackInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -35,7 +36,9 @@ class PlayerViewModel @Inject constructor(
     private val engine: YouTubeEngine,
     private val sponsorBlockService: SponsorBlockService,
     private val playerPreferences: PlayerPreferences,
-    private val historyDao: HistoryDao
+    private val historyDao: HistoryDao,
+    val playerController: PlayerEngineController,
+    private val playerStateManager: PlayerStateManager
 ) : AndroidViewModel(application) {
 
     companion object {
@@ -62,8 +65,6 @@ class PlayerViewModel @Inject constructor(
     private val _landscapeLock = MutableStateFlow(false)
     val landscapeLock: StateFlow<Boolean> = _landscapeLock.asStateFlow()
 
-    val playerController = PlayerEngineController(application)
-
     val playbackState: StateFlow<PlayerPlaybackSnapshot> = playerController.playbackState
 
     init {
@@ -87,6 +88,12 @@ class PlayerViewModel @Inject constructor(
                     Log.d(TAG, "Stream info loaded: dash=${info.dashManifestUrl != null}, hls=${info.hlsManifestUrl != null}, " +
                         "urlFormats=${info.urlFormats.size}, isLive=${info.isLive}, isLiveContent=${info.isLiveContent}")
                     _uiState.value = PlayerUiState.Ready(info)
+                    playerStateManager.updateVideoInfo(
+                        videoId = videoId,
+                        title = info.title,
+                        channelName = info.author,
+                        thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+                    )
                     startPlayback(info)
                     if (!info.isLive && !info.isLiveContent) {
                         recordToHistory(info)
@@ -246,7 +253,6 @@ class PlayerViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        playerController.release()
     }
 
     private fun saveCurrentPosition() {
@@ -277,6 +283,11 @@ class PlayerViewModel @Inject constructor(
                 val positionMs = playerController.exoPlayer.currentPosition
                 if (positionMs > 0) {
                     saveCurrentPosition()
+                    playerStateManager.updatePlaybackState(
+                        isPlaying = playerController.exoPlayer.isPlaying,
+                        currentPosition = positionMs,
+                        duration = playerController.exoPlayer.duration
+                    )
                 }
             }
         }

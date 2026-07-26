@@ -11,6 +11,8 @@ import androidx.lifecycle.lifecycleScope
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.core.engine.YouTubeInitializer
+import com.roundsalmon4.phonetube.player.PlayerEngineController
+import com.roundsalmon4.phonetube.player.PlayerStateManager
 import com.roundsalmon4.phonetube.ui.navigation.AppNavigation
 import com.roundsalmon4.phonetube.ui.theme.PhoneTubeTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -25,6 +27,12 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var playerPreferences: PlayerPreferences
+
+    @Inject
+    lateinit var playerStateManager: PlayerStateManager
+
+    @Inject
+    lateinit var playerController: PlayerEngineController
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,7 +55,10 @@ class MainActivity : ComponentActivity() {
                 primaryColor = prefs.primaryColor,
                 secondaryColor = prefs.secondaryColor
             ) {
-                AppNavigation()
+                AppNavigation(
+                    playerStateManager = playerStateManager,
+                    playerController = playerController
+                )
             }
         }
     }
