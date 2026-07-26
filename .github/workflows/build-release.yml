@@ -32,9 +32,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Determine version tag
+      - name: Read version from gradle
         id: version
-        run: echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+        run: |
+          MAJOR=$(grep 'appVersionMajor' gradle/version.gradle.kts | grep -o '[0-9]*')
+          MINOR=$(grep 'appVersionMinor' gradle/version.gradle.kts | grep -o '[0-9]*')
+          PATCH=$(grep 'appVersionPatch' gradle/version.gradle.kts | grep -o '[0-9]*')
+          VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION"
 
       - name: Decode keystore
         env:
@@ -56,8 +62,8 @@ jobs:
       - name: Upload APK to release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: ${{ steps.version.outputs.tag }}
+          tag_name: ${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.version }}
           files: app/build/outputs/apk/release/*.apk
-          generate_release_notes: true
+          generate_release_notes: false
           draft: false
