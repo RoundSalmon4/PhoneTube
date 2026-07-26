@@ -103,7 +103,14 @@ fun AppNavigation(
             MiniPlayer(
                 state = miniPlayerState,
                 isVisible = showBottomBar && !isOnPlayerScreen && prefs.showMiniPlayer,
-                onPlayPause = { playerController.togglePlayPause() },
+                onPlayPause = {
+                    playerController.togglePlayPause()
+                    playerStateManager.updatePlaybackState(
+                        isPlaying = playerController.exoPlayer.isPlaying,
+                        currentPosition = playerController.exoPlayer.currentPosition,
+                        duration = playerController.exoPlayer.duration
+                    )
+                },
                 onRewind = { playerController.seekBackward() },
                 onForward = { playerController.seekForward() },
                 onClose = { playerController.stop(); playerStateManager.clear() },
