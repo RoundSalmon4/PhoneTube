@@ -1,5 +1,5 @@
 [versions]
-agp = "8.7.3"
+agp = "9.3.1"
 kotlin = "2.2.21"
 ksp = "2.2.21-2.0.5"
 
@@ -16,7 +16,7 @@ media = "1.8.0"
 webkit = "1.16.0"
 
 # Compose
-compose-bom = "2024.12.01"
+compose-bom = "2026.06.01"
 
 # Material3
 material3 = "1.4.0"
