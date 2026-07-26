@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.phonetube.core.database.FeedCacheDao
 import app.phonetube.core.database.PlaylistDao
+import app.phonetube.core.datastore.PlayerPreferences
 import app.phonetube.core.database.entity.CachedFeedSection
 import app.phonetube.core.database.entity.CachedFeedVideo
 import app.phonetube.core.database.entity.LocalPlaylist
@@ -19,6 +20,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -30,7 +32,8 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val engine: YouTubeEngine,
     private val playlistDao: PlaylistDao,
-    private val feedCacheDao: FeedCacheDao
+    private val feedCacheDao: FeedCacheDao,
+    private val playerPreferences: PlayerPreferences
 ) : ViewModel() {
 
     companion object {
@@ -131,38 +134,37 @@ class HomeViewModel @Inject constructor(
     private fun loadFromNetwork(isRefresh: Boolean) {
         viewModelScope.launch {
             try {
-                val homeSections = async { engine.getHome().firstOrNull() }
-                val trendingSections = async { engine.getTrending().firstOrNull() }
-                val whatToWatchSections = async { engine.getWhatToWatch().firstOrNull() }
-                val musicSections = async { engine.getMusic().firstOrNull() }
-                val sportsSections = async { engine.getSports().firstOrNull() }
-                val liveSections = async { engine.getLive().firstOrNull() }
-                val newsSections = async { engine.getNews().firstOrNull() }
-                val gamingSections = async { engine.getGaming().firstOrNull() }
-                val kidsSections = async { engine.getKidsHome().firstOrNull() }
+                val prefs = playerPreferences.uiState.first()
 
-                val homeFeed = homeSections.await()
-                val trendingFeed = trendingSections.await()
-                val whatToWatchFeed = whatToWatchSections.await()
-                val musicFeed = musicSections.await()
-                val sportsFeed = sportsSections.await()
-                val liveFeed = liveSections.await()
-                val newsFeed = newsSections.await()
-                val gamingFeed = gamingSections.await()
-                val kidsFeed = kidsSections.await()
+                val homeSections = if (prefs.feedHome) async { engine.getHome().firstOrNull() } else null
+                val trendingSections = if (prefs.feedTrending) async { engine.getTrending().firstOrNull() } else null
+                val whatToWatchSections = if (prefs.feedWhatToWatch) async { engine.getWhatToWatch().firstOrNull() } else null
+                val musicSections = if (prefs.feedMusic) async { engine.getMusic().firstOrNull() } else null
+                val sportsSections = if (prefs.feedSports) async { engine.getSports().firstOrNull() } else null
+                val liveSections = if (prefs.feedLive) async { engine.getLive().firstOrNull() } else null
+                val newsSections = if (prefs.feedNews) async { engine.getNews().firstOrNull() } else null
+                val gamingSections = if (prefs.feedGaming) async { engine.getGaming().firstOrNull() } else null
+                val kidsSections = if (prefs.feedKids) async { engine.getKidsHome().firstOrNull() } else null
 
-                Log.d(TAG, "Feeds: home=${homeFeed?.sections?.size ?: 0} trending=${trendingFeed?.sections?.size ?: 0} whattowatch=${whatToWatchFeed?.sections?.size ?: 0} music=${musicFeed?.sections?.size ?: 0} sports=${sportsFeed?.sections?.size ?: 0} live=${liveFeed?.sections?.size ?: 0} news=${newsFeed?.sections?.size ?: 0} gaming=${gamingFeed?.sections?.size ?: 0} kids=${kidsFeed?.sections?.size ?: 0}")
+                val homeFeed = homeSections?.await()
+                val trendingFeed = trendingSections?.await()
+                val whatToWatchFeed = whatToWatchSections?.await()
+                val musicFeed = musicSections?.await()
+                val sportsFeed = sportsSections?.await()
+                val liveFeed = liveSections?.await()
+                val newsFeed = newsSections?.await()
+                val gamingFeed = gamingSections?.await()
+                val kidsFeed = kidsSections?.await()
 
-                val orderedFeeds = listOf(
+                val orderedFeeds = listOfNotNull(
                     homeFeed, whatToWatchFeed, trendingFeed, sportsFeed, gamingFeed, liveFeed, newsFeed, musicFeed, kidsFeed
                 )
 
-                val allSections = orderedFeeds.flatMap { it?.sections ?: emptyList() }
+                val allSections = orderedFeeds.flatMap { it.sections }
                 val nonEmpty = allSections.filter { it.videos.isNotEmpty() }
                 if (nonEmpty.isNotEmpty()) {
                     _uiState.value = HomeUiState.Success(nonEmpty)
                     withContext(NonCancellable) { writeToCache(nonEmpty) }
-                    Log.d(TAG, "Loaded ${nonEmpty.size} sections from network, cached")
                 } else if (_uiState.value is HomeUiState.Loading) {
                     _uiState.value = HomeUiState.Empty
                 }
@@ -232,9 +234,7 @@ class HomeViewModel @Inject constructor(
         val video = _addToPlaylistVideo.value ?: return
         viewModelScope.launch {
             try {
-                Log.d(TAG, "addToPlaylist: video=${video.videoId} -> playlist=${playlist.name} (id=${playlist.id})")
                 val count = playlistDao.getVideoCount(playlist.id)
-                Log.d(TAG, "addToPlaylist: current count=$count")
                 playlistDao.insertVideo(
                     PlaylistVideo(
                         playlistId = playlist.id,
@@ -246,9 +246,7 @@ class HomeViewModel @Inject constructor(
                         position = count
                     )
                 )
-                Log.d(TAG, "addToPlaylist: video inserted")
                 playlistDao.updatePlaylist(playlist.copy(videoCount = count + 1))
-                Log.d(TAG, "addToPlaylist: playlist updated, videoCount=${count + 1}")
                 _addToPlaylistVideo.value = null
             } catch (e: Exception) {
                 Log.e(TAG, "addToPlaylist failed", e)
@@ -260,11 +258,9 @@ class HomeViewModel @Inject constructor(
         val video = _addToPlaylistVideo.value ?: return
         viewModelScope.launch {
             try {
-                Log.d(TAG, "createPlaylistAndAdd: name=$name, video=${video.videoId}")
                 val id = playlistDao.insertPlaylist(
                     LocalPlaylist(name = name, createdAt = System.currentTimeMillis())
                 )
-                Log.d(TAG, "createPlaylistAndAdd: playlist created with id=$id")
                 playlistDao.insertVideo(
                     PlaylistVideo(
                         playlistId = id,
@@ -276,9 +272,7 @@ class HomeViewModel @Inject constructor(
                         position = 0
                     )
                 )
-                Log.d(TAG, "createPlaylistAndAdd: video inserted")
                 playlistDao.updatePlaylist(LocalPlaylist(id = id, name = name, createdAt = System.currentTimeMillis(), videoCount = 1))
-                Log.d(TAG, "createPlaylistAndAdd: playlist updated with videoCount=1")
                 _addToPlaylistVideo.value = null
             } catch (e: Exception) {
                 Log.e(TAG, "createPlaylistAndAdd failed", e)

@@ -59,6 +59,9 @@ class PlayerViewModel @Inject constructor(
     private val _showSubtitlePicker = MutableStateFlow(false)
     val showSubtitlePicker: StateFlow<Boolean> = _showSubtitlePicker.asStateFlow()
 
+    private val _landscapeLock = MutableStateFlow(false)
+    val landscapeLock: StateFlow<Boolean> = _landscapeLock.asStateFlow()
+
     val playerController = PlayerEngineController(application)
 
     val playbackState: StateFlow<PlayerPlaybackSnapshot> = playerController.playbackState
@@ -68,6 +71,7 @@ class PlayerViewModel @Inject constructor(
         loadSponsorSegments()
         startAutoSkip()
         restoreSpeedPreference()
+        loadLandscapeLockPreference()
         startPeriodicHistorySave()
     }
 
@@ -166,8 +170,15 @@ class PlayerViewModel @Inject constructor(
 
     private fun restoreSpeedPreference() {
         viewModelScope.launch {
-            val savedSpeed = playerPreferences.playbackSpeed.first()
+            val savedSpeed = playerPreferences.uiState.first().playbackSpeed
             playerController.setPlaybackSpeed(savedSpeed)
+        }
+    }
+
+    private fun loadLandscapeLockPreference() {
+        viewModelScope.launch {
+            val enabled = playerPreferences.uiState.first().landscapeLock
+            _landscapeLock.value = enabled
         }
     }
 
@@ -182,7 +193,7 @@ class PlayerViewModel @Inject constructor(
                     thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
                     durationMs = info.lengthSeconds * 1000,
                     positionMs = 0L,
-                    speed = playerPreferences.playbackSpeed.first(),
+                    speed = playerPreferences.uiState.first().playbackSpeed,
                     timestamp = System.currentTimeMillis()
                 )
                 historyDao.upsert(entry)

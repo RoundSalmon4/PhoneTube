@@ -28,6 +28,8 @@ import app.phonetube.ui.library.LibraryScreen
 import app.phonetube.ui.library.playlist.PlaylistDetailScreen
 import app.phonetube.ui.player.PlayerScreen
 import app.phonetube.ui.search.SearchScreen
+import app.phonetube.ui.settings.CreditsScreen
+import app.phonetube.ui.settings.LicenseScreen
 import app.phonetube.ui.settings.SettingsScreen
 
 data class BottomNavItem(
@@ -153,7 +155,18 @@ fun AppNavigation() {
             }
 
             composable<Route.Settings> {
-                SettingsScreen()
+                SettingsScreen(
+                    onLicenseClick = { navController.navigate(Route.License) },
+                    onCreditsClick = { navController.navigate(Route.Credits) }
+                )
+            }
+
+            composable<Route.License> {
+                LicenseScreen(onBackClick = { navController.popBackStack() })
+            }
+
+            composable<Route.Credits> {
+                CreditsScreen(onBackClick = { navController.popBackStack() })
             }
         }
     }
