@@ -4,7 +4,7 @@ kotlin = "2.2.21"
 ksp = "2.2.21-2.0.5"
 
 # AndroidX
-core-ktx = "1.19.0"
+core-ktx = "1.15.0"
 appcompat = "1.7.1"
 annotation = "1.10.0"
 activity-compose = "1.9.3"
@@ -22,10 +22,10 @@ compose-bom = "2024.12.01"
 material3 = "1.4.0"
 
 # Media3
-media3 = "1.10.1"
+media3 = "1.8.0"
 
 # Coil
-coil = "3.5.0"
+coil = "3.0.4"
 
 # Hilt
 hilt = "2.58"
