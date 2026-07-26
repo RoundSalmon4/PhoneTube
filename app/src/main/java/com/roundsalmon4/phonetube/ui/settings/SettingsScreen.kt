@@ -1,22 +1,32 @@
 package com.roundsalmon4.phonetube.ui.settings
 
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.BrightnessAuto
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -30,6 +40,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,36 +65,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
-
-private val PRIMARY_COLORS = listOf(
-    0xFFFF0000.toInt() to "Red",
-    0xFFE91E63.toInt() to "Pink",
-    0xFF9C27B0.toInt() to "Purple",
-    0xFF673AB7.toInt() to "Deep Purple",
-    0xFF3F51B5.toInt() to "Indigo",
-    0xFF2196F3.toInt() to "Blue",
-    0xFF03A9F4.toInt() to "Light Blue",
-    0xFF00BCD4.toInt() to "Cyan",
-    0xFF009688.toInt() to "Teal",
-    0xFF4CAF50.toInt() to "Green",
-    0xFFFF9800.toInt() to "Orange",
-    0xFF795548.toInt() to "Brown"
-)
-
-private val SECONDARY_COLORS = listOf(
-    0xFF282828.toInt() to "Dark Gray",
-    0xFF424242.toInt() to "Gray",
-    0xFF616161.toInt() to "Medium Gray",
-    0xFF757575.toInt() to "Gray 500",
-    0xFF9E9E9E.toInt() to "Gray 400",
-    0xFFBDBDBD.toInt() to "Light Gray",
-    0xFFE0E0E0.toInt() to "Gray 300",
-    0xFFF5F5F5.toInt() to "Gray 100",
-    0xFFFF5722.toInt() to "Deep Orange",
-    0xFFFF9800.toInt() to "Orange",
-    0xFF4CAF50.toInt() to "Green",
-    0xFF2196F3.toInt() to "Blue"
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -363,97 +346,209 @@ private fun AppearanceSection(uiState: PreferencesUiState, viewModel: SettingsVi
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
         SettingsCategory("Appearance")
 
-        var themeExpanded by remember { mutableStateOf(false) }
-        val themes = listOf("SYSTEM" to "Follow System", "LIGHT" to "Light", "DARK" to "Dark")
-        val currentTheme = themes.firstOrNull { it.first == uiState.themeMode }?.second ?: "Follow System"
+        val themeModeOptions = listOf("Follow System" to "SYSTEM", "Light" to "LIGHT", "Dark" to "DARK")
+        val selectedThemeIndex = themeModeOptions.indexOfFirst { it.second == uiState.themeMode }.coerceAtLeast(0)
 
-        ExposedDropdownMenuBox(
-            expanded = themeExpanded,
-            onExpandedChange = { themeExpanded = it }
+        Text(
+            text = "Theme Mode",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+        )
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
         ) {
-            OutlinedTextField(
-                value = currentTheme,
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Theme") },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).menuAnchor(MenuAnchorType.PrimaryNotEditable),
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = themeExpanded) }
-            )
-            ExposedDropdownMenu(expanded = themeExpanded, onDismissRequest = { themeExpanded = false }) {
-                themes.forEach { (value, display) ->
-                    DropdownMenuItem(
-                        text = { Text(display) },
-                        onClick = {
-                            viewModel.setThemeMode(value)
-                            themeExpanded = false
-                        }
-                    )
+            themeModeOptions.forEachIndexed { index, (label, _) ->
+                SegmentedButton(
+                    selected = selectedThemeIndex == index,
+                    onClick = { viewModel.setThemeMode(themeModeOptions[index].second) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = themeModeOptions.size),
+                    icon = {
+                        Icon(
+                            imageVector = when (themeModeOptions[index].second) {
+                                "LIGHT" -> Icons.Filled.LightMode
+                                "DARK" -> Icons.Filled.DarkMode
+                                else -> Icons.Filled.BrightnessAuto
+                            },
+                            contentDescription = null
+                        )
+                    }
+                ) {
+                    Text(label)
                 }
             }
         }
 
-        SwitchItem(
-            name = "AMOLED Dark",
-            description = "Pure black background for OLED screens",
-            checked = uiState.useAmoledTheme,
-            onCheckedChange = { viewModel.setUseAmoledTheme(it) }
-        )
+        val isDarkModeActive = uiState.themeMode == "DARK" ||
+            (uiState.themeMode == "SYSTEM" && isSystemInDarkTheme())
 
-        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp, horizontal = 16.dp))
-        SettingsCategory("Colors")
+        if (isDarkModeActive) {
+            SwitchItem(
+                name = "AMOLED Dark",
+                description = "Pure black background for OLED screens",
+                checked = uiState.useAmoledTheme,
+                onCheckedChange = { viewModel.setUseAmoledTheme(it) }
+            )
+        }
 
-        Text(
-            text = "Primary Color",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-        ColorSwatchRow(
-            colors = PRIMARY_COLORS,
-            selectedColor = uiState.primaryColor,
-            onColorSelected = { viewModel.setPrimaryColor(it) }
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val colorSchemeOptions = listOf("Standard" to "STANDARD", "Dynamic Color" to "DYNAMIC_COLOR")
+            val selectedColorSchemeIndex = colorSchemeOptions.indexOfFirst { it.second == uiState.colorSchemeMode }.coerceAtLeast(0)
 
-        Text(
-            text = "Secondary Color",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
-        ColorSwatchRow(
-            colors = SECONDARY_COLORS,
-            selectedColor = uiState.secondaryColor,
-            onColorSelected = { viewModel.setSecondaryColor(it) }
-        )
+            Text(
+                text = "Color Scheme",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+            ) {
+                colorSchemeOptions.forEachIndexed { index, (label, _) ->
+                    SegmentedButton(
+                        selected = selectedColorSchemeIndex == index,
+                        onClick = { viewModel.setColorSchemeMode(colorSchemeOptions[index].second) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = colorSchemeOptions.size)
+                    ) {
+                        Text(label)
+                    }
+                }
+            }
+        }
+
+        if (uiState.colorSchemeMode == "STANDARD") {
+            val presetPrimaryColors = listOf(
+                0xFFFF0000.toInt() to "Red",
+                0xFF1A237E.toInt() to "Blue",
+                0xFF1B5E20.toInt() to "Green",
+                0xFF4A148C.toInt() to "Purple",
+                0xFF006064.toInt() to "Teal",
+                0xFFE65100.toInt() to "Orange",
+                0xFF880E4F.toInt() to "Pink",
+                0xFF0D47A1.toInt() to "Indigo",
+                0xFF33691E.toInt() to "Olive",
+                0xFFBF360C.toInt() to "Deep Orange",
+                0xFF311B92.toInt() to "Deep Purple",
+                0xFF004D40.toInt() to "Dark Teal"
+            )
+            val presetSecondaryColors = listOf(
+                0xFF282828.toInt() to "Dark Gray",
+                0xFFFFD54F.toInt() to "Gold",
+                0xFF00BCD4.toInt() to "Cyan",
+                0xFFCDDC39.toInt() to "Lime",
+                0xFFFFC107.toInt() to "Amber",
+                0xFFFF5722.toInt() to "Deep Orange",
+                0xFF9C27B0.toInt() to "Purple",
+                0xFF03A9F4.toInt() to "Light Blue",
+                0xFF66BB6A.toInt() to "Green",
+                0xFFFF7043.toInt() to "Peach",
+                0xFFAB47BC.toInt() to "Mauve",
+                0xFF26A69A.toInt() to "Teal"
+            )
+
+            var showPrimaryColorDialog by remember { mutableStateOf(false) }
+            var showSecondaryColorDialog by remember { mutableStateOf(false) }
+
+            ListItem(
+                headlineContent = { Text("Primary Color", fontWeight = FontWeight.SemiBold) },
+                leadingContent = {
+                    Box(
+                        modifier = Modifier.size(40.dp).clip(CircleShape).background(Color(uiState.primaryColor))
+                    )
+                },
+                modifier = Modifier.clickable { showPrimaryColorDialog = true }
+            )
+
+            ListItem(
+                headlineContent = { Text("Secondary Color", fontWeight = FontWeight.SemiBold) },
+                leadingContent = {
+                    Box(
+                        modifier = Modifier.size(40.dp).clip(CircleShape).background(Color(uiState.secondaryColor))
+                    )
+                },
+                modifier = Modifier.clickable { showSecondaryColorDialog = true }
+            )
+
+            if (showPrimaryColorDialog) {
+                AlertDialog(
+                    onDismissRequest = { showPrimaryColorDialog = false },
+                    title = { Text("Select Color") },
+                    text = {
+                        ColorSwatchGrid(
+                            colors = presetPrimaryColors,
+                            selectedColor = uiState.primaryColor,
+                            onColorSelected = { color ->
+                                viewModel.setPrimaryColor(color)
+                                showPrimaryColorDialog = false
+                            }
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showPrimaryColorDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            if (showSecondaryColorDialog) {
+                AlertDialog(
+                    onDismissRequest = { showSecondaryColorDialog = false },
+                    title = { Text("Select Color") },
+                    text = {
+                        ColorSwatchGrid(
+                            colors = presetSecondaryColors,
+                            selectedColor = uiState.secondaryColor,
+                            onColorSelected = { color ->
+                                viewModel.setSecondaryColor(color)
+                                showSecondaryColorDialog = false
+                            }
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showSecondaryColorDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun ColorSwatchRow(
+private fun ColorSwatchGrid(
     colors: List<Pair<Int, String>>,
     selectedColor: Int,
     onColorSelected: (Int) -> Unit
 ) {
-    Row(
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(4),
+        contentPadding = PaddingValues(4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        colors.forEach { (colorInt, name) ->
+        items(colors) { (colorInt, name) ->
             val isSelected = colorInt == selectedColor
             Box(
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(Color(colorInt))
-                    .then(
-                        if (isSelected) Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                        else Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), CircleShape)
+                    .clickable { onColorSelected(colorInt) },
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSelected) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = name,
+                        tint = if (Color(colorInt).luminance() > 0.5f) Color.Black else Color.White
                     )
-                    .clickable { onColorSelected(colorInt) }
-            )
+                }
+            }
         }
     }
 }
+
+private fun Color.luminance(): Float = 0.299f * red + 0.587f * green + 0.114f * blue
 
 @Composable
 private fun DataSection(viewModel: SettingsViewModel) {

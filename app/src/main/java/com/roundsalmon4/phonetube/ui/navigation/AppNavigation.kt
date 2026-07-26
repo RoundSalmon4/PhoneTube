@@ -100,7 +100,7 @@ fun AppNavigation(
                 state = miniPlayerState,
                 isVisible = showBottomBar && !isOnPlayerScreen,
                 onPlayPause = { playerController.togglePlayPause() },
-                onClose = { playerController.pause(); playerStateManager.clear() },
+                onClose = { if (miniPlayerState.isPlaying) playerController.togglePlayPause(); playerStateManager.clear() },
                 onTap = {
                     if (miniPlayerState.videoId.isNotEmpty()) {
                         navController.navigate(Route.Player(miniPlayerState.videoId))

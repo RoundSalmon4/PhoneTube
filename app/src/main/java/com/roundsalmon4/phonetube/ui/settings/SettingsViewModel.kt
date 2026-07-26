@@ -80,6 +80,10 @@ class SettingsViewModel @Inject constructor(
         playerPreferences.setSecondaryColor(color)
     }
 
+    fun setColorSchemeMode(mode: String) = viewModelScope.launch {
+        playerPreferences.setColorSchemeMode(mode)
+    }
+
     fun showClearHistoryDialog() { _showClearHistoryDialog.value = true }
     fun dismissClearHistoryDialog() { _showClearHistoryDialog.value = false }
 

@@ -40,6 +40,7 @@ private object Keys {
     val USE_AMOLED_THEME = booleanPreferencesKey("use_amoled_theme")
     val PRIMARY_COLOR = intPreferencesKey("primary_color")
     val SECONDARY_COLOR = intPreferencesKey("secondary_color")
+    val COLOR_SCHEME_MODE = stringPreferencesKey("color_scheme_mode")
 }
 
 data class PreferencesUiState(
@@ -71,7 +72,8 @@ data class PreferencesUiState(
     val themeMode: String = "SYSTEM",
     val useAmoledTheme: Boolean = false,
     val primaryColor: Int = 0xFFFF0000.toInt(),
-    val secondaryColor: Int = 0xFF282828.toInt()
+    val secondaryColor: Int = 0xFF282828.toInt(),
+    val colorSchemeMode: String = "STANDARD"
 )
 
 @Singleton
@@ -99,7 +101,8 @@ class PlayerPreferences @Inject constructor(
             themeMode = prefs[Keys.THEME_MODE] ?: "SYSTEM",
             useAmoledTheme = prefs[Keys.USE_AMOLED_THEME] ?: false,
             primaryColor = prefs[Keys.PRIMARY_COLOR] ?: 0xFFFF0000.toInt(),
-            secondaryColor = prefs[Keys.SECONDARY_COLOR] ?: 0xFF282828.toInt()
+            secondaryColor = prefs[Keys.SECONDARY_COLOR] ?: 0xFF282828.toInt(),
+            colorSchemeMode = prefs[Keys.COLOR_SCHEME_MODE] ?: "STANDARD"
         )
     }
 
@@ -181,5 +184,9 @@ class PlayerPreferences @Inject constructor(
 
     suspend fun setSecondaryColor(color: Int) {
         context.playerDataStore.edit { it[Keys.SECONDARY_COLOR] = color }
+    }
+
+    suspend fun setColorSchemeMode(mode: String) {
+        context.playerDataStore.edit { it[Keys.COLOR_SCHEME_MODE] = mode }
     }
 }

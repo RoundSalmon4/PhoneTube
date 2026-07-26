@@ -53,7 +53,8 @@ class MainActivity : ComponentActivity() {
                 darkTheme = darkTheme,
                 useAmoled = prefs.useAmoledTheme,
                 primaryColor = prefs.primaryColor,
-                secondaryColor = prefs.secondaryColor
+                secondaryColor = prefs.secondaryColor,
+                colorSchemeMode = prefs.colorSchemeMode
             ) {
                 AppNavigation(
                     playerStateManager = playerStateManager,
