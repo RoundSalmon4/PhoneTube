@@ -36,3 +36,18 @@
 
 # Keep Retrofit interfaces
 -keep,allowobfuscation interface * extends retrofit2.http.* { *; }
+
+# Hilt — keep generated components
+-keep class dagger.hilt.** { *; }
+-keep class * extends dagger.hilt.android.internal.managers.ViewComponentManager$FragmentContextWrapper { *; }
+
+# Compose — keep runtime classes
+-keep class androidx.compose.** { *; }
+-keep class androidx.activity.compose.** { *; }
+
+# Navigation Compose
+-keep class androidx.navigation.compose.** { *; }
+
+# Room
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Dao class * { *; }
