@@ -15,7 +15,7 @@ object YouTubeUrlParser {
 
     fun parse(uri: Uri): YouTubeLink {
         val host = uri.host?.lowercase() ?: return YouTubeLink(YouTubeLink.Type.UNKNOWN, "")
-        val path = uri.path?.lowercase() ?: ""
+        val path = uri.path ?: ""
         val query = uri.query
 
         // youtu.be/VIDEO_ID (short links)
@@ -28,8 +28,10 @@ object YouTubeUrlParser {
 
         // youtube.com paths
         if (host.contains("youtube.com")) {
+            val pathLower = path.lowercase()
+
             // /watch?v=VIDEO_ID
-            if (path.startsWith("/watch")) {
+            if (pathLower.startsWith("/watch")) {
                 val videoId = uri.getQueryParameter("v")
                 if (!videoId.isNullOrEmpty()) {
                     return YouTubeLink(YouTubeLink.Type.VIDEO, videoId)
@@ -42,7 +44,7 @@ object YouTubeUrlParser {
             }
 
             // /playlist?list=PLAYLIST_ID
-            if (path.startsWith("/playlist")) {
+            if (pathLower.startsWith("/playlist")) {
                 val listId = uri.getQueryParameter("list")
                 if (!listId.isNullOrEmpty()) {
                     return YouTubeLink(YouTubeLink.Type.PLAYLIST, listId)
@@ -50,7 +52,7 @@ object YouTubeUrlParser {
             }
 
             // /shorts/VIDEO_ID
-            if (path.startsWith("/shorts/")) {
+            if (pathLower.startsWith("/shorts/")) {
                 val videoId = path.removePrefix("/shorts/").trimEnd('/')
                 if (videoId.isNotEmpty()) {
                     return YouTubeLink(YouTubeLink.Type.SHORT, videoId)
@@ -58,7 +60,7 @@ object YouTubeUrlParser {
             }
 
             // /live/VIDEO_ID
-            if (path.startsWith("/live/")) {
+            if (pathLower.startsWith("/live/")) {
                 val videoId = path.removePrefix("/live/").trimEnd('/')
                 if (videoId.isNotEmpty()) {
                     return YouTubeLink(YouTubeLink.Type.VIDEO, videoId)
@@ -66,7 +68,7 @@ object YouTubeUrlParser {
             }
 
             // /channel/CHANNEL_ID
-            if (path.startsWith("/channel/")) {
+            if (pathLower.startsWith("/channel/")) {
                 val channelId = path.removePrefix("/channel/").trimEnd('/')
                 if (channelId.isNotEmpty()) {
                     return YouTubeLink(YouTubeLink.Type.CHANNEL, channelId)
@@ -74,7 +76,7 @@ object YouTubeUrlParser {
             }
 
             // /@CHANNEL_HANDLE or /c/CHANNEL_NAME
-            if (path.startsWith("/@") || path.startsWith("/c/")) {
+            if (pathLower.startsWith("/@") || pathLower.startsWith("/c/")) {
                 val handle = path.removePrefix("/@").removePrefix("/c/").trimEnd('/')
                 if (handle.isNotEmpty()) {
                     return YouTubeLink(YouTubeLink.Type.CHANNEL, handle)
@@ -82,7 +84,7 @@ object YouTubeUrlParser {
             }
 
             // /v/VIDEO_ID or /embed/VIDEO_ID
-            if (path.startsWith("/v/") || path.startsWith("/embed/")) {
+            if (pathLower.startsWith("/v/") || pathLower.startsWith("/embed/")) {
                 val videoId = path.removePrefix("/v/").removePrefix("/embed/").trimEnd('/')
                 if (videoId.isNotEmpty()) {
                     return YouTubeLink(YouTubeLink.Type.VIDEO, videoId)
