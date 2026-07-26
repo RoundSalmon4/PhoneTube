@@ -25,6 +25,7 @@ import androidx.navigation.toRoute
 import app.phonetube.ui.channel.ChannelScreen
 import app.phonetube.ui.home.HomeScreen
 import app.phonetube.ui.library.LibraryScreen
+import app.phonetube.ui.library.playlist.PlaylistDetailScreen
 import app.phonetube.ui.player.PlayerScreen
 import app.phonetube.ui.search.SearchScreen
 import app.phonetube.ui.settings.SettingsScreen
@@ -134,7 +135,20 @@ fun AppNavigation() {
                     },
                     onChannelClick = { channelId ->
                         navController.navigate(Route.Channel(channelId))
+                    },
+                    onPlaylistClick = { playlistId ->
+                        navController.navigate(Route.PlaylistDetail(playlistId))
                     }
+                )
+            }
+
+            composable<Route.PlaylistDetail> { backStackEntry ->
+                val route = backStackEntry.toRoute<Route.PlaylistDetail>()
+                PlaylistDetailScreen(
+                    onVideoClick = { videoId ->
+                        navController.navigate(Route.Player(videoId))
+                    },
+                    onBackClick = { navController.popBackStack() }
                 )
             }
 

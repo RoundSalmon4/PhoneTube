@@ -61,6 +61,7 @@ import coil3.compose.AsyncImage
 fun LibraryScreen(
     onVideoClick: (String) -> Unit,
     onChannelClick: (String) -> Unit,
+    onPlaylistClick: (Long) -> Unit,
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -138,6 +139,7 @@ fun LibraryScreen(
                 )
                 LibraryTab.PLAYLISTS -> PlaylistsTab(
                     playlists = uiState.playlists,
+                    onPlaylistClick = onPlaylistClick,
                     onDeletePlaylist = { viewModel.deletePlaylist(it) }
                 )
                 LibraryTab.SUBSCRIPTIONS -> SubscriptionsTab(
@@ -225,6 +227,7 @@ private fun HistoryTab(
 @Composable
 private fun PlaylistsTab(
     playlists: List<LocalPlaylist>,
+    onPlaylistClick: (Long) -> Unit,
     onDeletePlaylist: (LocalPlaylist) -> Unit
 ) {
     if (playlists.isEmpty()) {
@@ -262,7 +265,8 @@ private fun PlaylistsTab(
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                }
+                },
+                modifier = Modifier.clickable { onPlaylistClick(playlist.id) }
             )
         }
     }
