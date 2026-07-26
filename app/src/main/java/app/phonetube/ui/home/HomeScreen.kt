@@ -1,12 +1,15 @@
 package app.phonetube.ui.home
 
+import android.content.Intent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -16,14 +19,20 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -46,6 +55,8 @@ fun HomeScreen(
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val addToPlaylistVideo by viewModel.addToPlaylistVideo.collectAsStateWithLifecycle()
     val pullRefreshState = rememberPullToRefreshState()
+    var longPressVideo by remember { mutableStateOf<Video?>(null) }
+    val context = LocalContext.current
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -60,6 +71,53 @@ fun HomeScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    longPressVideo?.let { video ->
+        ModalBottomSheet(onDismissRequest = { longPressVideo = null }) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = video.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                Text(
+                    "Add to playlist",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            longPressVideo = null
+                            viewModel.showAddToPlaylistDialog(video)
+                        }
+                        .padding(vertical = 12.dp)
+                )
+                Text(
+                    "Open channel",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            longPressVideo = null
+                            onChannelClick(video.channelId)
+                        }
+                        .padding(vertical = 12.dp)
+                )
+                Text(
+                    "Share",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            longPressVideo = null
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(Intent.EXTRA_TEXT, "https://youtu.be/${video.videoId}")
+                            }
+                            context.startActivity(Intent.createChooser(intent, "Share video"))
+                        }
+                        .padding(vertical = 12.dp)
+                )
+            }
         }
     }
 
@@ -139,7 +197,7 @@ fun HomeScreen(
                                     videos = item.section.videos,
                                     onVideoClick = onVideoClick,
                                     onChannelClick = onChannelClick,
-                                    onVideoLongClick = { viewModel.showAddToPlaylistDialog(it) }
+                                    onVideoLongClick = { longPressVideo = it }
                                 )
                             }
                         }
