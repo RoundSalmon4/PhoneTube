@@ -78,10 +78,11 @@ fun SettingsScreen(
             DataSection(viewModel)
             AboutSection(onLicenseClick, onCreditsClick)
 
+            val context = LocalContext.current
             val versionName = remember {
                 try {
-                    LocalContext.current.packageManager
-                        .getPackageInfo(LocalContext.current.packageName, 0).versionName ?: ""
+                    context.packageManager
+                        .getPackageInfo(context.packageName, 0).versionName ?: ""
                 } catch (_: Exception) { "" }
             }
             Box(
@@ -134,6 +135,7 @@ fun SettingsScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlayerSection(uiState: PreferencesUiState, viewModel: SettingsViewModel) {
     Column {
@@ -212,6 +214,7 @@ private fun PlayerSection(uiState: PreferencesUiState, viewModel: SettingsViewMo
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SponsorBlockSection(uiState: PreferencesUiState, viewModel: SettingsViewModel) {
     Column {
@@ -314,6 +317,7 @@ private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewMod
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AppearanceSection(uiState: PreferencesUiState, viewModel: SettingsViewModel) {
     Column {
