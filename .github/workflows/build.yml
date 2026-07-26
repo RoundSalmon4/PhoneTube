@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [ new-ui ]
+    branches: [ main ]
     paths-ignore:
       - 'MediaServiceCore/**'
       - 'SharedModules/**'
