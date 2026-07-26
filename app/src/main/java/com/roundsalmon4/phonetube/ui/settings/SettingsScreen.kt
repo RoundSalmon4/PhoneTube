@@ -347,6 +347,7 @@ private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewMod
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SearchSection(uiState: PreferencesUiState, viewModel: SettingsViewModel) {
     Column {

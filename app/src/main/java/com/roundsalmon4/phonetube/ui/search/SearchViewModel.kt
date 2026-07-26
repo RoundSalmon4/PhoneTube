@@ -79,23 +79,25 @@ class SearchViewModel @Inject constructor(
     }
 
     private fun applyFilter() {
-        val prefs = playerPreferences.uiState.value
-        val filteredVideos = when (_filter.value) {
-            SearchFilter.ALL, SearchFilter.VIDEOS -> allVideos.take(prefs.videoSearchLimit)
-            SearchFilter.CHANNELS -> emptyList()
-        }
-        val filteredChannels = when (_filter.value) {
-            SearchFilter.ALL, SearchFilter.CHANNELS -> allChannels.take(prefs.channelSearchLimit)
-            SearchFilter.VIDEOS -> emptyList()
-        }
+        viewModelScope.launch {
+            val prefs = playerPreferences.uiState.first()
+            val filteredVideos = when (_filter.value) {
+                SearchFilter.ALL, SearchFilter.VIDEOS -> allVideos.take(prefs.videoSearchLimit)
+                SearchFilter.CHANNELS -> emptyList()
+            }
+            val filteredChannels = when (_filter.value) {
+                SearchFilter.ALL, SearchFilter.CHANNELS -> allChannels.take(prefs.channelSearchLimit)
+                SearchFilter.VIDEOS -> emptyList()
+            }
 
-        if (filteredVideos.isEmpty() && filteredChannels.isEmpty()) {
-            _uiState.value = SearchUiState.Empty
-        } else {
-            _uiState.value = SearchUiState.Results(
-                videos = filteredVideos,
-                channels = filteredChannels
-            )
+            if (filteredVideos.isEmpty() && filteredChannels.isEmpty()) {
+                _uiState.value = SearchUiState.Empty
+            } else {
+                _uiState.value = SearchUiState.Results(
+                    videos = filteredVideos,
+                    channels = filteredChannels
+                )
+            }
         }
     }
 
