@@ -28,6 +28,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.YouTubeLink
@@ -94,7 +97,7 @@ fun AppNavigation(
                         navController.navigate(Route.Player(link.id))
                     }
                     YouTubeLink.Type.PLAYLIST -> {
-                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                        CoroutineScope(Dispatchers.Main).launch {
                             val firstVideoId = engine.getPlaylistFirstVideoId(link.id)
                             if (firstVideoId != null) {
                                 navController.navigate(Route.Player(firstVideoId))
