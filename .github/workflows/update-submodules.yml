@@ -35,7 +35,19 @@ jobs:
           git checkout -b auto/update-mediaservicecore origin/phonetube-patches
           git merge upstream/master --allow-unrelated-histories --no-edit || {
             echo "Merge conflicts detected, resolving with upstream changes..."
-            git diff --name-only --diff-filter=U | xargs git checkout --theirs
+            # keep our patched files, accept upstream for others
+            git diff --name-only --diff-filter=U | while read -r file; do
+              case "$file" in
+                *ContentService.java|*MediaServiceData.java|*VideoInfo.java|*VideoInfoService.java|*YouTubeContentService.java|*BrowseService2.kt|*BrowseApiHelper.kt|*MediaGroupOptions.kt|*PlaylistServiceWrapper.java|*PlaylistGroupServiceImpl.kt|*ItemGroupImpl.kt)
+                  echo "Keeping our patch: $file"
+                  git checkout --ours "$file"
+                  ;;
+                *)
+                  echo "Accepting upstream: $file"
+                  git checkout --theirs "$file"
+                  ;;
+              esac
+            done
             git add -A
             git commit -m "chore: resolve merge conflicts with upstream" || echo "no changes to commit"
           }
