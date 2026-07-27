@@ -18,6 +18,16 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Verify submodule consistency
+        run: |
+          cd MediaServiceCore
+          EXPECTED=$(git rev-parse HEAD)
+          ACTUAL=$(git submodule status | grep MediaServiceCore | awk '{print $1}' | tr -d '+')
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "WARNING: Submodule reference mismatch: expected $EXPECTED, got $ACTUAL"
+            echo "This may cause build failures. Consider updating the submodule reference."
+          fi
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:

@@ -56,6 +56,19 @@ jobs:
             echo "has_changes=true" >> $GITHUB_OUTPUT
           fi
 
+      - name: Verify submodule consistency
+        if: steps.changes.outputs.has_changes == 'true'
+        run: |
+          git submodule update --init --recursive
+          cd MediaServiceCore
+          EXPECTED=$(git rev-parse HEAD)
+          ACTUAL=$(git submodule status | grep MediaServiceCore | awk '{print $1}' | tr -d '+')
+          if [ "$EXPECTED" != "$ACTUAL" ]; then
+            echo "ERROR: Submodule reference mismatch: expected $EXPECTED, got $ACTUAL"
+            exit 1
+          fi
+          echo "Submodule reference verified: $EXPECTED"
+
       - name: Create Pull Request
         if: steps.changes.outputs.has_changes == 'true'
         uses: peter-evans/create-pull-request@v7
