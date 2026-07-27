@@ -1,6 +1,9 @@
 package com.roundsalmon4.phonetube.ui.player
 
 import android.app.Application
+import android.content.Context
+import android.telephony.PhoneStateListener
+import android.telephony.TelephonyManager
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
@@ -74,6 +77,27 @@ class PlayerViewModel @Inject constructor(
         restoreSpeedPreference()
         loadLandscapeLockPreference()
         startPeriodicHistorySave()
+        setupPhoneStateListener()
+    }
+
+    @Suppress("DEPRECATION")
+    private fun setupPhoneStateListener() {
+        val telephonyManager = getApplication<Application>()
+            .getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+
+        @Suppress("MissingPermission")
+        telephonyManager.listen(object : PhoneStateListener() {
+            override fun onCallStateChanged(state: Int, phoneNumber: String?) {
+                when (state) {
+                    TelephonyManager.CALL_STATE_RINGING,
+                    TelephonyManager.CALL_STATE_OFFHOOK -> {
+                        if (playerController.exoPlayer.isPlaying) {
+                            playerController.togglePlayPause()
+                        }
+                    }
+                }
+            }
+        }, PhoneStateListener.LISTEN_CALL_STATE)
     }
 
     private fun loadStreamInfo() {
