@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.database.FeedCacheDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
+import com.roundsalmon4.phonetube.core.database.SubscriptionDao
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.core.database.entity.CachedFeedSection
@@ -35,6 +36,7 @@ class HomeViewModel @Inject constructor(
     private val engine: YouTubeEngine,
     private val playlistDao: PlaylistDao,
     private val feedCacheDao: FeedCacheDao,
+    private val subscriptionDao: SubscriptionDao,
     private val playerPreferences: PlayerPreferences
 ) : ViewModel() {
 
@@ -51,7 +53,8 @@ class HomeViewModel @Inject constructor(
             "Live" to "live",
             "News" to "news",
             "Gaming" to "gaming",
-            "Kids" to "kids"
+            "Kids" to "kids",
+            "Subscriptions" to "subscriptions"
         )
 
         private fun isFeedEnabled(source: String, prefs: PreferencesUiState): Boolean {
@@ -65,6 +68,7 @@ class HomeViewModel @Inject constructor(
                 "news" -> prefs.feedNews
                 "gaming" -> prefs.feedGaming
                 "kids" -> prefs.feedKids
+                "subscriptions" -> prefs.feedSubscriptions
                 else -> true
             }
         }
@@ -125,6 +129,7 @@ class HomeViewModel @Inject constructor(
                 if (prefs.feedNews && "News" !in currentSources) newFeeds.add(async { engine.getNews().firstOrNull() })
                 if (prefs.feedMusic && "Music" !in currentSources) newFeeds.add(async { engine.getMusic().firstOrNull() })
                 if (prefs.feedKids && "Kids" !in currentSources) newFeeds.add(async { engine.getKidsHome().firstOrNull() })
+                if (prefs.feedSubscriptions && "Subscriptions" !in currentSources) newFeeds.add(async { fetchSubscriptionsFeed() })
 
                 val newSections = newFeeds.awaitAll().flatMap { feed ->
                     feed?.sections?.filter { it.videos.isNotEmpty() } ?: emptyList()
@@ -141,6 +146,34 @@ class HomeViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Home refresh failed", e)
             }
+        }
+    }
+
+    private suspend fun fetchSubscriptionsFeed(): com.roundsalmon4.phonetube.core.engine.model.HomeFeed? {
+        return try {
+            val subscriptions = subscriptionDao.getAll().first()
+            if (subscriptions.isEmpty()) return null
+            val allVideos = mutableListOf<Video>()
+            for (sub in subscriptions.take(10)) {
+                try {
+                    val result = engine.getChannel(sub.channelId).firstOrNull()
+                    val videos = result?.sections?.flatMap { it.videos }?.take(5) ?: emptyList()
+                    allVideos.addAll(videos)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to fetch channel ${sub.channelId}: ${e.message?.take(60)}")
+                }
+            }
+            if (allVideos.isEmpty()) null
+            else com.roundsalmon4.phonetube.core.engine.model.HomeFeed(
+                sections = listOf(com.roundsalmon4.phonetube.core.engine.model.HomeSection(
+                    title = "Subscriptions",
+                    videos = allVideos.distinctBy { it.videoId }.take(20),
+                    source = "Subscriptions"
+                ))
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchSubscriptionsFeed failed", e)
+            null
         }
     }
 
@@ -190,6 +223,7 @@ class HomeViewModel @Inject constructor(
                 val newsSections = if (prefs.feedNews) async { engine.getNews().firstOrNull() } else null
                 val gamingSections = if (prefs.feedGaming) async { engine.getGaming().firstOrNull() } else null
                 val kidsSections = if (prefs.feedKids) async { engine.getKidsHome().firstOrNull() } else null
+                val subscriptionsSection = if (prefs.feedSubscriptions) async { fetchSubscriptionsFeed() } else null
 
                 val homeFeed = homeSections?.await()
                 val trendingFeed = trendingSections?.await()
@@ -200,9 +234,10 @@ class HomeViewModel @Inject constructor(
                 val newsFeed = newsSections?.await()
                 val gamingFeed = gamingSections?.await()
                 val kidsFeed = kidsSections?.await()
+                val subscriptionsFeed = subscriptionsSection?.await()
 
                 val orderedFeeds = listOfNotNull(
-                    homeFeed, whatToWatchFeed, trendingFeed, sportsFeed, gamingFeed, liveFeed, newsFeed, musicFeed, kidsFeed
+                    homeFeed, whatToWatchFeed, subscriptionsFeed, trendingFeed, sportsFeed, gamingFeed, liveFeed, newsFeed, musicFeed, kidsFeed
                 )
 
                 val allSections = orderedFeeds.flatMap { it.sections }
@@ -250,7 +285,8 @@ class HomeViewModel @Inject constructor(
                             thumbnailUrl = video.thumbnailUrl,
                             durationMs = video.durationMs,
                             viewCount = video.viewCount ?: "",
-                            position = videoIndex
+                            position = videoIndex,
+                            percentWatched = video.percentWatched
                         )
                     }
                 }
@@ -337,7 +373,7 @@ private fun CachedFeedVideo.toVideo() = Video(
     publishedDate = 0L,
     isLive = durationMs == Long.MAX_VALUE,
     isShort = false,
-    percentWatched = 0
+    percentWatched = percentWatched
 )
 
 sealed interface HomeUiState {

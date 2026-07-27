@@ -177,6 +177,25 @@ class PlayerEngineController(context: Context) {
         updateSnapshot()
     }
 
+    fun selectAudioTrack(track: AudioTrackInfo) {
+        val tracks = exoPlayer.currentTracks
+        val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+        if (audioGroups.isEmpty()) return
+
+        for (group in audioGroups) {
+            for (i in 0 until group.length) {
+                if (i == track.index) {
+                    val override = TrackSelectionOverride(group.mediaTrackGroup, listOf(i))
+                    trackSelector.setParameters(
+                        trackSelector.buildUponParameters().addOverride(override)
+                    )
+                    updateSnapshot()
+                    return
+                }
+            }
+        }
+    }
+
     fun selectVideoTrack(height: Int, fps: Int) {
         val tracks = exoPlayer.currentTracks
         val videoGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
@@ -245,6 +264,18 @@ class PlayerEngineController(context: Context) {
 
         val isSubEnabled = textGroups.any { it.isSelected }
 
+        val audioTracks = audioGroups.flatMap { group ->
+            (0 until group.length).map { i ->
+                val format = group.getTrackFormat(i)
+                AudioTrackInfo(
+                    index = i,
+                    languageCode = format.language ?: "unknown",
+                    name = format.label ?: format.language ?: "Unknown",
+                    mimeType = format.sampleMimeType ?: ""
+                )
+            }
+        }
+
         _playbackState.update {
             PlayerPlaybackSnapshot(
                 isPlaying = exoPlayer.isPlaying,
@@ -259,6 +290,7 @@ class PlayerEngineController(context: Context) {
                 currentQualityLabel = qualityLabel,
                 isSubtitlesEnabled = isSubEnabled,
                 availableSubtitleTracks = subtitleTracks,
+                availableAudioTracks = audioTracks,
                 audioTrackCount = audioGroups.size
             )
         }

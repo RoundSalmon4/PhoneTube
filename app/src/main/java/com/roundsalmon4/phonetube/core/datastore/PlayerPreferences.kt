@@ -37,6 +37,7 @@ private object Keys {
     val FEED_NEWS = booleanPreferencesKey("feed_news")
     val FEED_GAMING = booleanPreferencesKey("feed_gaming")
     val FEED_KIDS = booleanPreferencesKey("feed_kids")
+    val FEED_SUBSCRIPTIONS = booleanPreferencesKey("feed_subscriptions")
     val THEME_MODE = stringPreferencesKey("theme_mode")
     val USE_AMOLED_THEME = booleanPreferencesKey("use_amoled_theme")
     val PRIMARY_COLOR = intPreferencesKey("primary_color")
@@ -73,6 +74,7 @@ data class PreferencesUiState(
     val feedNews: Boolean = true,
     val feedGaming: Boolean = true,
     val feedKids: Boolean = true,
+    val feedSubscriptions: Boolean = true,
     val themeMode: String = "SYSTEM",
     val useAmoledTheme: Boolean = false,
     val primaryColor: Int = 0xFFFF0000.toInt(),
@@ -105,6 +107,7 @@ class PlayerPreferences @Inject constructor(
             feedNews = prefs[Keys.FEED_NEWS] ?: true,
             feedGaming = prefs[Keys.FEED_GAMING] ?: true,
             feedKids = prefs[Keys.FEED_KIDS] ?: true,
+            feedSubscriptions = prefs[Keys.FEED_SUBSCRIPTIONS] ?: true,
             themeMode = prefs[Keys.THEME_MODE] ?: "SYSTEM",
             useAmoledTheme = prefs[Keys.USE_AMOLED_THEME] ?: false,
             primaryColor = prefs[Keys.PRIMARY_COLOR] ?: 0xFFFF0000.toInt(),
@@ -179,6 +182,7 @@ class PlayerPreferences @Inject constructor(
                 "news" -> prefs[Keys.FEED_NEWS] = enabled
                 "gaming" -> prefs[Keys.FEED_GAMING] = enabled
                 "kids" -> prefs[Keys.FEED_KIDS] = enabled
+                "subscriptions" -> prefs[Keys.FEED_SUBSCRIPTIONS] = enabled
             }
         }
     }

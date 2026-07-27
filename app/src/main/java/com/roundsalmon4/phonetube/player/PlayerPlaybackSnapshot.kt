@@ -13,10 +13,18 @@ data class PlayerPlaybackSnapshot(
     val currentQualityLabel: String = "",
     val isSubtitlesEnabled: Boolean = false,
     val availableSubtitleTracks: List<SubtitleTrackInfo> = emptyList(),
+    val availableAudioTracks: List<AudioTrackInfo> = emptyList(),
     val audioTrackCount: Int = 0
 )
 
 data class SubtitleTrackInfo(
+    val index: Int,
+    val languageCode: String,
+    val name: String,
+    val mimeType: String
+)
+
+data class AudioTrackInfo(
     val index: Int,
     val languageCode: String,
     val name: String,

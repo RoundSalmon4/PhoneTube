@@ -12,6 +12,7 @@ import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.model.SponsorSegment
 import com.roundsalmon4.phonetube.core.engine.model.StreamInfo
+import com.roundsalmon4.phonetube.player.AudioTrackInfo
 import com.roundsalmon4.phonetube.player.PlayerEngineController
 import com.roundsalmon4.phonetube.player.PlayerPlaybackSnapshot
 import com.roundsalmon4.phonetube.player.PlayerStateManager
@@ -63,6 +64,9 @@ class PlayerViewModel @Inject constructor(
 
     private val _showSubtitlePicker = MutableStateFlow(false)
     val showSubtitlePicker: StateFlow<Boolean> = _showSubtitlePicker.asStateFlow()
+
+    private val _showAudioPicker = MutableStateFlow(false)
+    val showAudioPicker: StateFlow<Boolean> = _showAudioPicker.asStateFlow()
 
     private val _landscapeLock = MutableStateFlow(false)
     val landscapeLock: StateFlow<Boolean> = _landscapeLock.asStateFlow()
@@ -326,6 +330,13 @@ class PlayerViewModel @Inject constructor(
 
     fun showSubtitlePicker() { _showSubtitlePicker.value = true }
     fun hideSubtitlePicker() { _showSubtitlePicker.value = false }
+
+    fun showAudioPicker() { _showAudioPicker.value = true }
+    fun hideAudioPicker() { _showAudioPicker.value = false }
+
+    fun selectAudioTrack(track: AudioTrackInfo) {
+        playerController.selectAudioTrack(track)
+    }
 
     fun clearToast() { _toastMessage.value = null }
 

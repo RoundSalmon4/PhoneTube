@@ -62,6 +62,7 @@ fun PlayerControls(
     onSpeedClick: () -> Unit,
     onQualityClick: () -> Unit,
     onSubtitleClick: () -> Unit,
+    onAudioClick: () -> Unit,
     visible: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -140,6 +141,21 @@ fun PlayerControls(
                             ) { onSubtitleClick() }
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                     )
+                    // Audio button
+                    if (state.availableAudioTracks.size > 1) {
+                        Text(
+                            text = "AD",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { onAudioClick() }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
                 }
 
                 // Spacer pushes bottom section to the bottom

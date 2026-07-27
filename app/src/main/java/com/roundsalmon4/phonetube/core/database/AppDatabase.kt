@@ -20,7 +20,7 @@ import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
         CachedFeedSection::class,
         CachedFeedVideo::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -87,6 +87,12 @@ abstract class AppDatabase : RoomDatabase() {
                     )
                 """.trimIndent())
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_feed_videos_sectionId ON feed_videos(sectionId)")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE feed_videos ADD COLUMN percentWatched INTEGER NOT NULL DEFAULT 0")
             }
         }
     }

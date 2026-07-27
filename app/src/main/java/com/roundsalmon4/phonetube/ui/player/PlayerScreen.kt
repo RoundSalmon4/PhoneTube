@@ -48,6 +48,7 @@ fun PlayerScreen(
     val showSpeedPicker by viewModel.showSpeedPicker.collectAsStateWithLifecycle()
     val showQualityPicker by viewModel.showQualityPicker.collectAsStateWithLifecycle()
     val showSubtitlePicker by viewModel.showSubtitlePicker.collectAsStateWithLifecycle()
+    val showAudioPicker by viewModel.showAudioPicker.collectAsStateWithLifecycle()
     val toastMessage by viewModel.toastMessage.collectAsStateWithLifecycle()
     var controlsVisible by remember { mutableStateOf(true) }
 
@@ -195,6 +196,7 @@ fun PlayerScreen(
             onSpeedClick = { viewModel.showSpeedPicker() },
             onQualityClick = { viewModel.showQualityPicker() },
             onSubtitleClick = { viewModel.showSubtitlePicker() },
+            onAudioClick = { viewModel.showAudioPicker() },
             visible = controlsVisible
         )
     }
@@ -226,6 +228,14 @@ fun PlayerScreen(
             isSubtitlesEnabled = playbackState.isSubtitlesEnabled,
             onSubtitleSelected = { viewModel.selectSubtitle(it) },
             onDismiss = { viewModel.hideSubtitlePicker() }
+        )
+    }
+
+    if (showAudioPicker) {
+        AudioTrackPickerSheet(
+            audioTracks = playbackState.availableAudioTracks,
+            onAudioTrackSelected = { viewModel.selectAudioTrack(it) },
+            onDismiss = { viewModel.hideAudioPicker() }
         )
     }
 }

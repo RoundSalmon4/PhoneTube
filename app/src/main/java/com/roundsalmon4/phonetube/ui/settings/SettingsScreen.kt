@@ -313,6 +313,7 @@ private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewMod
 
         val feeds = listOf(
             "home" to "Home",
+            "subscriptions" to "Subscriptions",
             "trending" to "Trending",
             "what_to_watch" to "What to Watch",
             "music" to "Music",
@@ -334,6 +335,7 @@ private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewMod
                 "news" -> uiState.feedNews
                 "gaming" -> uiState.feedGaming
                 "kids" -> uiState.feedKids
+                "subscriptions" -> uiState.feedSubscriptions
                 else -> true
             }
 
