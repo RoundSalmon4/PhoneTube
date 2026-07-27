@@ -32,30 +32,7 @@ jobs:
             exit 0
           fi
           echo "MediaServiceCore upstream has new commits: $LOCAL -> $REMOTE"
-          git checkout -b auto/update-mediaservicecore origin/phonetube-patches
-          git merge upstream/master --allow-unrelated-histories --no-edit || {
-            echo "Merge conflicts detected, resolving with upstream changes..."
-            # keep our patched files, accept upstream for others
-            git diff --name-only --diff-filter=U | while read -r file; do
-              case "$file" in
-                *ContentService.java|*MediaServiceData.java|*VideoInfo.java|*VideoInfoService.java|*YouTubeContentService.java|*BrowseService2.kt|*BrowseApiHelper.kt|*MediaGroupOptions.kt|*PlaylistServiceWrapper.java|*PlaylistGroupServiceImpl.kt|*ItemGroupImpl.kt)
-                  echo "Keeping our patch: $file"
-                  git checkout --ours "$file"
-                  ;;
-                *)
-                  echo "Accepting upstream: $file"
-                  git checkout --theirs "$file"
-                  ;;
-              esac
-            done
-            git add -A
-            git commit -m "chore: resolve merge conflicts with upstream" || echo "no changes to commit"
-          }
-          # download our patched CommonHelper.kt directly from our fork
-          curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/phonetube-patches/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
-          git commit -m "fix: overwrite CommonHelper.kt with PhoneTube patches" || echo "no changes to commit"
-          # push merged result to phonetube-patches so parent repo can fetch it
-          git push origin auto/update-mediaservicecore:phonetube-patches
+          echo "UPSTREAM_HAS_CHANGES=true" >> $GITHUB_ENV
 
       - name: Update SharedModules
         run: |
@@ -70,22 +47,8 @@ jobs:
             echo "SharedModules is up to date"
           fi
 
-      - name: Verify submodule reference exists
-        id: verify
-        run: |
-          cd MediaServiceCore
-          HEAD_SHA=$(git rev-parse HEAD)
-          if git cat-file -e "$HEAD_SHA" 2>/dev/null; then
-            echo "reference_valid=true" >> $GITHUB_OUTPUT
-            echo "Submodule reference $HEAD_SHA exists locally"
-          else
-            echo "reference_valid=false" >> $GITHUB_OUTPUT
-            echo "ERROR: Submodule reference $HEAD_SHA does not exist"
-          fi
-
       - name: Check for submodule changes
         id: changes
-        if: steps.verify.outputs.reference_valid == 'true'
         run: |
           if git diff --quiet HEAD; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
@@ -93,25 +56,35 @@ jobs:
             echo "has_changes=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create Pull Request
-        if: steps.changes.outputs.has_changes == 'true' && steps.verify.outputs.reference_valid == 'true'
+      - name: Create Pull Request for SharedModules only
+        if: steps.changes.outputs.has_changes == 'true' && env.UPSTREAM_HAS_CHANGES != 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.PAT }}
           commit-message: 'chore: update submodules from upstream [skip ci]'
           branch: auto/update-submodules
-          title: 'chore: update MediaServiceCore + SharedModules from upstream'
+          title: 'chore: update SharedModules from upstream'
           body: |
             Automated submodule update from upstream repositories.
 
-            **MediaServiceCore:** synced to [upstream/master](https://github.com/yuliskov/MediaServiceCore), then `CommonHelper.kt` overwritten with our patched version to preserve `LockupItem.getVideoId()` fix.
             **SharedModules:** [yuliskov/SharedModules](https://github.com/yuliskov/SharedModules)
-
-            If `CommonHelper.kt` conflicts with upstream changes, this PR will need manual review.
           labels: automated
           delete-branch: true
 
-      - name: Create issue if merge failed
+      - name: Create issue for MediaServiceCore upstream changes
+        if: env.UPSTREAM_HAS_CHANGES == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '📦 MediaServiceCore upstream has new changes',
+              body: 'MediaServiceCore upstream has new commits that need to be manually rebased into phonetube-patches.\n\nUpstream: https://github.com/yuliskov/MediaServiceCore\nPhonetube patches: https://github.com/RoundSalmon4/MediaServiceCore/tree/phonetube-patches\n\nPlease rebase phonetube-patches on top of upstream/master and resolve any conflicts.',
+              labels: ['automated', 'upstream-update']
+            })
+
+      - name: Create issue if workflow failed
         if: failure()
         uses: actions/github-script@v7
         with:
@@ -119,7 +92,7 @@ jobs:
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: '⚠️ Submodule update failed',
-              body: 'The automated submodule update workflow failed. This may indicate merge conflicts or other issues with upstream changes. Please review manually.',
+              title: '⚠️ Submodule update workflow failed',
+              body: 'The automated submodule update workflow failed. Please review manually.',
               labels: ['automated', 'bug']
             })
