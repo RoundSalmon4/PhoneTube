@@ -1,6 +1,7 @@
 package com.roundsalmon4.phonetube.ui.player
 
 import android.app.Activity
+import android.content.pm.ActivityInfo
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -53,6 +54,16 @@ fun PlayerScreen(
     val activity = context as? Activity
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val landscapeLock by viewModel.landscapeLock.collectAsStateWithLifecycle()
+
+    // Lock landscape orientation if enabled
+    LaunchedEffect(landscapeLock) {
+        activity?.requestedOrientation = if (landscapeLock) {
+            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
 
     // Hide system bars while player is visible, restore on exit
     DisposableEffect(Unit) {

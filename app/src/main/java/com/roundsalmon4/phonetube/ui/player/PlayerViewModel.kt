@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.media.AudioManager
 import android.util.Log
+import androidx.media3.common.C
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -143,6 +144,11 @@ class PlayerViewModel @Inject constructor(
     private fun startAutoSkip() {
         viewModelScope.launch {
             while (isActive) {
+                val prefs = playerPreferences.uiState.first()
+                if (!prefs.sponsorBlockEnabled) {
+                    delay(SKIP_CHECK_INTERVAL_MS)
+                    continue
+                }
                 val streamInfo = (uiState.value as? PlayerUiState.Ready)?.streamInfo
                 if (streamInfo != null && !streamInfo.isLive && !streamInfo.isLiveContent) {
                     val segments = _sponsorSegments.value
@@ -157,6 +163,36 @@ class PlayerViewModel @Inject constructor(
                     }
                 }
                 delay(SKIP_CHECK_INTERVAL_MS)
+            }
+        }
+    }
+
+    private fun applyDefaultQuality(info: StreamInfo) {
+        viewModelScope.launch {
+            try {
+                val prefs = playerPreferences.uiState.first()
+                if (prefs.defaultQuality == "AUTO") return@launch
+
+                val targetHeight = prefs.defaultQuality.removeSuffix("p").toIntOrNull() ?: return@launch
+
+                // Wait a bit for tracks to be available
+                delay(500)
+
+                val tracks = playerController.exoPlayer.currentTracks
+                val videoGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
+                if (videoGroups.isEmpty()) return@launch
+
+                // Find the best matching format
+                val formats = info.urlFormats.filter { it.height != null }
+                val bestMatch = formats.minByOrNull {
+                    kotlin.math.abs((it.height ?: 0) - targetHeight)
+                }
+
+                if (bestMatch != null && bestMatch.height != null) {
+                    selectVideoTrack(bestMatch.height, bestMatch.fps?.toIntOrNull() ?: 0)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to apply default quality", e)
             }
         }
     }
@@ -176,6 +212,7 @@ class PlayerViewModel @Inject constructor(
             }
             info.dashManifestUrl != null -> {
                 playerController.playDash(info.dashManifestUrl)
+                applyDefaultQuality(info)
             }
             info.hlsManifestUrl != null -> {
                 playerController.playHls(info.hlsManifestUrl)
