@@ -32,7 +32,26 @@ jobs:
             exit 0
           fi
           echo "MediaServiceCore upstream has new commits: $LOCAL -> $REMOTE"
-          echo "UPSTREAM_HAS_CHANGES=true" >> $GITHUB_ENV
+          # start from upstream/master
+          git checkout -b auto/update-mediaservicecore upstream/master
+          # copy our patched files over upstream versions
+          git checkout origin/phonetube-patches -- \
+            mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java \
+            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseApiHelper.kt \
+            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt \
+            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/channelgroups/models/ItemGroupImpl.kt \
+            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/playlist/PlaylistServiceWrapper.java \
+            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/playlistgroups/PlaylistGroupServiceImpl.kt \
+            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeContentService.java \
+            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/MediaServiceData.java \
+            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/V2/VideoInfoService.java \
+            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/models/VideoInfo.java
+          # also copy CommonHelper.kt
+          curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/phonetube-patches/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
+          git add -A
+          git commit -m "chore: sync phonetube-patches with upstream + apply patches" || echo "no changes to commit"
+          # push to phonetube-patches
+          git push origin auto/update-mediaservicecore:phonetube-patches --force
 
       - name: Update SharedModules
         run: |
@@ -57,7 +76,7 @@ jobs:
           fi
 
       - name: Create Pull Request for SharedModules only
-        if: steps.changes.outputs.has_changes == 'true' && env.UPSTREAM_HAS_CHANGES != 'true'
+        if: steps.changes.outputs.has_changes == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.PAT }}
@@ -70,20 +89,6 @@ jobs:
             **SharedModules:** [yuliskov/SharedModules](https://github.com/yuliskov/SharedModules)
           labels: automated
           delete-branch: true
-
-      - name: Create issue for MediaServiceCore upstream changes
-        if: env.UPSTREAM_HAS_CHANGES == 'true'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.PAT }}
-          script: |
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: '📦 MediaServiceCore upstream has new changes',
-              body: 'MediaServiceCore upstream has new commits that need to be manually rebased into phonetube-patches.\n\nUpstream: https://github.com/yuliskov/MediaServiceCore\nPhonetube patches: https://github.com/RoundSalmon4/MediaServiceCore/tree/phonetube-patches\n\nPlease rebase phonetube-patches on top of upstream/master and resolve any conflicts.',
-              labels: ['automated', 'upstream-update']
-            })
 
       - name: Create issue if workflow failed
         if: failure()
