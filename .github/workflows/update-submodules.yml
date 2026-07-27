@@ -61,12 +61,12 @@ jobs:
         run: |
           cd MediaServiceCore
           HEAD_SHA=$(git rev-parse HEAD)
-          if git ls-remote --exit-code origin "$HEAD_SHA" > /dev/null 2>&1; then
+          if git cat-file -e "$HEAD_SHA" 2>/dev/null; then
             echo "reference_valid=true" >> $GITHUB_OUTPUT
-            echo "Submodule reference $HEAD_SHA exists in remote"
+            echo "Submodule reference $HEAD_SHA exists locally"
           else
             echo "reference_valid=false" >> $GITHUB_OUTPUT
-            echo "ERROR: Submodule reference $HEAD_SHA does not exist in remote"
+            echo "ERROR: Submodule reference $HEAD_SHA does not exist"
           fi
 
       - name: Check for submodule changes
