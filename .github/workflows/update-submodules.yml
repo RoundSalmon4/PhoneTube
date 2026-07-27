@@ -19,6 +19,8 @@ jobs:
 
       - name: Update MediaServiceCore
         run: |
+          git config user.name "roundsalmon4"
+          git config user.email "209016228+RoundSalmon4@users.noreply.github.com"
           cd MediaServiceCore
           git remote add upstream https://github.com/yuliskov/MediaServiceCore.git || true
           git fetch upstream master
