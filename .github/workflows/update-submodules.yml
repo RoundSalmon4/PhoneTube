@@ -33,7 +33,12 @@ jobs:
           fi
           echo "MediaServiceCore upstream has new commits: $LOCAL -> $REMOTE"
           git checkout -b auto/update-mediaservicecore origin/phonetube-patches
-          git merge upstream/master --allow-unrelated-histories --no-edit
+          git merge upstream/master --allow-unrelated-histories --no-edit || {
+            echo "Merge conflicts detected, resolving with upstream changes..."
+            git diff --name-only --diff-filter=U | xargs git checkout --theirs
+            git add -A
+            git commit -m "chore: resolve merge conflicts with upstream" || echo "no changes to commit"
+          }
           # download our patched CommonHelper.kt directly from our fork
           curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/phonetube-patches/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
           git commit -m "fix: overwrite CommonHelper.kt with PhoneTube patches" || echo "no changes to commit"
