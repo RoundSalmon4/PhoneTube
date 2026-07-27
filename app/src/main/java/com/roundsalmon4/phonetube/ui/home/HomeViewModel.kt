@@ -90,10 +90,8 @@ class HomeViewModel @Inject constructor(
     }
 
     fun loadHome() {
-        if (_uiState.value is HomeUiState.Success || _uiState.value is HomeUiState.Empty) {
-            return
-        }
-        loadFromNetwork(isRefresh = false)
+        // Always re-check cache with current feed preferences
+        loadHomeFromCache()
     }
 
     fun refreshAll() {
@@ -107,18 +105,26 @@ class HomeViewModel @Inject constructor(
             kotlinx.coroutines.delay(3_000L)
             try {
                 val prefs = playerPreferences.uiState.first()
-                val homeSections = engine.getHome().firstOrNull()
-                val homeVideos = homeSections?.sections?.filter { it.videos.isNotEmpty() }
-                if (!homeVideos.isNullOrEmpty()) {
-                    val currentSections = when (val s = _uiState.value) {
-                        is HomeUiState.Success -> s.sections
-                        else -> emptyList()
-                    }
-                    val merged = homeVideos + currentSections.filter {
-                        it.source != "Home" && isFeedEnabled(it.source, prefs)
-                    }
+                val currentSections = when (val s = _uiState.value) {
+                    is HomeUiState.Success -> s.sections
+                    else -> emptyList()
+                }
+                // Remove sections from disabled feeds
+                val enabledSections = currentSections.filter { isFeedEnabled(it.source, prefs) }
+                // Refresh Home feed only if enabled
+                val homeVideos = if (prefs.feedHome) {
+                    engine.getHome().firstOrNull()?.sections?.filter { it.videos.isNotEmpty() }
+                } else null
+                val merged = if (homeVideos != null) {
+                    homeVideos + enabledSections.filter { it.source != "Home" }
+                } else {
+                    enabledSections
+                }
+                if (merged.isNotEmpty()) {
                     _uiState.value = HomeUiState.Success(merged)
                     withContext(NonCancellable) { writeToCache(merged) }
+                } else {
+                    _uiState.value = HomeUiState.Empty
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Home refresh failed", e)
