@@ -121,6 +121,7 @@ class PlayerViewModel @Inject constructor(
                     startPlayback(info)
                     if (!info.isLive && !info.isLiveContent) {
                         recordToHistory(info)
+                        resumeFromHistory(info)
                     }
                 }
         }
@@ -231,6 +232,26 @@ class PlayerViewModel @Inject constructor(
                 Log.d(TAG, "Recorded history for $videoId: ${info.title}")
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to record history", e)
+            }
+        }
+    }
+
+    private fun resumeFromHistory(info: StreamInfo) {
+        viewModelScope.launch {
+            try {
+                val prefs = playerPreferences.uiState.first()
+                if (!prefs.resumePlayback) return@launch
+
+                val entry = historyDao.getById(videoId) ?: return@launch
+                val durationMs = info.lengthSeconds * 1000
+
+                // Don't resume if video was finished (within 5 seconds of end)
+                if (entry.positionMs > 0 && entry.positionMs < durationMs - 5000) {
+                    Log.d(TAG, "Resuming from ${entry.positionMs}ms")
+                    playerController.seekTo(entry.positionMs)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to resume from history", e)
             }
         }
     }
