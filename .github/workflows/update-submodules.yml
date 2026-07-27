@@ -22,14 +22,16 @@ jobs:
           cd MediaServiceCore
           git remote add upstream https://github.com/yuliskov/MediaServiceCore.git || true
           git fetch upstream master
-          LOCAL=$(git rev-parse HEAD)
+          git fetch origin phonetube-patches
+          LOCAL=$(git rev-parse origin/phonetube-patches)
           REMOTE=$(git rev-parse upstream/master)
           if [ "$LOCAL" = "$REMOTE" ]; then
-            echo "MediaServiceCore is up to date"
+            echo "MediaServiceCore phonetube-patches is up to date with upstream"
             exit 0
           fi
-          echo "MediaServiceCore has new upstream commits: $LOCAL -> $REMOTE"
-          git checkout -b auto/update-mediaservicecore upstream/master
+          echo "MediaServiceCore upstream has new commits: $LOCAL -> $REMOTE"
+          git checkout -b auto/update-mediaservicecore origin/phonetube-patches
+          git merge upstream/master --no-edit
           # download our patched CommonHelper.kt directly from our fork
           curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/phonetube-patches/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
           git commit -m "fix: overwrite CommonHelper.kt with PhoneTube patches" || echo "no changes to commit"
@@ -37,7 +39,7 @@ jobs:
       - name: Update SharedModules
         run: |
           cd SharedModules
-          git fetch origin
+          git fetch origin master
           LOCAL=$(git rev-parse HEAD)
           REMOTE=$(git rev-parse origin/master)
           if [ "$LOCAL" != "$REMOTE" ]; then
