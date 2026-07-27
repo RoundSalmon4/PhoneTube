@@ -19,6 +19,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -28,10 +29,12 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
+import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.YouTubeLink
 import com.roundsalmon4.phonetube.core.engine.YouTubeUrlParser
 import com.roundsalmon4.phonetube.player.PlayerEngineController
 import com.roundsalmon4.phonetube.player.PlayerStateManager
+import com.roundsalmon4.phonetube.player.service.PlaybackService
 import com.roundsalmon4.phonetube.ui.channel.ChannelScreen
 import com.roundsalmon4.phonetube.ui.components.MiniPlayer
 import com.roundsalmon4.phonetube.ui.home.HomeScreen
@@ -61,9 +64,11 @@ fun AppNavigation(
     playerStateManager: PlayerStateManager,
     playerController: PlayerEngineController,
     playerPreferences: PlayerPreferences,
-    deepLinkUri: kotlinx.coroutines.flow.StateFlow<Uri?>
+    deepLinkUri: kotlinx.coroutines.flow.StateFlow<Uri?>,
+    engine: YouTubeEngine
 ) {
     val navController = rememberNavController()
+    val context = LocalContext.current
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
@@ -89,8 +94,12 @@ fun AppNavigation(
                         navController.navigate(Route.Player(link.id))
                     }
                     YouTubeLink.Type.PLAYLIST -> {
-                        // Play first video from playlist
-                        navController.navigate(Route.Player(link.id))
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                            val firstVideoId = engine.getPlaylistFirstVideoId(link.id)
+                            if (firstVideoId != null) {
+                                navController.navigate(Route.Player(firstVideoId))
+                            }
+                        }
                     }
                     YouTubeLink.Type.CHANNEL -> {
                         navController.navigate(Route.Channel(link.id))
@@ -136,12 +145,17 @@ fun AppNavigation(
                     playerStateManager.updatePlaybackState(
                         isPlaying = !miniPlayerState.isPlaying,
                         currentPosition = playerController.exoPlayer.currentPosition,
-                        duration = playerController.exoPlayer.duration
+                        duration = playerController.exoPlayer.duration,
+                        bufferedPosition = playerController.exoPlayer.bufferedPosition
                     )
                 },
                 onRewind = { playerController.seekBackward() },
                 onForward = { playerController.seekForward() },
-                onClose = { playerController.stop(); playerStateManager.clear() },
+                onClose = {
+                    playerController.stop()
+                    playerStateManager.clear()
+                    PlaybackService.stop(context)
+                },
                 onTap = {
                     if (miniPlayerState.videoId.isNotEmpty()) {
                         navController.navigate(Route.Player(miniPlayerState.videoId))

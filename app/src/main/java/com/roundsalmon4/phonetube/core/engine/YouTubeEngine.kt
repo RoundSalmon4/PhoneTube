@@ -311,6 +311,17 @@ class YouTubeEngine @Inject constructor(
         }
     }
 
+    suspend fun getPlaylistFirstVideoId(playlistId: String): String? {
+        return try {
+            val group = contentService.getGroup(playlistId) ?: return null
+            val items = (group.mediaItems ?: emptyList()).filterNotNull()
+            items.firstOrNull()?.videoId
+        } catch (e: Exception) {
+            Log.e(TAG, "getPlaylistFirstVideoId failed for $playlistId", e)
+            null
+        }
+    }
+
     // --- Mapping functions ---
 
     private fun MediaItem.toVideo(): Video? {

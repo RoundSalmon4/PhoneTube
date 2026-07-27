@@ -164,6 +164,22 @@ fun PlayerControls(
                             durationMs = duration,
                             modifier = Modifier.fillMaxWidth()
                         )
+                        // Buffered progress bar behind the slider
+                        val bufferedFraction = if (duration > 0) {
+                            (state.bufferedPosition.toFloat() / duration).coerceIn(0f, 1f)
+                        } else 0f
+                        androidx.compose.foundation.Canvas(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.Center)
+                                .height(4.dp)
+                        ) {
+                            drawRect(
+                                color = Color.White.copy(alpha = 0.3f),
+                                topLeft = Offset.Zero,
+                                size = Size(size.width * bufferedFraction, size.height)
+                            )
+                        }
                         Slider(
                             value = displayFraction,
                             onValueChange = { fraction ->

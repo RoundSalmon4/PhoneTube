@@ -109,17 +109,28 @@ class HomeViewModel @Inject constructor(
                     is HomeUiState.Success -> s.sections
                     else -> emptyList()
                 }
-                // Remove sections from disabled feeds
                 val enabledSections = currentSections.filter { isFeedEnabled(it.source, prefs) }
-                // Refresh Home feed only if enabled
                 val homeVideos = if (prefs.feedHome) {
                     engine.getHome().firstOrNull()?.sections?.filter { it.videos.isNotEmpty() }
                 } else null
-                val merged = if (homeVideos != null) {
-                    homeVideos + enabledSections.filter { it.source != "Home" }
-                } else {
-                    enabledSections
+
+                val currentSources = enabledSections.map { it.source }.toSet()
+                val newFeeds = mutableListOf<kotlinx.coroutines.Deferred<com.roundsalmon4.phonetube.core.engine.model.HomeFeed?>>()
+                if (prefs.feedTrending && "Trending" !in currentSources) newFeeds.add(async { engine.getTrending().firstOrNull() })
+                if (prefs.feedWhatToWatch && "What to Watch" !in currentSources) newFeeds.add(async { engine.getWhatToWatch().firstOrNull() })
+                if (prefs.feedSports && "Sports" !in currentSources) newFeeds.add(async { engine.getSports().firstOrNull() })
+                if (prefs.feedGaming && "Gaming" !in currentSources) newFeeds.add(async { engine.getGaming().firstOrNull() })
+                if (prefs.feedLive && "Live" !in currentSources) newFeeds.add(async { engine.getLive().firstOrNull() })
+                if (prefs.feedNews && "News" !in currentSources) newFeeds.add(async { engine.getNews().firstOrNull() })
+                if (prefs.feedMusic && "Music" !in currentSources) newFeeds.add(async { engine.getMusic().firstOrNull() })
+                if (prefs.feedKids && "Kids" !in currentSources) newFeeds.add(async { engine.getKidsHome().firstOrNull() })
+
+                val newSections = newFeeds.awaitAll().flatMap { feed ->
+                    feed?.sections?.filter { it.videos.isNotEmpty() } ?: emptyList()
                 }
+
+                val merged = (homeVideos ?: emptyList()) + enabledSections + newSections
+
                 if (merged.isNotEmpty()) {
                     _uiState.value = HomeUiState.Success(merged)
                     withContext(NonCancellable) { writeToCache(merged) }

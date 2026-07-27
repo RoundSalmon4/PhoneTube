@@ -1,6 +1,7 @@
 package com.roundsalmon4.phonetube.player
 
 import android.content.Context
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
@@ -43,6 +44,14 @@ class PlayerEngineController(context: Context) {
         )
         .setTrackSelector(trackSelector)
         .setLoadControl(loadControl)
+        .setAudioAttributes(
+            AudioAttributes.Builder()
+                .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                .setUsage(C.USAGE_MEDIA)
+                .build(),
+            true
+        )
+        .setHandleAudioBecomingNoisy(true)
         .build()
 
     private val _playbackState = MutableStateFlow(PlayerPlaybackSnapshot())

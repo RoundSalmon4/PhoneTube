@@ -13,7 +13,8 @@ data class MiniPlayerState(
     val thumbnailUrl: String = "",
     val isPlaying: Boolean = false,
     val currentPosition: Long = 0L,
-    val duration: Long = 0L
+    val duration: Long = 0L,
+    val bufferedPosition: Long = 0L
 ) {
     val hasActivePlayback: Boolean get() = videoId.isNotEmpty()
 }
@@ -38,11 +39,12 @@ class PlayerStateManager @Inject constructor() {
         )
     }
 
-    fun updatePlaybackState(isPlaying: Boolean, currentPosition: Long, duration: Long) {
+    fun updatePlaybackState(isPlaying: Boolean, currentPosition: Long, duration: Long, bufferedPosition: Long = 0L) {
         _miniPlayerState.value = _miniPlayerState.value.copy(
             isPlaying = isPlaying,
             currentPosition = currentPosition,
-            duration = duration
+            duration = duration,
+            bufferedPosition = bufferedPosition
         )
     }
 

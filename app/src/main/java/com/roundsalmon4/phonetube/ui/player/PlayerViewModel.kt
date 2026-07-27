@@ -1,8 +1,6 @@
 package com.roundsalmon4.phonetube.ui.player
 
 import android.app.Application
-import android.content.Context
-import android.media.AudioManager
 import android.util.Log
 import androidx.media3.common.C
 import androidx.lifecycle.AndroidViewModel
@@ -19,6 +17,7 @@ import com.roundsalmon4.phonetube.player.PlayerPlaybackSnapshot
 import com.roundsalmon4.phonetube.player.PlayerStateManager
 import com.roundsalmon4.phonetube.player.SponsorBlockService
 import com.roundsalmon4.phonetube.player.SubtitleTrackInfo
+import com.roundsalmon4.phonetube.player.service.PlaybackService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -80,28 +79,6 @@ class PlayerViewModel @Inject constructor(
         restoreSpeedPreference()
         loadLandscapeLockPreference()
         startPeriodicHistorySave()
-        setupPhoneStateListener()
-    }
-
-    private fun setupPhoneStateListener() {
-        val audioManager = getApplication<Application>()
-            .getSystemService(Context.AUDIO_SERVICE) as AudioManager
-
-        audioManager.requestAudioFocus(
-            { focusChange ->
-                when (focusChange) {
-                    AudioManager.AUDIOFOCUS_LOSS,
-                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                        if (playerController.exoPlayer.isPlaying) {
-                            playerController.togglePlayPause()
-                        }
-                    }
-                }
-            },
-            AudioManager.STREAM_MUSIC,
-            AudioManager.AUDIOFOCUS_GAIN
-        )
     }
 
     private fun loadStreamInfo() {
@@ -220,7 +197,6 @@ class PlayerViewModel @Inject constructor(
             }
             info.dashManifestUrl != null -> {
                 playerController.playDash(info.dashManifestUrl)
-                applyDefaultQuality(info)
             }
             info.hlsManifestUrl != null -> {
                 playerController.playHls(info.hlsManifestUrl)
@@ -235,6 +211,13 @@ class PlayerViewModel @Inject constructor(
             }
             else -> {
                 _uiState.value = PlayerUiState.Error("No stream URL available")
+            }
+        }
+
+        if (_uiState.value !is PlayerUiState.Error) {
+            PlaybackService.start(playerController, getApplication())
+            if (!isLive) {
+                applyDefaultQuality(info)
             }
         }
 
@@ -398,7 +381,8 @@ class PlayerViewModel @Inject constructor(
                     playerStateManager.updatePlaybackState(
                         isPlaying = playerController.exoPlayer.isPlaying,
                         currentPosition = positionMs,
-                        duration = playerController.exoPlayer.duration
+                        duration = playerController.exoPlayer.duration,
+                        bufferedPosition = playerController.exoPlayer.bufferedPosition
                     )
                 }
             }

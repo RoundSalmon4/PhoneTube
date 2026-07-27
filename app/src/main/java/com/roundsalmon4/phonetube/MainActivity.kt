@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
+import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.YouTubeInitializer
 import com.roundsalmon4.phonetube.player.PlayerEngineController
 import com.roundsalmon4.phonetube.player.PlayerStateManager
@@ -27,6 +28,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var youtubeInitializer: YouTubeInitializer
+
+    @Inject
+    lateinit var engine: YouTubeEngine
 
     @Inject
     lateinit var playerPreferences: PlayerPreferences
@@ -66,7 +70,8 @@ class MainActivity : ComponentActivity() {
                     playerStateManager = playerStateManager,
                     playerController = playerController,
                     playerPreferences = playerPreferences,
-                    deepLinkUri = deepLinkUri
+                    deepLinkUri = deepLinkUri,
+                    engine = engine
                 )
             }
         }
