@@ -75,7 +75,7 @@ jobs:
         if: env.UPSTREAM_HAS_CHANGES == 'true'
         uses: actions/github-script@v7
         with:
-          token: ${{ secrets.PAT }}
+          github-token: ${{ secrets.PAT }}
           script: |
             await github.rest.issues.create({
               owner: context.repo.owner,
@@ -89,7 +89,7 @@ jobs:
         if: failure()
         uses: actions/github-script@v7
         with:
-          token: ${{ secrets.PAT }}
+          github-token: ${{ secrets.PAT }}
           script: |
             await github.rest.issues.create({
               owner: context.repo.owner,
