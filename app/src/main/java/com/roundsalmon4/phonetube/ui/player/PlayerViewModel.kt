@@ -338,6 +338,23 @@ class PlayerViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        try {
+            val positionMs = playerController.exoPlayer.currentPosition
+            if (positionMs > 0) {
+                kotlinx.coroutines.runBlocking {
+                    val current = historyDao.getById(videoId)
+                    if (current != null) {
+                        historyDao.upsert(current.copy(
+                            positionMs = positionMs,
+                            timestamp = System.currentTimeMillis()
+                        ))
+                        Log.d(TAG, "Saved history position on clear for $videoId: ${positionMs}ms")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to save history position on clear", e)
+        }
     }
 
     private fun saveCurrentPosition() {
