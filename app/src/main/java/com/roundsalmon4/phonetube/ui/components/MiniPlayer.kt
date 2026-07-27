@@ -5,6 +5,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Forward30
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -47,33 +49,34 @@ fun MiniPlayer(
         exit = slideOutVertically(targetOffsetY = { it }),
         modifier = modifier
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(64.dp)
-                .background(MaterialTheme.colorScheme.surfaceContainer)
-                .clickable(onClick = onTap)
-                .padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AsyncImage(
-                model = state.thumbnailUrl,
-                contentDescription = state.title,
-                contentScale = ContentScale.Crop,
+        Column {
+            Row(
                 modifier = Modifier
-                .size(44.dp)
-                .clip(MaterialTheme.shapes.small)
-            )
+                    .fillMaxWidth()
+                    .height(64.dp)
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .clickable(onClick = onTap)
+                    .padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AsyncImage(
+                    model = state.thumbnailUrl,
+                    contentDescription = state.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                    .size(44.dp)
+                    .clip(MaterialTheme.shapes.small)
+                )
 
-            Text(
-                text = state.title,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 8.dp)
-            )
+                Text(
+                    text = state.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp)
+                )
 
             IconButton(onClick = onRewind, modifier = Modifier.size(36.dp)) {
                 Icon(
@@ -106,6 +109,16 @@ fun MiniPlayer(
                     modifier = Modifier.size(20.dp)
                 )
             }
+        }
+            val progress = if (state.duration > 0) {
+                (state.currentPosition.toFloat() / state.duration).coerceIn(0f, 1f)
+            } else 0f
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth().height(2.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
         }
     }
 }

@@ -30,6 +30,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -46,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -182,6 +184,10 @@ private fun HistoryTab(
             }
         }
         items(history, key = { it.videoId }) { entry ->
+            val progress = if (entry.durationMs > 0) {
+                (entry.positionMs.toFloat() / entry.durationMs).coerceIn(0f, 1f)
+            } else 0f
+
             ListItem(
                 headlineContent = {
                     Text(
@@ -189,6 +195,29 @@ private fun HistoryTab(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                },
+                leadingContent = {
+                    Box {
+                        AsyncImage(
+                            model = entry.thumbnailUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(64.dp, 36.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                        if (progress > 0f) {
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(3.dp)
+                                    .align(Alignment.BottomCenter),
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = Color.Black.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
                 },
                 supportingContent = {
                     Text(

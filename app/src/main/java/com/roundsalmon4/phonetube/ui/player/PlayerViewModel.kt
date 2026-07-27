@@ -254,19 +254,23 @@ class PlayerViewModel @Inject constructor(
     private fun recordToHistory(info: StreamInfo) {
         viewModelScope.launch {
             try {
-                val entry = WatchHistoryEntry(
-                    videoId = videoId,
-                    title = info.title,
-                    channelName = info.author,
-                    channelId = info.channelId,
-                    thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
-                    durationMs = info.lengthSeconds * 1000,
-                    positionMs = 0L,
-                    speed = playerPreferences.uiState.first().playbackSpeed,
-                    timestamp = System.currentTimeMillis()
-                )
-                historyDao.upsert(entry)
-                Log.d(TAG, "Recorded history for $videoId: ${info.title}")
+                val existing = historyDao.getById(videoId)
+                if (existing == null) {
+                    // New video — create entry with position 0
+                    val entry = WatchHistoryEntry(
+                        videoId = videoId,
+                        title = info.title,
+                        channelName = info.author,
+                        channelId = info.channelId,
+                        thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                        durationMs = info.lengthSeconds * 1000,
+                        positionMs = 0L,
+                        speed = playerPreferences.uiState.first().playbackSpeed,
+                        timestamp = System.currentTimeMillis()
+                    )
+                    historyDao.upsert(entry)
+                }
+                // If video already exists, keep its saved position (don't reset to 0)
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to record history", e)
             }
@@ -284,6 +288,8 @@ class PlayerViewModel @Inject constructor(
 
                 // Don't resume if video was finished (within 5 seconds of end)
                 if (entry.positionMs > 0 && entry.positionMs < durationMs - 5000) {
+                    // Wait for player to be ready before seeking
+                    delay(1000)
                     Log.d(TAG, "Resuming from ${entry.positionMs}ms")
                     playerController.seekTo(entry.positionMs)
                 }
