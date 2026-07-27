@@ -22,6 +22,7 @@ jobs:
         run: |
           cd MediaServiceCore
           EXPECTED=$(git rev-parse HEAD)
+          cd ..
           ACTUAL=$(git submodule status | grep MediaServiceCore | awk '{print $1}' | tr -d '+')
           if [ "$EXPECTED" != "$ACTUAL" ]; then
             echo "WARNING: Submodule reference mismatch: expected $EXPECTED, got $ACTUAL"
