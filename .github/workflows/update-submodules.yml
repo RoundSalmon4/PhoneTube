@@ -42,6 +42,8 @@ jobs:
           # download our patched CommonHelper.kt directly from our fork
           curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/phonetube-patches/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
           git commit -m "fix: overwrite CommonHelper.kt with PhoneTube patches" || echo "no changes to commit"
+          # push merged result to phonetube-patches so parent repo can fetch it
+          git push origin auto/update-mediaservicecore:phonetube-patches
 
       - name: Update SharedModules
         run: |
