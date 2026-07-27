@@ -219,25 +219,6 @@ private fun HistoryTab(
                         }
                     }
                 },
-                supportingContent = {
-                    Text(
-                        entry.channelName,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                leadingContent = {
-                    AsyncImage(
-                        model = entry.thumbnailUrl,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(64.dp, 36.dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                },
                 trailingContent = {
                     IconButton(onClick = { onDeleteEntry(entry.videoId) }) {
                         Icon(
