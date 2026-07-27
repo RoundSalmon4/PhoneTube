@@ -41,6 +41,11 @@ class PlaylistDetailViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 playlistDao.removeVideo(playlistId, videoId)
+                val playlist = playlistDao.getPlaylistById(playlistId)
+                if (playlist != null) {
+                    val count = playlistDao.getVideoCount(playlistId)
+                    playlistDao.updatePlaylist(playlist.copy(videoCount = count))
+                }
                 Log.d(TAG, "Removed $videoId from playlist $playlistId")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to remove video", e)

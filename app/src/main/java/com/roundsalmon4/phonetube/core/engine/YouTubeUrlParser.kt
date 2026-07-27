@@ -95,13 +95,4 @@ object YouTubeUrlParser {
         return YouTubeLink(YouTubeLink.Type.UNKNOWN, "")
     }
 
-    fun parseShareText(text: String): YouTubeLink? {
-        val urlPattern = Regex("""(https?://(?:youtube\.com/(?:watch\?v=|playlist\?list=|shorts/|live/|channel/|@[a-zA-Z0-9_]+)/?|youtu\.be/[a-zA-Z0-9_-]+))""")
-        val match = urlPattern.find(text) ?: return null
-        return try {
-            parse(Uri.parse(match.value))
-        } catch (e: Exception) {
-            null
-        }
-    }
 }

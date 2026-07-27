@@ -134,7 +134,7 @@ fun AppNavigation(
                 onPlayPause = {
                     playerController.togglePlayPause()
                     playerStateManager.updatePlaybackState(
-                        isPlaying = playerController.exoPlayer.isPlaying,
+                        isPlaying = !miniPlayerState.isPlaying,
                         currentPosition = playerController.exoPlayer.currentPosition,
                         duration = playerController.exoPlayer.duration
                     )

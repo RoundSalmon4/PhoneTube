@@ -16,14 +16,18 @@ class SponsorBlockService @Inject constructor(
 
     fun checkForSkip(
         positionMs: Long,
-        segments: List<SponsorSegment>
+        segments: List<SponsorSegment>,
+        categoryActions: Map<String, String> = emptyMap()
     ): SkipAction? {
         for (segment in segments) {
             if (segment.action == ACTION_MUTE) continue
             if (positionMs in segment.startMs until segment.endMs) {
+                val userAction = categoryActions[segment.category] ?: "skip"
+                if (userAction == "none") continue
                 return SkipAction(
                     segment = segment,
-                    seekToMs = segment.endMs
+                    seekToMs = segment.endMs,
+                    showToast = userAction == "toast"
                 )
             }
         }
@@ -32,7 +36,8 @@ class SponsorBlockService @Inject constructor(
 
     data class SkipAction(
         val segment: SponsorSegment,
-        val seekToMs: Long
+        val seekToMs: Long,
+        val showToast: Boolean = false
     )
 
     companion object {

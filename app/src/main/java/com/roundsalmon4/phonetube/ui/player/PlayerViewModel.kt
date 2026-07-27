@@ -68,6 +68,9 @@ class PlayerViewModel @Inject constructor(
     private val _landscapeLock = MutableStateFlow(false)
     val landscapeLock: StateFlow<Boolean> = _landscapeLock.asStateFlow()
 
+    private val _toastMessage = MutableStateFlow<String?>(null)
+    val toastMessage: StateFlow<String?> = _toastMessage.asStateFlow()
+
     val playbackState: StateFlow<PlayerPlaybackSnapshot> = playerController.playbackState
 
     init {
@@ -154,11 +157,16 @@ class PlayerViewModel @Inject constructor(
                     val segments = _sponsorSegments.value
                     if (segments.isNotEmpty()) {
                         val positionMs = playerController.exoPlayer.currentPosition
-                        val skipAction = sponsorBlockService.checkForSkip(positionMs, segments)
+                        val skipAction = sponsorBlockService.checkForSkip(
+                            positionMs, segments, prefs.sponsorBlockCategories
+                        )
                         if (skipAction != null) {
                             Log.d(TAG, "Auto-skipping ${skipAction.segment.category} " +
                                 "at ${skipAction.segment.startMs}ms -> ${skipAction.seekToMs}ms")
                             playerController.seekTo(skipAction.seekToMs)
+                            if (skipAction.showToast) {
+                                _toastMessage.value = "Skipped ${skipAction.segment.category}"
+                            }
                         }
                     }
                 }
@@ -335,6 +343,8 @@ class PlayerViewModel @Inject constructor(
 
     fun showSubtitlePicker() { _showSubtitlePicker.value = true }
     fun hideSubtitlePicker() { _showSubtitlePicker.value = false }
+
+    fun clearToast() { _toastMessage.value = null }
 
     override fun onCleared() {
         super.onCleared()

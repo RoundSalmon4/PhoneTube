@@ -48,6 +48,7 @@ fun PlayerScreen(
     val showSpeedPicker by viewModel.showSpeedPicker.collectAsStateWithLifecycle()
     val showQualityPicker by viewModel.showQualityPicker.collectAsStateWithLifecycle()
     val showSubtitlePicker by viewModel.showSubtitlePicker.collectAsStateWithLifecycle()
+    val toastMessage by viewModel.toastMessage.collectAsStateWithLifecycle()
     var controlsVisible by remember { mutableStateOf(true) }
 
     val context = LocalContext.current
@@ -88,6 +89,13 @@ fun PlayerScreen(
     }
 
     BackHandler { onBackClick() }
+
+    LaunchedEffect(toastMessage) {
+        toastMessage?.let {
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+            viewModel.clearToast()
+        }
+    }
 
     Box(
         modifier = Modifier
