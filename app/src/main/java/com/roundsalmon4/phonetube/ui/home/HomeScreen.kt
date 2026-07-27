@@ -62,9 +62,7 @@ fun HomeScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                if (state is HomeUiState.Loading) {
-                    viewModel.loadHome()
-                }
+                viewModel.loadHome()
                 viewModel.refreshHomeOnly()
             }
         }
@@ -151,8 +149,15 @@ fun HomeScreen(
                 state = pullRefreshState,
                 modifier = Modifier.fillMaxSize()
             ) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No videos found")
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(400.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("No videos found")
+                        }
+                    }
                 }
             }
         }
