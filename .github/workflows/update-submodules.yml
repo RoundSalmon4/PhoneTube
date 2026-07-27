@@ -56,8 +56,22 @@ jobs:
             echo "SharedModules is up to date"
           fi
 
+      - name: Verify submodule reference exists
+        id: verify
+        run: |
+          cd MediaServiceCore
+          HEAD_SHA=$(git rev-parse HEAD)
+          if git ls-remote --exit-code origin "$HEAD_SHA" > /dev/null 2>&1; then
+            echo "reference_valid=true" >> $GITHUB_OUTPUT
+            echo "Submodule reference $HEAD_SHA exists in remote"
+          else
+            echo "reference_valid=false" >> $GITHUB_OUTPUT
+            echo "ERROR: Submodule reference $HEAD_SHA does not exist in remote"
+          fi
+
       - name: Check for submodule changes
         id: changes
+        if: steps.verify.outputs.reference_valid == 'true'
         run: |
           if git diff --quiet HEAD; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
@@ -66,7 +80,7 @@ jobs:
           fi
 
       - name: Create Pull Request
-        if: steps.changes.outputs.has_changes == 'true'
+        if: steps.changes.outputs.has_changes == 'true' && steps.verify.outputs.reference_valid == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.PAT }}
