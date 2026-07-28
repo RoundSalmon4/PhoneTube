@@ -47,6 +47,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -66,9 +67,10 @@ fun PlaylistDetailScreen(
 ) {
     val playlistName by viewModel.playlistName.collectAsStateWithLifecycle()
     val videos by viewModel.videos.collectAsStateWithLifecycle()
+    val density = LocalDensity.current
     var draggedIndex by remember { mutableIntStateOf(-1) }
     var draggedOffset by remember { mutableFloatStateOf(0f) }
-    val itemHeightPx = 72.dp.toPx() // approximate item height
+    val itemHeightPx = with(density) { 72.dp.toPx() } // approximate item height
     val itemHeightDp = 72.dp
 
     Scaffold(
