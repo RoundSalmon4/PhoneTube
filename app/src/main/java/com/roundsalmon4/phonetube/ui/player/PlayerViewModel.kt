@@ -388,7 +388,10 @@ class PlayerViewModel @Inject constructor(
                 delay(POSITION_SAVE_INTERVAL_MS)
                 val positionMs = playerController.exoPlayer.currentPosition
                 if (positionMs > 0) {
-                    saveCurrentPosition()
+                    val isLive = playerController.exoPlayer.isCurrentMediaItemLive
+                    if (!isLive) {
+                        saveCurrentPosition()
+                    }
                     playerStateManager.updatePlaybackState(
                         isPlaying = playerController.exoPlayer.isPlaying,
                         currentPosition = positionMs,

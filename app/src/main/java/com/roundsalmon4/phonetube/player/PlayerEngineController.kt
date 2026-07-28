@@ -121,7 +121,7 @@ class PlayerEngineController(context: Context) {
         exoPlayer.clearMediaItems()
     }
 
-    fun seekForward(seconds: Long = 10L) {
+    fun seekForward(seconds: Long = 30L) {
         seekBy(seconds * 1000)
     }
 
@@ -251,7 +251,8 @@ class PlayerEngineController(context: Context) {
 
         // Current quality label from selected video track
         val qualityLabel = videoGroups.firstOrNull { it.isSelected }?.let { group ->
-            val format = group.getTrackFormat(0)
+            val selectedIndex = (0 until group.length).firstOrNull { group.isTrackSelected(it) } ?: 0
+            val format = group.getTrackFormat(selectedIndex)
             val height = format.height
             val fps = format.frameRate.toInt()
             if (height > 0) {

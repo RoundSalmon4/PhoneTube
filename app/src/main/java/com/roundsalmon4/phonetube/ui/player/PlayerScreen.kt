@@ -182,6 +182,13 @@ fun PlayerScreen(
             }
         }
 
+        if (playbackState.isBuffering && uiState is PlayerUiState.Ready) {
+            CircularProgressIndicator(
+                modifier = Modifier.align(Alignment.Center),
+                color = Color.White
+            )
+        }
+
         PlayerControls(
             state = playbackState,
             title = when (val state = uiState) {
