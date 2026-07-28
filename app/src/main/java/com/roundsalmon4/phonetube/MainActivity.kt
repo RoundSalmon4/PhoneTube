@@ -28,6 +28,7 @@ import com.roundsalmon4.phonetube.ui.navigation.AppNavigation
 import com.roundsalmon4.phonetube.ui.theme.PhoneTubeTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
