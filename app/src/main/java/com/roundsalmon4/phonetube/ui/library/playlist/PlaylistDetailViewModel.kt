@@ -52,4 +52,21 @@ class PlaylistDetailViewModel @Inject constructor(
             }
         }
     }
+
+    fun moveVideo(videoId: String, fromIndex: Int, toIndex: Int) {
+        viewModelScope.launch {
+            try {
+                val current = playlistDao.getPlaylistVideosSync(playlistId)
+                if (fromIndex < 0 || fromIndex >= current.size || toIndex < 0 || toIndex >= current.size) return@launch
+                val mutable = current.toMutableList()
+                val item = mutable.removeAt(fromIndex)
+                mutable.add(toIndex, item)
+                for ((newPos, video) in mutable.withIndex()) {
+                    playlistDao.updateVideoPosition(playlistId, video.videoId, newPos)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to move video", e)
+            }
+        }
+    }
 }

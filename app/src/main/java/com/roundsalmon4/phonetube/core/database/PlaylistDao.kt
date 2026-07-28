@@ -47,4 +47,7 @@ interface PlaylistDao {
 
     @Query("SELECT COUNT(*) FROM playlist_videos WHERE playlistId = :playlistId")
     suspend fun getVideoCount(playlistId: Long): Int
+
+    @Query("UPDATE playlist_videos SET position = :position WHERE playlistId = :playlistId AND videoId = :videoId")
+    suspend fun updateVideoPosition(playlistId: Long, videoId: String, position: Int)
 }

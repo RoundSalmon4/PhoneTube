@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -121,12 +123,34 @@ fun PlaylistDetailScreen(
                             )
                         },
                         trailingContent = {
-                            IconButton(onClick = { viewModel.removeVideo(video.videoId) }) {
-                                Icon(
-                                    Icons.Default.Delete,
-                                    contentDescription = "Remove",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                            Row {
+                                if (videos.size > 1) {
+                                    if (index > 0) {
+                                        IconButton(onClick = { viewModel.moveVideo(video.videoId, index, index - 1) }) {
+                                            Icon(
+                                                Icons.Default.ArrowUpward,
+                                                contentDescription = "Move up",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                    if (index < videos.size - 1) {
+                                        IconButton(onClick = { viewModel.moveVideo(video.videoId, index, index + 1) }) {
+                                            Icon(
+                                                Icons.Default.ArrowDownward,
+                                                contentDescription = "Move down",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                                IconButton(onClick = { viewModel.removeVideo(video.videoId) }) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Remove",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         },
                         modifier = Modifier.clickable { onVideoClick(video.videoId) }
