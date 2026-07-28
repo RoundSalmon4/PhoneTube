@@ -115,8 +115,9 @@ fun PlayerControls(
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                     )
                     // Quality button
+                    val qualityText = state.currentQualityLabel.ifEmpty { "HQ" }
                     Text(
-                        text = "HQ",
+                        text = qualityText,
                         color = Color.White,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,

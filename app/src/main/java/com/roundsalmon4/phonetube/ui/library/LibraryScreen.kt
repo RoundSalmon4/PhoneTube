@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -56,6 +57,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.database.entity.LocalSubscription
 import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
+import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
 import coil3.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,6 +69,7 @@ fun LibraryScreen(
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val addToPlaylistEntry by viewModel.addToPlaylistEntry.collectAsStateWithLifecycle()
     var playlistNameInput by remember { mutableStateOf("") }
 
     if (uiState.showCreatePlaylistDialog) {
@@ -99,10 +102,19 @@ fun LibraryScreen(
                     viewModel.dismissCreatePlaylistDialog()
                 }) {
                     Text("Cancel")
-                }
-            }
+        }
+    }
+
+    addToPlaylistEntry?.let { entry ->
+        AddToPlaylistDialog(
+            videoTitle = entry.title,
+            playlists = uiState.playlists,
+            onDismiss = { viewModel.dismissAddToPlaylistDialog() },
+            onAddToPlaylist = { viewModel.addToPlaylist(it) },
+            onCreatePlaylist = { viewModel.createPlaylistAndAdd(it) }
         )
     }
+}
 
     Scaffold(
         floatingActionButton = {
@@ -137,6 +149,7 @@ fun LibraryScreen(
                     history = uiState.history,
                     onVideoClick = onVideoClick,
                     onDeleteEntry = { viewModel.deleteHistoryEntry(it) },
+                    onAddToPlaylist = { viewModel.showAddToPlaylistDialog(it) },
                     onClearAll = { viewModel.clearHistory() }
                 )
                 LibraryTab.PLAYLISTS -> PlaylistsTab(
@@ -158,6 +171,7 @@ private fun HistoryTab(
     history: List<WatchHistoryEntry>,
     onVideoClick: (String) -> Unit,
     onDeleteEntry: (String) -> Unit,
+    onAddToPlaylist: (WatchHistoryEntry) -> Unit,
     onClearAll: () -> Unit
 ) {
     if (history.isEmpty()) {
@@ -220,12 +234,21 @@ private fun HistoryTab(
                     }
                 },
                 trailingContent = {
-                    IconButton(onClick = { onDeleteEntry(entry.videoId) }) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Delete",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Row {
+                        IconButton(onClick = { onAddToPlaylist(entry) }) {
+                            Icon(
+                                Icons.Default.PlaylistAdd,
+                                contentDescription = "Add to playlist",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = { onDeleteEntry(entry.videoId) }) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Delete",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 },
                 modifier = Modifier.clickable { onVideoClick(entry.videoId) }
