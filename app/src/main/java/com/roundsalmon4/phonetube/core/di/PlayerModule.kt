@@ -2,6 +2,7 @@ package com.roundsalmon4.phonetube.core.di
 
 import android.content.Context
 import com.roundsalmon4.phonetube.player.PlayerEngineController
+import com.roundsalmon4.phonetube.player.service.PlaybackService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -18,6 +19,8 @@ object PlayerModule {
     fun providePlayerEngineController(
         @ApplicationContext context: Context
     ): PlayerEngineController {
-        return PlayerEngineController(context)
+        val controller = PlayerEngineController(context)
+        PlaybackService.playerController = controller
+        return controller
     }
 }

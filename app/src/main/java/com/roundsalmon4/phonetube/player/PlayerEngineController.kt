@@ -169,22 +169,10 @@ class PlayerEngineController(context: Context) {
         val textGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_TEXT }
         if (textGroups.isEmpty()) return
 
-        val group = textGroups.first()
-        val override = TrackSelectionOverride(group.mediaTrackGroup, listOf(track.index))
-        trackSelector.setParameters(
-            trackSelector.buildUponParameters().addOverride(override)
-        )
-        updateSnapshot()
-    }
-
-    fun selectAudioTrack(track: AudioTrackInfo) {
-        val tracks = exoPlayer.currentTracks
-        val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
-        if (audioGroups.isEmpty()) return
-
-        for (group in audioGroups) {
+        var globalIndex = 0
+        for (group in textGroups) {
             for (i in 0 until group.length) {
-                if (i == track.index) {
+                if (globalIndex == track.index) {
                     val override = TrackSelectionOverride(group.mediaTrackGroup, listOf(i))
                     trackSelector.setParameters(
                         trackSelector.buildUponParameters().addOverride(override)
@@ -192,6 +180,28 @@ class PlayerEngineController(context: Context) {
                     updateSnapshot()
                     return
                 }
+                globalIndex++
+            }
+        }
+    }
+
+    fun selectAudioTrack(track: AudioTrackInfo) {
+        val tracks = exoPlayer.currentTracks
+        val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+        if (audioGroups.isEmpty()) return
+
+        var globalIndex = 0
+        for (group in audioGroups) {
+            for (i in 0 until group.length) {
+                if (globalIndex == track.index) {
+                    val override = TrackSelectionOverride(group.mediaTrackGroup, listOf(i))
+                    trackSelector.setParameters(
+                        trackSelector.buildUponParameters().addOverride(override)
+                    )
+                    updateSnapshot()
+                    return
+                }
+                globalIndex++
             }
         }
     }
@@ -249,12 +259,13 @@ class PlayerEngineController(context: Context) {
             } else null
         } ?: ""
 
-        // Subtitle tracks
+        // Subtitle tracks (global index across all groups)
+        var subtitleIndex = 0
         val subtitleTracks = textGroups.flatMap { group ->
             (0 until group.length).map { i ->
                 val format = group.getTrackFormat(i)
                 SubtitleTrackInfo(
-                    index = i,
+                    index = subtitleIndex++,
                     languageCode = format.language ?: "unknown",
                     name = format.label ?: format.language ?: "Unknown",
                     mimeType = format.sampleMimeType ?: ""
@@ -264,11 +275,13 @@ class PlayerEngineController(context: Context) {
 
         val isSubEnabled = textGroups.any { it.isSelected }
 
+        // Audio tracks (global index across all groups)
+        var audioIndex = 0
         val audioTracks = audioGroups.flatMap { group ->
             (0 until group.length).map { i ->
                 val format = group.getTrackFormat(i)
                 AudioTrackInfo(
-                    index = i,
+                    index = audioIndex++,
                     languageCode = format.language ?: "unknown",
                     name = format.label ?: format.language ?: "Unknown",
                     mimeType = format.sampleMimeType ?: ""
