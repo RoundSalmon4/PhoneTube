@@ -35,6 +35,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.ui.compose.PlayerSurface
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.text.ClickableText
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 
 @Composable
 fun PlayerScreen(
@@ -50,6 +57,7 @@ fun PlayerScreen(
     val showSubtitlePicker by viewModel.showSubtitlePicker.collectAsStateWithLifecycle()
     val showAudioPicker by viewModel.showAudioPicker.collectAsStateWithLifecycle()
     val toastMessage by viewModel.toastMessage.collectAsStateWithLifecycle()
+    val description by viewModel.description.collectAsStateWithLifecycle()
     var controlsVisible by remember { mutableStateOf(true) }
 
     val context = LocalContext.current
@@ -176,6 +184,14 @@ fun PlayerScreen(
                                 color = Color.White.copy(alpha = 0.7f),
                                 modifier = Modifier.padding(top = 4.dp)
                             )
+                            description?.let { desc ->
+                                DescriptionSection(
+                                    description = desc,
+                                    onTimestampClick = { seconds ->
+                                        viewModel.seekTo(seconds * 1000)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -245,5 +261,67 @@ fun PlayerScreen(
             onAudioTrackSelected = { viewModel.selectAudioTrack(it) },
             onDismiss = { viewModel.hideAudioPicker() }
         )
+    }
+}
+
+@Composable
+private fun DescriptionSection(
+    description: String,
+    onTimestampClick: (Long) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val maxLines = if (expanded) Int.MAX_VALUE else 2
+
+    val timestampRegex = Regex("""(\d{1,2}:)?(\d{1,2}):(\d{2})""")
+    val annotatedString = buildAnnotatedString {
+        if (!expanded) {
+            val lines = description.lines()
+            val truncated = lines.take(2).joinToString("\n")
+            append(truncated)
+            if (lines.size > 2) return@buildAnnotatedString
+        }
+        val text = if (expanded) description else description.lines().take(2).joinToString("\n")
+        var lastIndex = 0
+        for (match in timestampRegex.findAll(text)) {
+            if (match.range.first > lastIndex) {
+                append(text.substring(lastIndex, match.range.first))
+            }
+            val groups = match.groupValues
+            val hours = groups[1].trimEnd(':').toIntOrNull() ?: 0
+            val minutes = groups[2].toInt()
+            val seconds = groups[3].toInt()
+            val totalSeconds = hours * 3600L + minutes * 60L + seconds
+            val tag = "ts_$totalSeconds"
+            pushStringAnnotation(tag, match.value)
+            withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)) {
+                append(match.value)
+            }
+            pop()
+            lastIndex = match.range.last + 1
+        }
+        if (lastIndex < text.length) {
+            append(text.substring(lastIndex))
+        }
+    }
+
+    Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)) {
+        ClickableText(
+            text = annotatedString,
+            style = MaterialTheme.typography.bodySmall.copy(color = Color.White.copy(alpha = 0.7f)),
+            maxLines = if (expanded) Int.MAX_VALUE else 2,
+            onClick = { offset ->
+                annotatedString.getStringAnnotations(offset, offset).firstOrNull()?.let { annotation ->
+                    val seconds = annotation.tag.removePrefix("ts_").toLongOrNull()
+                    if (seconds != null) {
+                        onTimestampClick(seconds)
+                    }
+                }
+            }
+        )
+        if (description.lines().size > 2) {
+            TextButton(onClick = { expanded = !expanded }) {
+                Text(if (expanded) "Show less" else "Show more")
+            }
+        }
     }
 }

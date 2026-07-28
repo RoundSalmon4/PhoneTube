@@ -76,6 +76,9 @@ class PlayerViewModel @Inject constructor(
     private val _toastMessage = MutableStateFlow<String?>(null)
     val toastMessage: StateFlow<String?> = _toastMessage.asStateFlow()
 
+    private val _description = MutableStateFlow<String?>(null)
+    val description: StateFlow<String?> = _description.asStateFlow()
+
     val playbackState: StateFlow<PlayerPlaybackSnapshot> = playerController.playbackState
 
     private val historyMutex = Mutex()
@@ -83,6 +86,7 @@ class PlayerViewModel @Inject constructor(
     init {
         loadStreamInfo()
         loadSponsorSegments()
+        loadDescription()
         startAutoSkip()
         restoreSpeedPreference()
         loadLandscapeLockPreference()
@@ -126,6 +130,18 @@ class PlayerViewModel @Inject constructor(
                     Log.d(TAG, "Loaded ${segments.size} sponsor segments")
                     _sponsorSegments.value = segments
                 }
+        }
+    }
+
+    private fun loadDescription() {
+        viewModelScope.launch {
+            try {
+                engine.getMetadata(videoId)
+                    .catch { /* ignore */ }
+                    .collect { metadata ->
+                        _description.value = metadata.description
+                    }
+            } catch (_: Exception) { }
         }
     }
 
