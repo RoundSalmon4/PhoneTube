@@ -307,8 +307,7 @@ class PlayerEngineController(context: Context) {
                 isSubtitlesEnabled = isSubEnabled,
                 availableSubtitleTracks = subtitleTracks,
                 availableAudioTracks = audioTracks,
-                selectedAudioTrackIndex = selectedAudioIndex,
-                audioTrackCount = audioGroups.size
+                selectedAudioTrackIndex = selectedAudioIndex
             )
         }
     }

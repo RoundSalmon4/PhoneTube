@@ -85,6 +85,7 @@ class PlaybackService : MediaSessionService() {
         private const val NOTIFICATION_CHANNEL_ID = "playback"
         private const val FOREGROUND_SERVICE_ID = 1
 
+        @Volatile
         var playerController: PlayerEngineController? = null
 
         fun start(controller: PlayerEngineController, context: android.content.Context) {

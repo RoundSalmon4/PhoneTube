@@ -14,8 +14,7 @@ data class PlayerPlaybackSnapshot(
     val isSubtitlesEnabled: Boolean = false,
     val availableSubtitleTracks: List<SubtitleTrackInfo> = emptyList(),
     val availableAudioTracks: List<AudioTrackInfo> = emptyList(),
-    val selectedAudioTrackIndex: Int = -1,
-    val audioTrackCount: Int = 0
+    val selectedAudioTrackIndex: Int = -1
 )
 
 data class SubtitleTrackInfo(
