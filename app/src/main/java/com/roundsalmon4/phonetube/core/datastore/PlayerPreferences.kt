@@ -45,6 +45,7 @@ private object Keys {
     val COLOR_SCHEME_MODE = stringPreferencesKey("color_scheme_mode")
     val VIDEO_SEARCH_LIMIT = intPreferencesKey("video_search_limit")
     val CHANNEL_SEARCH_LIMIT = intPreferencesKey("channel_search_limit")
+    val PIP_ENABLED = booleanPreferencesKey("pip_enabled")
 }
 
 data class PreferencesUiState(
@@ -81,7 +82,8 @@ data class PreferencesUiState(
     val secondaryColor: Int = 0xFF282828.toInt(),
     val colorSchemeMode: String = "STANDARD",
     val videoSearchLimit: Int = 50,
-    val channelSearchLimit: Int = 20
+    val channelSearchLimit: Int = 20,
+    val pipEnabled: Boolean = true
 )
 
 @Singleton
@@ -114,7 +116,8 @@ class PlayerPreferences @Inject constructor(
             secondaryColor = prefs[Keys.SECONDARY_COLOR] ?: 0xFF282828.toInt(),
             colorSchemeMode = prefs[Keys.COLOR_SCHEME_MODE] ?: "STANDARD",
             videoSearchLimit = prefs[Keys.VIDEO_SEARCH_LIMIT] ?: 50,
-            channelSearchLimit = prefs[Keys.CHANNEL_SEARCH_LIMIT] ?: 20
+            channelSearchLimit = prefs[Keys.CHANNEL_SEARCH_LIMIT] ?: 20,
+            pipEnabled = prefs[Keys.PIP_ENABLED] ?: true
         )
     }
 
@@ -213,5 +216,9 @@ class PlayerPreferences @Inject constructor(
 
     suspend fun setChannelSearchLimit(limit: Int) {
         context.playerDataStore.edit { it[Keys.CHANNEL_SEARCH_LIMIT] = limit }
+    }
+
+    suspend fun setPiPEnabled(enabled: Boolean) {
+        context.playerDataStore.edit { it[Keys.PIP_ENABLED] = enabled }
     }
 }

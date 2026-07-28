@@ -241,6 +241,15 @@ private fun PlayerSection(uiState: PreferencesUiState, viewModel: SettingsViewMo
             checked = uiState.showMiniPlayer,
             onCheckedChange = { viewModel.setShowMiniPlayer(it) }
         )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            SwitchItem(
+                name = "Picture-in-Picture",
+                description = "Auto-enter PiP when leaving the player screen",
+                checked = uiState.pipEnabled,
+                onCheckedChange = { viewModel.setPiPEnabled(it) }
+            )
+        }
     }
 }
 

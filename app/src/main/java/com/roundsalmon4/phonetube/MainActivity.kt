@@ -1,11 +1,14 @@
 package com.roundsalmon4.phonetube
 
 import android.Manifest
+import android.app.PictureInPictureParams
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -86,6 +89,35 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleIntent(intent)
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && playerController.exoPlayer.isPlaying) {
+            lifecycleScope.launch {
+                val prefs = playerPreferences.uiState.first()
+                if (prefs.pipEnabled) {
+                    val videoWidth = playerController.exoPlayer.videoSize.width
+                    val videoHeight = playerController.exoPlayer.videoSize.height
+                    val aspectRatio = if (videoWidth > 0 && videoHeight > 0) {
+                        Rational(videoWidth, videoHeight)
+                    } else {
+                        Rational(16, 9)
+                    }
+                    val params = PictureInPictureParams.Builder()
+                        .setAspectRatio(aspectRatio)
+                        .build()
+                    enterPictureInPictureMode(params)
+                }
+            }
+        }
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        if (!isInPictureInPictureMode) {
+            // User returned from PiP to full screen — player continues normally
+        }
     }
 
     private fun handleIntent(intent: Intent) {

@@ -96,6 +96,10 @@ class SettingsViewModel @Inject constructor(
         playerPreferences.setChannelSearchLimit(limit)
     }
 
+    fun setPiPEnabled(enabled: Boolean) = viewModelScope.launch {
+        playerPreferences.setPiPEnabled(enabled)
+    }
+
     fun showClearHistoryDialog() { _showClearHistoryDialog.value = true }
     fun dismissClearHistoryDialog() { _showClearHistoryDialog.value = false }
 
