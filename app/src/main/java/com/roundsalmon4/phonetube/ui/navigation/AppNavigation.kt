@@ -73,10 +73,12 @@ fun AppNavigation(
     val currentDestination = navBackStackEntry?.destination
 
     val showBottomBar = bottomNavItems.any { item ->
-        currentDestination?.route?.startsWith(item.route::class.simpleName!!) == true
+        currentDestination?.route?.contains(item.route::class.simpleName ?: "") == true
     }
 
-    val isOnPlayerScreen = currentDestination?.route?.startsWith("Player") == true
+    val isOnPlayerScreen = navBackStackEntry?.destination?.route?.let { route ->
+        route.contains("Player")
+    } == true
 
     val miniPlayerState by playerStateManager.miniPlayerState.collectAsState()
     val prefs by playerPreferences.uiState.collectAsState(initial = PreferencesUiState())
