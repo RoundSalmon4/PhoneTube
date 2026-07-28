@@ -241,6 +241,7 @@ fun PlayerScreen(
     if (showAudioPicker) {
         AudioTrackPickerSheet(
             audioTracks = playbackState.availableAudioTracks,
+            selectedAudioTrackIndex = playbackState.selectedAudioTrackIndex,
             onAudioTrackSelected = { viewModel.selectAudioTrack(it) },
             onDismiss = { viewModel.hideAudioPicker() }
         )

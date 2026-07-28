@@ -29,6 +29,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
@@ -75,6 +77,8 @@ class PlayerViewModel @Inject constructor(
     val toastMessage: StateFlow<String?> = _toastMessage.asStateFlow()
 
     val playbackState: StateFlow<PlayerPlaybackSnapshot> = playerController.playbackState
+
+    private val historyMutex = Mutex()
 
     init {
         loadStreamInfo()
@@ -248,26 +252,26 @@ class PlayerViewModel @Inject constructor(
 
     private fun recordToHistory(info: StreamInfo) {
         viewModelScope.launch {
-            try {
-                val existing = historyDao.getById(videoId)
-                if (existing == null) {
-                    // New video — create entry with position 0
-                    val entry = WatchHistoryEntry(
-                        videoId = videoId,
-                        title = info.title,
-                        channelName = info.author,
-                        channelId = info.channelId,
-                        thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
-                        durationMs = info.lengthSeconds * 1000,
-                        positionMs = 0L,
-                        speed = playerPreferences.uiState.first().playbackSpeed,
-                        timestamp = System.currentTimeMillis()
-                    )
-                    historyDao.upsert(entry)
+            historyMutex.withLock {
+                try {
+                    val existing = historyDao.getById(videoId)
+                    if (existing == null) {
+                        val entry = WatchHistoryEntry(
+                            videoId = videoId,
+                            title = info.title,
+                            channelName = info.author,
+                            channelId = info.channelId,
+                            thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                            durationMs = info.lengthSeconds * 1000,
+                            positionMs = 0L,
+                            speed = playerPreferences.uiState.first().playbackSpeed,
+                            timestamp = System.currentTimeMillis()
+                        )
+                        historyDao.upsert(entry)
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to record history", e)
                 }
-                // If video already exists, keep its saved position (don't reset to 0)
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to record history", e)
             }
         }
     }
@@ -345,7 +349,7 @@ class PlayerViewModel @Inject constructor(
         try {
             val positionMs = playerController.exoPlayer.currentPosition
             if (positionMs > 0) {
-                kotlinx.coroutines.runBlocking {
+                kotlinx.coroutines.runBlocking(Dispatchers.IO) {
                     val current = historyDao.getById(videoId)
                     if (current != null) {
                         historyDao.upsert(current.copy(
@@ -363,21 +367,23 @@ class PlayerViewModel @Inject constructor(
 
     private fun saveCurrentPosition() {
         viewModelScope.launch {
-            try {
-                val positionMs = playerController.exoPlayer.currentPosition
-                val current = historyDao.getById(videoId)
-                if (current != null) {
-                    historyDao.upsert(current.copy(
-                        positionMs = positionMs,
-                        timestamp = System.currentTimeMillis()
-                    ))
-                    Log.d(TAG, "Saved history position for $videoId: ${positionMs}ms")
+            historyMutex.withLock {
+                try {
+                    val positionMs = playerController.exoPlayer.currentPosition
+                    val current = historyDao.getById(videoId)
+                    if (current != null) {
+                        historyDao.upsert(current.copy(
+                            positionMs = positionMs,
+                            timestamp = System.currentTimeMillis()
+                        ))
+                        Log.d(TAG, "Saved history position for $videoId: ${positionMs}ms")
+                    }
+                    withContext(Dispatchers.IO) {
+                        engine.reportWatchProgress(videoId, positionMs / 1000f)
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to save history position", e)
                 }
-                withContext(Dispatchers.IO) {
-                    engine.reportWatchProgress(videoId, positionMs / 1000f)
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to save history position", e)
             }
         }
     }

@@ -278,9 +278,11 @@ class PlayerEngineController(context: Context) {
 
         // Audio tracks (global index across all groups)
         var audioIndex = 0
+        var selectedAudioIndex = -1
         val audioTracks = audioGroups.flatMap { group ->
             (0 until group.length).map { i ->
                 val format = group.getTrackFormat(i)
+                if (group.isTrackSelected(i)) selectedAudioIndex = audioIndex
                 AudioTrackInfo(
                     index = audioIndex++,
                     languageCode = format.language ?: "unknown",
@@ -305,6 +307,7 @@ class PlayerEngineController(context: Context) {
                 isSubtitlesEnabled = isSubEnabled,
                 availableSubtitleTracks = subtitleTracks,
                 availableAudioTracks = audioTracks,
+                selectedAudioTrackIndex = selectedAudioIndex,
                 audioTrackCount = audioGroups.size
             )
         }

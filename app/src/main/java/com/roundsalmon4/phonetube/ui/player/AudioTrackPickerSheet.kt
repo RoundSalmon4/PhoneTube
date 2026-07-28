@@ -1,9 +1,13 @@
 package com.roundsalmon4.phonetube.ui.player
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -16,6 +20,7 @@ import com.roundsalmon4.phonetube.player.AudioTrackInfo
 @Composable
 fun AudioTrackPickerSheet(
     audioTracks: List<AudioTrackInfo>,
+    selectedAudioTrackIndex: Int = -1,
     onAudioTrackSelected: (AudioTrackInfo) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -25,25 +30,34 @@ fun AudioTrackPickerSheet(
     ) {
         Text(
             text = "Audio Track",
-            style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
 
         if (audioTracks.isEmpty()) {
             Text(
                 text = "No audio tracks available",
-                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
-                color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
             )
         } else {
             audioTracks.forEach { track ->
-                androidx.compose.material3.ListItem(
+                ListItem(
                     headlineContent = {
                         Text(track.name.ifBlank { track.languageCode })
                     },
                     supportingContent = {
                         Text(track.languageCode)
+                    },
+                    trailingContent = {
+                        if (track.index == selectedAudioTrackIndex) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Selected",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     },
                     modifier = Modifier.clickable {
                         onAudioTrackSelected(track)

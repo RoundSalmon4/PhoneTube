@@ -20,6 +20,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -107,8 +108,9 @@ class HomeViewModel @Inject constructor(
     fun refreshHomeOnly() {
         if (homeRetryJob?.isActive == true) return
         homeRetryJob = viewModelScope.launch {
-            kotlinx.coroutines.delay(3_000L)
+            _isRefreshing.value = true
             try {
+                delay(3_000L)
                 val prefs = playerPreferences.uiState.first()
                 val currentSections = when (val s = _uiState.value) {
                     is HomeUiState.Success -> s.sections
@@ -145,6 +147,8 @@ class HomeViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Home refresh failed", e)
+            } finally {
+                _isRefreshing.value = false
             }
         }
     }
@@ -154,8 +158,9 @@ class HomeViewModel @Inject constructor(
             val subscriptions = subscriptionDao.getAll().first()
             if (subscriptions.isEmpty()) return null
             val allVideos = mutableListOf<Video>()
-            for (sub in subscriptions.take(10)) {
+            for ((index, sub) in subscriptions.take(10).withIndex()) {
                 try {
+                    if (index > 0) delay(500)
                     val result = engine.getChannel(sub.channelId).firstOrNull()
                     val videos = result?.sections?.flatMap { it.videos }?.take(5) ?: emptyList()
                     allVideos.addAll(videos)
