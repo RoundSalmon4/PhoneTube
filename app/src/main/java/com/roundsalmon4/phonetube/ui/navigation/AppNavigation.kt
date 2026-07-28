@@ -180,7 +180,10 @@ fun AppNavigation(
                     val route = backStackEntry.toRoute<Route.Player>()
                     PlayerScreen(
                         videoId = route.videoId,
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = { navController.popBackStack() },
+                        onChannelClick = { channelId ->
+                            navController.navigate(Route.Channel(channelId))
+                        }
                     )
                 }
 

@@ -49,6 +49,7 @@ import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
 fun PlayerScreen(
     videoId: String,
     onBackClick: () -> Unit,
+    onChannelClick: ((String) -> Unit)? = null,
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -63,6 +64,7 @@ fun PlayerScreen(
     val showAddToPlaylist by viewModel.showAddToPlaylist.collectAsStateWithLifecycle()
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     var controlsVisible by remember { mutableStateOf(true) }
+    var expanded by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val activity = context as? Activity
@@ -175,6 +177,8 @@ fun PlayerScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .weight(1f)
+                                .verticalScroll(androidx.compose.foundation.rememberScrollState())
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                         ) {
                             Text(
@@ -191,13 +195,23 @@ fun PlayerScreen(
                             description?.let { desc ->
                                 DescriptionSection(
                                     description = desc,
+                                    expanded = expanded,
+                                    onToggleExpand = { expanded = !expanded },
                                     onTimestampClick = { seconds ->
                                         viewModel.seekTo(seconds * 1000)
                                     }
                                 )
                             }
-                            TextButton(onClick = { viewModel.showAddToPlaylist() }) {
-                                Text("Add to playlist")
+                            Row {
+                                TextButton(onClick = { viewModel.showAddToPlaylist() }) {
+                                    Text("Add to playlist")
+                                }
+                                val channelId = state.streamInfo.channelId
+                                if (channelId.isNotBlank() && onChannelClick != null) {
+                                    TextButton(onClick = { onChannelClick(channelId) }) {
+                                        Text("Go to channel")
+                                    }
+                                }
                             }
                         }
                     }
@@ -284,19 +298,12 @@ fun PlayerScreen(
 @Composable
 private fun DescriptionSection(
     description: String,
+    expanded: Boolean,
+    onToggleExpand: () -> Unit,
     onTimestampClick: (Long) -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val maxLines = if (expanded) Int.MAX_VALUE else 2
-
     val timestampRegex = Regex("""(\d{1,2}:)?(\d{1,2}):(\d{2})""")
     val annotatedString = buildAnnotatedString {
-        if (!expanded) {
-            val lines = description.lines()
-            val truncated = lines.take(2).joinToString("\n")
-            append(truncated)
-            if (lines.size > 2) return@buildAnnotatedString
-        }
         val text = if (expanded) description else description.lines().take(2).joinToString("\n")
         var lastIndex = 0
         for (match in timestampRegex.findAll(text)) {
@@ -321,7 +328,7 @@ private fun DescriptionSection(
         }
     }
 
-    Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp)) {
+    Column(modifier = Modifier.padding(top = 8.dp)) {
         ClickableText(
             text = annotatedString,
             style = MaterialTheme.typography.bodySmall.copy(color = Color.White.copy(alpha = 0.7f)),
@@ -336,7 +343,7 @@ private fun DescriptionSection(
             }
         )
         if (description.lines().size > 2) {
-            TextButton(onClick = { expanded = !expanded }) {
+            TextButton(onClick = onToggleExpand) {
                 Text(if (expanded) "Show less" else "Show more")
             }
         }
