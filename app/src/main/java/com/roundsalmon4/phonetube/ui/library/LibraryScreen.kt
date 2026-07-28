@@ -169,7 +169,7 @@ fun LibraryScreen(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun HistoryTab(
     history: List<WatchHistoryEntry>,
