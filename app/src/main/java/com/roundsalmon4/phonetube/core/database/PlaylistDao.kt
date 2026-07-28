@@ -30,6 +30,9 @@ interface PlaylistDao {
     @Query("SELECT * FROM playlist_videos WHERE playlistId = :playlistId ORDER BY position")
     fun getPlaylistVideos(playlistId: Long): Flow<List<PlaylistVideo>>
 
+    @Query("SELECT * FROM playlist_videos WHERE playlistId = :playlistId ORDER BY position")
+    suspend fun getPlaylistVideosSync(playlistId: Long): List<PlaylistVideo>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertVideo(video: PlaylistVideo)
 

@@ -1,6 +1,9 @@
 package com.roundsalmon4.phonetube.ui.settings
 
 import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -48,10 +51,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,6 +82,8 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val showClearHistoryDialog by viewModel.showClearHistoryDialog.collectAsState()
     val showClearPlaylistsDialog by viewModel.showClearPlaylistsDialog.collectAsState()
+    val exportResult by viewModel.exportResult.collectAsState()
+    val importResult by viewModel.importResult.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
@@ -98,7 +106,7 @@ fun SettingsScreen(
             FeedsSection(uiState, viewModel)
             SearchSection(uiState, viewModel)
             AppearanceSection(uiState, viewModel)
-            DataSection(viewModel)
+            DataSection(viewModel, exportResult, importResult)
             AboutSection(onLicenseClick, onCreditsClick)
 
             val context = LocalContext.current
@@ -637,10 +645,70 @@ private fun ColorSwatchGrid(
 private fun Color.luminance(): Float = 0.299f * red + 0.587f * green + 0.114f * blue
 
 @Composable
-private fun DataSection(viewModel: SettingsViewModel) {
+private fun DataSection(
+    viewModel: SettingsViewModel,
+    exportResult: String?,
+    importResult: String?
+) {
+    val context = LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val snackbarHostState = androidx.compose.material3.SnackbarHostState()
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                try {
+                    val json = viewModel.buildExportJson()
+                    context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
+                    Toast.makeText(context, "Export complete", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Export failed: ${e.message?.take(100)}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                try {
+                    val json = context.contentResolver.openInputStream(uri)?.bufferedReader()?.readText()
+                    if (json != null) {
+                        viewModel.importFromJson(json)
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Import failed: ${e.message?.take(100)}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     Column {
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
         SettingsCategory("Data")
+
+        if (importResult != null) {
+            LaunchedEffect(importResult) {
+                Toast.makeText(context, importResult, Toast.LENGTH_SHORT).show()
+                viewModel.clearImportResult()
+            }
+        }
+
+        ListItem(
+            modifier = Modifier.clickable { exportLauncher.launch("PhoneTube_backup.json") },
+            headlineContent = { Text("Export Data", fontWeight = FontWeight.SemiBold) },
+            supportingContent = { Text("Save settings, playlists, and subscriptions to a JSON file") }
+        )
+
+        ListItem(
+            modifier = Modifier.clickable { importLauncher.launch(arrayOf("application/json", "*/*")) },
+            headlineContent = { Text("Import Data", fontWeight = FontWeight.SemiBold) },
+            supportingContent = { Text("Restore settings, playlists, and subscriptions from a JSON file") }
+        )
 
         ListItem(
             modifier = Modifier.clickable { viewModel.showClearHistoryDialog() },
