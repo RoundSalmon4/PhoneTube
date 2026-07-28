@@ -1,6 +1,8 @@
 package com.roundsalmon4.phonetube.ui.library
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,7 +27,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -34,6 +35,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
@@ -167,6 +169,7 @@ fun LibraryScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HistoryTab(
     history: List<WatchHistoryEntry>,
@@ -175,6 +178,41 @@ private fun HistoryTab(
     onAddToPlaylist: (WatchHistoryEntry) -> Unit,
     onClearAll: () -> Unit
 ) {
+    var longPressedEntry by remember { mutableStateOf<WatchHistoryEntry?>(null) }
+
+    longPressedEntry?.let { entry ->
+        ModalBottomSheet(onDismissRequest = { longPressedEntry = null }) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = entry.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                Text(
+                    "Add to playlist",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            longPressedEntry = null
+                            onAddToPlaylist(entry)
+                        }
+                        .padding(vertical = 12.dp)
+                )
+                Text(
+                    "Delete",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            longPressedEntry = null
+                            onDeleteEntry(entry.videoId)
+                        }
+                        .padding(vertical = 12.dp)
+                )
+            }
+        }
+    }
+
     if (history.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("No watch history", color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -234,25 +272,10 @@ private fun HistoryTab(
                         }
                     }
                 },
-                trailingContent = {
-                    Row {
-                        IconButton(onClick = { onAddToPlaylist(entry) }) {
-                            Icon(
-                                Icons.Default.PlaylistAdd,
-                                contentDescription = "Add to playlist",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        IconButton(onClick = { onDeleteEntry(entry.videoId) }) {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = "Delete",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                },
-                modifier = Modifier.clickable { onVideoClick(entry.videoId) }
+                modifier = Modifier.combinedClickable(
+                    onClick = { onVideoClick(entry.videoId) },
+                    onLongClick = { longPressedEntry = entry }
+                )
             )
         }
     }
