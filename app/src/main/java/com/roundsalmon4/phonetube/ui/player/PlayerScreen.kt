@@ -43,6 +43,8 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 
+import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
+
 @Composable
 fun PlayerScreen(
     videoId: String,
@@ -58,6 +60,8 @@ fun PlayerScreen(
     val showAudioPicker by viewModel.showAudioPicker.collectAsStateWithLifecycle()
     val toastMessage by viewModel.toastMessage.collectAsStateWithLifecycle()
     val description by viewModel.description.collectAsStateWithLifecycle()
+    val showAddToPlaylist by viewModel.showAddToPlaylist.collectAsStateWithLifecycle()
+    val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     var controlsVisible by remember { mutableStateOf(true) }
 
     val context = LocalContext.current
@@ -192,6 +196,9 @@ fun PlayerScreen(
                                     }
                                 )
                             }
+                            TextButton(onClick = { viewModel.showAddToPlaylist() }) {
+                                Text("Add to playlist")
+                            }
                         }
                     }
                 }
@@ -260,6 +267,16 @@ fun PlayerScreen(
             selectedAudioTrackIndex = playbackState.selectedAudioTrackIndex,
             onAudioTrackSelected = { viewModel.selectAudioTrack(it) },
             onDismiss = { viewModel.hideAudioPicker() }
+        )
+    }
+
+    if (showAddToPlaylist) {
+        AddToPlaylistDialog(
+            videoTitle = (viewModel.uiState.value as? PlayerUiState.Ready)?.streamInfo?.title ?: "",
+            playlists = playlists,
+            onDismiss = { viewModel.hideAddToPlaylist() },
+            onAddToPlaylist = { viewModel.addToPlaylist(it) },
+            onCreatePlaylist = { viewModel.createPlaylistAndAdd(it) }
         )
     }
 }

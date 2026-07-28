@@ -7,6 +7,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.database.HistoryDao
+import com.roundsalmon4.phonetube.core.database.PlaylistDao
+import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
+import com.roundsalmon4.phonetube.core.database.entity.PlaylistVideo
 import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
@@ -42,6 +45,7 @@ class PlayerViewModel @Inject constructor(
     private val sponsorBlockService: SponsorBlockService,
     private val playerPreferences: PlayerPreferences,
     private val historyDao: HistoryDao,
+    private val playlistDao: PlaylistDao,
     val playerController: PlayerEngineController,
     private val playerStateManager: PlayerStateManager
 ) : AndroidViewModel(application) {
@@ -79,6 +83,12 @@ class PlayerViewModel @Inject constructor(
     private val _description = MutableStateFlow<String?>(null)
     val description: StateFlow<String?> = _description.asStateFlow()
 
+    private val _showAddToPlaylist = MutableStateFlow(false)
+    val showAddToPlaylist: StateFlow<Boolean> = _showAddToPlaylist.asStateFlow()
+
+    private val _playlists = MutableStateFlow<List<LocalPlaylist>>(emptyList())
+    val playlists: StateFlow<List<LocalPlaylist>> = _playlists.asStateFlow()
+
     val playbackState: StateFlow<PlayerPlaybackSnapshot> = playerController.playbackState
 
     private val historyMutex = Mutex()
@@ -90,6 +100,7 @@ class PlayerViewModel @Inject constructor(
         startAutoSkip()
         restoreSpeedPreference()
         loadLandscapeLockPreference()
+        loadPlaylists()
         startPeriodicHistorySave()
     }
 
@@ -266,6 +277,12 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    private fun loadPlaylists() {
+        viewModelScope.launch {
+            playlistDao.getAllPlaylists().collect { _playlists.value = it }
+        }
+    }
+
     private fun recordToHistory(info: StreamInfo) {
         viewModelScope.launch {
             historyMutex.withLock {
@@ -353,6 +370,57 @@ class PlayerViewModel @Inject constructor(
 
     fun showAudioPicker() { _showAudioPicker.value = true }
     fun hideAudioPicker() { _showAudioPicker.value = false }
+
+    fun showAddToPlaylist() { _showAddToPlaylist.value = true }
+    fun hideAddToPlaylist() { _showAddToPlaylist.value = false }
+    fun addToPlaylist(playlist: LocalPlaylist) {
+        viewModelScope.launch {
+            try {
+                val count = playlistDao.getVideoCount(playlist.id)
+                playlistDao.insertVideo(
+                    PlaylistVideo(
+                        playlistId = playlist.id,
+                        videoId = videoId,
+                        title = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.title ?: "",
+                        channelName = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.author ?: "",
+                        thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                        durationMs = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.lengthSeconds?.times(1000) ?: 0L,
+                        position = count
+                    )
+                )
+                playlistDao.updatePlaylist(playlist.copy(videoCount = count + 1))
+                _toastMessage.value = "Added to playlist"
+                _showAddToPlaylist.value = false
+            } catch (e: Exception) {
+                Log.w(TAG, "addToPlaylist failed", e)
+            }
+        }
+    }
+    fun createPlaylistAndAdd(name: String) {
+        viewModelScope.launch {
+            try {
+                val id = playlistDao.insertPlaylist(
+                    LocalPlaylist(name = name.trim(), createdAt = System.currentTimeMillis())
+                )
+                playlistDao.insertVideo(
+                    PlaylistVideo(
+                        playlistId = id,
+                        videoId = videoId,
+                        title = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.title ?: "",
+                        channelName = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.author ?: "",
+                        thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                        durationMs = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.lengthSeconds?.times(1000) ?: 0L,
+                        position = 0
+                    )
+                )
+                playlistDao.updatePlaylist(LocalPlaylist(id = id, name = name.trim(), createdAt = System.currentTimeMillis(), videoCount = 1))
+                _toastMessage.value = "Created and added to playlist"
+                _showAddToPlaylist.value = false
+            } catch (e: Exception) {
+                Log.w(TAG, "createPlaylistAndAdd failed", e)
+            }
+        }
+    }
 
     fun selectAudioTrack(track: AudioTrackInfo) {
         playerController.selectAudioTrack(track)
