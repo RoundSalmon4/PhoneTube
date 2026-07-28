@@ -102,7 +102,9 @@ fun LibraryScreen(
                     viewModel.dismissCreatePlaylistDialog()
                 }) {
                     Text("Cancel")
-        }
+                }
+            }
+        )
     }
 
     addToPlaylistEntry?.let { entry ->
@@ -114,7 +116,6 @@ fun LibraryScreen(
             onCreatePlaylist = { viewModel.createPlaylistAndAdd(it) }
         )
     }
-}
 
     Scaffold(
         floatingActionButton = {
