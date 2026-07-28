@@ -47,7 +47,7 @@ import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
 import com.roundsalmon4.phonetube.ui.components.ChannelCard
 import com.roundsalmon4.phonetube.ui.components.VideoCard
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     onVideoClick: (String) -> Unit,
