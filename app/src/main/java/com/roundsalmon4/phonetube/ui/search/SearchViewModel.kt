@@ -1,7 +1,13 @@
 package com.roundsalmon4.phonetube.ui.search
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.roundsalmon4.phonetube.core.database.PlaylistDao
+import com.roundsalmon4.phonetube.core.database.SubscriptionDao
+import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
+import com.roundsalmon4.phonetube.core.database.entity.LocalSubscription
+import com.roundsalmon4.phonetube.core.database.entity.PlaylistVideo
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.model.SearchChannel
@@ -23,8 +29,14 @@ import javax.inject.Inject
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val engine: YouTubeEngine,
-    private val playerPreferences: PlayerPreferences
+    private val playerPreferences: PlayerPreferences,
+    private val subscriptionDao: SubscriptionDao,
+    private val playlistDao: PlaylistDao
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "SearchVM"
+    }
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -38,9 +50,122 @@ class SearchViewModel @Inject constructor(
     private val _filter = MutableStateFlow(SearchFilter.ALL)
     val filter: StateFlow<SearchFilter> = _filter.asStateFlow()
 
+    private val _playlists = MutableStateFlow<List<LocalPlaylist>>(emptyList())
+    val playlists: StateFlow<List<LocalPlaylist>> = _playlists.asStateFlow()
+
+    private val _addToPlaylistVideo = MutableStateFlow<Video?>(null)
+    val addToPlaylistVideo: StateFlow<Video?> = _addToPlaylistVideo.asStateFlow()
+
+    private val _subscribedChannels = MutableStateFlow<Set<String>>(emptySet())
+    val subscribedChannels: StateFlow<Set<String>> = _subscribedChannels.asStateFlow()
+
     private var allVideos: List<Video> = emptyList()
     private var allChannels: List<SearchChannel> = emptyList()
     private var suggestionJob: Job? = null
+
+    init {
+        loadSubscriptions()
+        loadPlaylists()
+    }
+
+    private fun loadSubscriptions() {
+        viewModelScope.launch {
+            subscriptionDao.getAll().collect { subs ->
+                _subscribedChannels.value = subs.map { it.channelId }.toSet()
+            }
+        }
+    }
+
+    private fun loadPlaylists() {
+        viewModelScope.launch {
+            playlistDao.getAllPlaylists().collect { _playlists.value = it }
+        }
+    }
+
+    fun subscribeToChannel(channelId: String, channelName: String, thumbnailUrl: String?) {
+        viewModelScope.launch {
+            try {
+                subscriptionDao.subscribe(
+                    LocalSubscription(
+                        channelId = channelId,
+                        channelName = channelName,
+                        thumbnailUrl = thumbnailUrl ?: "",
+                        subscribedAt = System.currentTimeMillis()
+                    )
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to subscribe", e)
+            }
+        }
+    }
+
+    fun unsubscribeFromChannel(channelId: String) {
+        viewModelScope.launch {
+            try {
+                subscriptionDao.unsubscribe(channelId)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to unsubscribe", e)
+            }
+        }
+    }
+
+    fun showAddToPlaylistDialog(video: Video) {
+        _addToPlaylistVideo.value = video
+    }
+
+    fun dismissAddToPlaylistDialog() {
+        _addToPlaylistVideo.value = null
+    }
+
+    fun addToPlaylist(playlist: LocalPlaylist) {
+        val video = _addToPlaylistVideo.value ?: return
+        viewModelScope.launch {
+            try {
+                val count = playlistDao.getVideoCount(playlist.id)
+                playlistDao.insertVideo(
+                    PlaylistVideo(
+                        playlistId = playlist.id,
+                        videoId = video.videoId,
+                        title = video.title,
+                        channelName = video.author,
+                        thumbnailUrl = video.thumbnailUrl,
+                        durationMs = video.durationMs,
+                        position = count
+                    )
+                )
+                playlistDao.updatePlaylist(playlist.copy(videoCount = count + 1))
+                _addToPlaylistVideo.value = null
+            } catch (e: Exception) {
+                Log.e(TAG, "addToPlaylist failed", e)
+            }
+        }
+    }
+
+    fun createPlaylistAndAdd(name: String) {
+        val video = _addToPlaylistVideo.value ?: return
+        viewModelScope.launch {
+            try {
+                val id = playlistDao.insertPlaylist(
+                    LocalPlaylist(name = name, createdAt = System.currentTimeMillis())
+                )
+                playlistDao.insertVideo(
+                    PlaylistVideo(
+                        playlistId = id,
+                        videoId = video.videoId,
+                        title = video.title,
+                        channelName = video.author,
+                        thumbnailUrl = video.thumbnailUrl,
+                        durationMs = video.durationMs,
+                        position = 0
+                    )
+                )
+                playlistDao.updatePlaylist(LocalPlaylist(id = id, name = name, createdAt = System.currentTimeMillis(), videoCount = 1))
+                _addToPlaylistVideo.value = null
+            } catch (e: Exception) {
+                Log.e(TAG, "createPlaylistAndAdd failed", e)
+            }
+        }
+    }
 
     fun onQueryChange(newQuery: String) {
         _query.value = newQuery

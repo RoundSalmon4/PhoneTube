@@ -1,5 +1,6 @@
 package com.roundsalmon4.phonetube.ui.search
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,12 +23,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -38,9 +42,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.roundsalmon4.phonetube.core.engine.model.SearchFilter
+import com.roundsalmon4.phonetube.core.engine.model.Video
+import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
 import com.roundsalmon4.phonetube.ui.components.ChannelCard
 import com.roundsalmon4.phonetube.ui.components.VideoCard
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SearchScreen(
     onVideoClick: (String) -> Unit,
@@ -51,11 +58,60 @@ fun SearchScreen(
     val suggestions by viewModel.suggestions.collectAsStateWithLifecycle()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val filter by viewModel.filter.collectAsStateWithLifecycle()
+    val playlists by viewModel.playlists.collectAsStateWithLifecycle()
+    val addToPlaylistVideo by viewModel.addToPlaylistVideo.collectAsStateWithLifecycle()
+    val subscribedChannels by viewModel.subscribedChannels.collectAsStateWithLifecycle()
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    var longPressedVideo by remember { mutableStateOf<Video?>(null) }
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
+    }
+
+    longPressedVideo?.let { video ->
+        ModalBottomSheet(onDismissRequest = { longPressedVideo = null }) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = video.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                Text(
+                    "Add to playlist",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            longPressedVideo = null
+                            viewModel.showAddToPlaylistDialog(video)
+                        }
+                        .padding(vertical = 12.dp)
+                )
+                Text(
+                    "Open channel",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            longPressedVideo = null
+                            if (video.channelId.isNotBlank()) {
+                                onChannelClick(video.channelId)
+                            }
+                        }
+                        .padding(vertical = 12.dp)
+                )
+            }
+        }
+    }
+
+    addToPlaylistVideo?.let { video ->
+        AddToPlaylistDialog(
+            videoTitle = video.title,
+            playlists = playlists,
+            onDismiss = { viewModel.dismissAddToPlaylistDialog() },
+            onAddToPlaylist = { viewModel.addToPlaylist(it) },
+            onCreatePlaylist = { viewModel.createPlaylistAndAdd(it) }
+        )
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -143,14 +199,23 @@ fun SearchScreen(
                                             if (id.isNotBlank()) onChannelClick(id)
                                         }
                                     }
-                                }
+                                },
+                                onLongClick = { longPressedVideo = video }
                             )
                         }
                         if (state.channels.isNotEmpty()) {
                             items(state.channels, key = { "ch-${it.channelId}" }) { channel ->
                                 ChannelCard(
                                     channel = channel,
-                                    onClick = { onChannelClick(channel.channelId) }
+                                    onClick = { onChannelClick(channel.channelId) },
+                                    isSubscribed = channel.channelId in subscribedChannels,
+                                    onSubscribe = { channelId ->
+                                        if (channelId in subscribedChannels) {
+                                            viewModel.unsubscribeFromChannel(channelId)
+                                        } else {
+                                            viewModel.subscribeToChannel(channelId, channel.name, channel.thumbnailUrl)
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -183,4 +248,3 @@ private fun FilterChips(filter: SearchFilter, onFilterChange: (SearchFilter) -> 
         }
     }
 }
-
