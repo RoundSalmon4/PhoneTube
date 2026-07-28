@@ -137,7 +137,7 @@ fun AppNavigation(
         Column(modifier = Modifier.padding(innerPadding)) {
             MiniPlayer(
                 state = miniPlayerState,
-                isVisible = showBottomBar && !isOnPlayerScreen && prefs.showMiniPlayer,
+                isVisible = !isOnPlayerScreen && prefs.showMiniPlayer,
                 onPlayPause = {
                     playerController.togglePlayPause()
                     playerStateManager.updatePlaybackState(
