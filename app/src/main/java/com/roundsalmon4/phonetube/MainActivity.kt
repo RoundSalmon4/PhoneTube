@@ -95,21 +95,19 @@ class MainActivity : ComponentActivity() {
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && playerController.exoPlayer.isPlaying) {
-            lifecycleScope.launch {
-                val prefs = playerPreferences.uiState.first()
-                if (prefs.pipEnabled) {
-                    val videoWidth = playerController.exoPlayer.videoSize.width
-                    val videoHeight = playerController.exoPlayer.videoSize.height
-                    val aspectRatio = if (videoWidth > 0 && videoHeight > 0) {
-                        Rational(videoWidth, videoHeight)
-                    } else {
-                        Rational(16, 9)
-                    }
-                    val params = PictureInPictureParams.Builder()
-                        .setAspectRatio(aspectRatio)
-                        .build()
-                    enterPictureInPictureMode(params)
+            val prefs = kotlinx.coroutines.runBlocking { playerPreferences.uiState.first() }
+            if (prefs.pipEnabled) {
+                val videoWidth = playerController.exoPlayer.videoSize.width
+                val videoHeight = playerController.exoPlayer.videoSize.height
+                val aspectRatio = if (videoWidth > 0 && videoHeight > 0) {
+                    Rational(videoWidth, videoHeight)
+                } else {
+                    Rational(16, 9)
                 }
+                val params = PictureInPictureParams.Builder()
+                    .setAspectRatio(aspectRatio)
+                    .build()
+                enterPictureInPictureMode(params)
             }
         }
     }
