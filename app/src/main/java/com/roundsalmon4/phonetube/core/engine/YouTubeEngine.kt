@@ -197,9 +197,14 @@ class YouTubeEngine @Inject constructor(
             Log.d(TAG, "search('$query'): ${groups.size} groups, $totalItems total items")
 
             if (groups.isNotEmpty()) {
-                val sampleItems = groups.flatMap { (it.mediaItems ?: emptyList()).filterNotNull() }.take(5)
+                val allItems = groups.flatMap { (it.mediaItems ?: emptyList()).filterNotNull() }
+                val typeCounts = allItems.groupBy { it.type }.mapValues { it.value.size }
+                Log.d(TAG, "search item type breakdown: $typeCounts")
+                val withPlaylistId = allItems.count { !it.playlistId.isNullOrBlank() }
+                Log.d(TAG, "search items with playlistId: $withPlaylistId")
+                val sampleItems = allItems.take(10)
                 for ((i, item) in sampleItems.withIndex()) {
-                    Log.d(TAG, "search item[$i]: type=${item.type} videoId=${item.videoId?.take(12)} channelId=${item.channelId?.take(12)} title='${item.title?.take(30)}'")
+                    Log.d(TAG, "search item[$i]: type=${item.type} videoId=${item.videoId?.take(12)} playlistId=${item.playlistId?.take(12)} channelId=${item.channelId?.take(12)} title='${item.title?.take(30)}'")
                 }
             }
 

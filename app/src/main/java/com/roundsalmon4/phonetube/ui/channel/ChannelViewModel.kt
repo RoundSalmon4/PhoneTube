@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -46,6 +47,7 @@ class ChannelViewModel @Inject constructor(
         viewModelScope.launch {
             engine.getChannel(channelId)
                 .catch { e ->
+                    if (e is CancellationException) throw e
                     Log.e(TAG, "getChannel failed", e)
                     _uiState.value = ChannelUiState.Error(e.message ?: "Failed to load channel")
                 }

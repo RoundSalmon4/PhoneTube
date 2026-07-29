@@ -43,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -70,9 +71,18 @@ fun SearchScreen(
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val addToPlaylistVideo by viewModel.addToPlaylistVideo.collectAsStateWithLifecycle()
     val subscribedChannels by viewModel.subscribedChannels.collectAsStateWithLifecycle()
-    val focusRequester = remember { FocusRequester() }
+    val context = androidx.compose.ui.platform.LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val saveMessage by viewModel.saveMessage.collectAsStateWithLifecycle()
+    val focusRequester = remember { FocusRequester() }
     var longPressedVideo by remember { mutableStateOf<Video?>(null) }
+
+    LaunchedEffect(saveMessage) {
+        saveMessage?.let {
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+            viewModel.clearSaveMessage()
+        }
+    }
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()

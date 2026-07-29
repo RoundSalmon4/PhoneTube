@@ -57,6 +57,9 @@ class SearchViewModel @Inject constructor(
     private val _addToPlaylistVideo = MutableStateFlow<Video?>(null)
     val addToPlaylistVideo: StateFlow<Video?> = _addToPlaylistVideo.asStateFlow()
 
+    private val _saveMessage = MutableStateFlow<String?>(null)
+    val saveMessage: StateFlow<String?> = _saveMessage.asStateFlow()
+
     private val _subscribedChannels = MutableStateFlow<Set<String>>(emptySet())
     val subscribedChannels: StateFlow<Set<String>> = _subscribedChannels.asStateFlow()
 
@@ -268,12 +271,15 @@ class SearchViewModel @Inject constructor(
 
     fun savePlaylistAsLocal(playlist: SearchPlaylist) {
         Log.d(TAG, "savePlaylistAsLocal: saving playlist '${playlist.title}' (${playlist.playlistId})")
+        if (_saveMessage.value != null) return // prevent double-tap
+        _saveMessage.value = "Saving..."
         viewModelScope.launch {
             try {
                 val videos = engine.getPlaylistVideos(playlist.playlistId)
                 Log.d(TAG, "savePlaylistAsLocal: got ${videos.size} videos from API")
                 if (videos.isEmpty()) {
                     Log.w(TAG, "savePlaylistAsLocal: no videos returned, aborting")
+                    _saveMessage.value = "Could not save playlist"
                     return@launch
                 }
                 val id = playlistDao.insertPlaylist(
@@ -297,11 +303,15 @@ class SearchViewModel @Inject constructor(
                     LocalPlaylist(id = id, name = playlist.title, createdAt = System.currentTimeMillis(), videoCount = videos.size)
                 )
                 Log.d(TAG, "savePlaylistAsLocal: saved ${videos.size} videos")
+                _saveMessage.value = "Playlist saved"
             } catch (e: Exception) {
                 Log.e(TAG, "savePlaylistAsLocal failed", e)
+                _saveMessage.value = "Save failed"
             }
         }
     }
+
+    fun clearSaveMessage() { _saveMessage.value = null }
 
     private fun search(query: String) {
         _uiState.value = SearchUiState.Loading
