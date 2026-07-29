@@ -260,10 +260,15 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    fun getPlaylistFirstVideoId(playlistId: String, onResult: (String) -> Unit) {
+    fun getPlaylistFirstVideoId(playlist: SearchPlaylist, onResult: (String) -> Unit) {
+        // Use firstVideoId from search results if available (faster than API call)
+        if (!playlist.firstVideoId.isNullOrBlank()) {
+            onResult(playlist.firstVideoId)
+            return
+        }
         viewModelScope.launch {
             try {
-                val videoId = engine.getPlaylistFirstVideoId(playlistId)
+                val videoId = engine.getPlaylistFirstVideoId(playlist.playlistId)
                 if (videoId != null) onResult(videoId)
             } catch (_: Exception) { }
         }
@@ -271,15 +276,39 @@ class SearchViewModel @Inject constructor(
 
     fun savePlaylistAsLocal(playlist: SearchPlaylist) {
         Log.d(TAG, "savePlaylistAsLocal: saving playlist '${playlist.title}' (${playlist.playlistId})")
-        if (_saveMessage.value != null) return // prevent double-tap
+        if (_saveMessage.value != null) return
         _saveMessage.value = "Saving..."
         viewModelScope.launch {
             try {
                 val videos = engine.getPlaylistVideos(playlist.playlistId)
                 Log.d(TAG, "savePlaylistAsLocal: got ${videos.size} videos from API")
                 if (videos.isEmpty()) {
-                    Log.w(TAG, "savePlaylistAsLocal: no videos returned, aborting")
-                    _saveMessage.value = "Could not save playlist"
+                    // Fallback: try saving at least one video if we have it from search
+                    if (!playlist.firstVideoId.isNullOrBlank()) {
+                        Log.d(TAG, "savePlaylistAsLocal: fallback to single video from search")
+                        val id = playlistDao.insertPlaylist(
+                            LocalPlaylist(name = playlist.title, createdAt = System.currentTimeMillis())
+                        )
+                        playlistDao.insertVideo(
+                            PlaylistVideo(
+                                playlistId = id,
+                                videoId = playlist.firstVideoId,
+                                title = playlist.title,
+                                channelName = playlist.channelName,
+                                thumbnailUrl = playlist.thumbnailUrl ?: "",
+                                durationMs = 0L,
+                                position = 0
+                            )
+                        )
+                        playlistDao.updatePlaylist(
+                            LocalPlaylist(id = id, name = playlist.title, createdAt = System.currentTimeMillis(), videoCount = 1)
+                        )
+                        Log.d(TAG, "savePlaylistAsLocal: saved 1 video from search fallback")
+                        _saveMessage.value = "Playlist saved (1 video)"
+                    } else {
+                        Log.w(TAG, "savePlaylistAsLocal: no videos returned, aborting")
+                        _saveMessage.value = "Could not save playlist"
+                    }
                     return@launch
                 }
                 val id = playlistDao.insertPlaylist(

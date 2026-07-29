@@ -591,30 +591,35 @@ class YouTubeEngine @Inject constructor(
         return channels
     }
     private fun List<MediaGroup>.toSearchPlaylists(): List<SearchPlaylist> {
-        val playlists = mutableListOf<SearchPlaylist>()
-        var debugCount = 0
-        var skipped = 0
+        val playlistMap = mutableMapOf<String, SearchPlaylist>()
         for (group in this) {
             for (item in (group.mediaItems ?: emptyList()).filterNotNull()) {
                 val pid = item.playlistId
                 if (!pid.isNullOrBlank()) {
-                    playlists.add(
-                        SearchPlaylist(
+                    if (pid !in playlistMap) {
+                        playlistMap[pid] = SearchPlaylist(
                             playlistId = pid,
                             title = item.title.orEmpty(),
                             channelName = item.author.orEmpty(),
                             thumbnailUrl = item.cardImageUrl?.ifBlank { null }
                                 ?: item.backgroundImageUrl?.ifBlank { null },
-                            videoCount = 0
+                            videoCount = 0,
+                            firstVideoId = item.videoId?.takeIf { it.isNotBlank() }
                         )
-                    )
-                    debugCount++
-                } else {
-                    skipped++
+                    }
+                    // Count videos in this playlist
+                    val entry = playlistMap[pid]!!
+                    if (!item.videoId.isNullOrBlank()) {
+                        playlistMap[pid] = entry.copy(
+                            videoCount = entry.videoCount + 1,
+                            firstVideoId = entry.firstVideoId ?: item.videoId
+                        )
+                    }
                 }
             }
         }
-        Log.d(TAG, "toSearchPlaylists: $debugCount playlists found, $skipped skipped (no playlistId)")
+        val playlists = playlistMap.values.toList()
+        Log.d(TAG, "toSearchPlaylists: ${playlists.size} playlists found")
         return playlists
     }
 }

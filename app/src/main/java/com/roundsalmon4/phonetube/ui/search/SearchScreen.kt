@@ -254,7 +254,7 @@ fun SearchScreen(
                                         }
                                     },
                                     modifier = Modifier.clickable {
-                                        viewModel.getPlaylistFirstVideoId(playlist.playlistId) { videoId ->
+                                        viewModel.getPlaylistFirstVideoId(playlist) { videoId ->
                                             onVideoClick(videoId)
                                         }
                                     }
