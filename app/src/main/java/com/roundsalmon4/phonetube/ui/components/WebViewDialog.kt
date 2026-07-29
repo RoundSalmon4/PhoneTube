@@ -52,7 +52,18 @@ fun WebViewDialog(
                     )
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
-                    webViewClient = WebViewClient()
+                    webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+                            if (url.startsWith("http://") || url.startsWith("https://")) {
+                                return false
+                            }
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                view.context.startActivity(intent)
+                            } catch (_: Exception) { }
+                            return true
+                        }
+                    }
                     webChromeClient = WebChromeClient()
                     loadUrl(url)
                 }

@@ -327,7 +327,7 @@ private fun DescriptionSection(
     onUrlClick: (String) -> Unit
 ) {
     val timestampRegex = Regex("""(\d{1,2}:)?(\d{1,2}):(\d{2})""")
-    val urlRegex = Regex("""https?://[^\s]+""")
+    val urlRegex = Regex("""https?://[^\s()]+(?:\.[^\s()]+)*""")
     val annotatedString = buildAnnotatedString {
         val text = if (expanded) description else description.lines().take(2).joinToString("\n")
         var lastIndex = 0
