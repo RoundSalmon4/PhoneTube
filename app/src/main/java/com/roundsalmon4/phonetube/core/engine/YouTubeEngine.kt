@@ -598,9 +598,4 @@ class YouTubeEngine @Inject constructor(
         Log.d(TAG, "toSearchPlaylists: $debugCount playlists found, $skipped skipped (no playlistId)")
         return playlists
     }
-            }
-        }
-        Log.d(TAG, "toSearchPlaylists:  playlists found")
-        return playlists
-    }
 }
