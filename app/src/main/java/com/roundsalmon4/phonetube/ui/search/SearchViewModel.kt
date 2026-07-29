@@ -267,13 +267,19 @@ class SearchViewModel @Inject constructor(
     }
 
     fun savePlaylistAsLocal(playlist: SearchPlaylist) {
+        Log.d(TAG, "savePlaylistAsLocal: saving playlist '${playlist.title}' (${playlist.playlistId})")
         viewModelScope.launch {
             try {
                 val videos = engine.getPlaylistVideos(playlist.playlistId)
-                if (videos.isEmpty()) return@launch
+                Log.d(TAG, "savePlaylistAsLocal: got ${videos.size} videos from API")
+                if (videos.isEmpty()) {
+                    Log.w(TAG, "savePlaylistAsLocal: no videos returned, aborting")
+                    return@launch
+                }
                 val id = playlistDao.insertPlaylist(
                     LocalPlaylist(name = playlist.title, createdAt = System.currentTimeMillis())
                 )
+                Log.d(TAG, "savePlaylistAsLocal: created playlist id=$id")
                 for ((index, video) in videos.withIndex()) {
                     playlistDao.insertVideo(
                         PlaylistVideo(
@@ -290,6 +296,7 @@ class SearchViewModel @Inject constructor(
                 playlistDao.updatePlaylist(
                     LocalPlaylist(id = id, name = playlist.title, createdAt = System.currentTimeMillis(), videoCount = videos.size)
                 )
+                Log.d(TAG, "savePlaylistAsLocal: saved ${videos.size} videos")
             } catch (e: Exception) {
                 Log.e(TAG, "savePlaylistAsLocal failed", e)
             }

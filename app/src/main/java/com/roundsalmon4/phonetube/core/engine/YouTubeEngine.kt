@@ -241,9 +241,13 @@ class YouTubeEngine @Inject constructor(
         try {
             val groups = contentService.getChannelObserve(channelId).awaitFirstOrDefault(emptyList())
             val firstGroup = groups.firstOrNull()
+            Log.d(TAG, "getChannel($channelId): ${groups.size} groups from API")
             val sections = groups.mapNotNull { group ->
-                val videos = (group.mediaItems ?: emptyList()).filterNotNull()
-                    .flatMap { it.resolveVideos() }
+                val items = (group.mediaItems ?: emptyList()).filterNotNull()
+                val videoCount = items.count { it.videoId?.isNotBlank() == true }
+                val playlistCount = items.count { it.type == MediaItem.TYPE_PLAYLIST }
+                Log.d(TAG, "getChannel($channelId): group '${group.title?.take(30)}': $videoCount videos, $playlistCount playlists, ${items.size} total")
+                val videos = items.flatMap { it.resolveVideos() }
                     .distinctBy { it.videoId }
                 if (videos.isNotEmpty()) {
                     ChannelSection(title = group.title.orEmpty(), videos = videos)
@@ -328,10 +332,16 @@ class YouTubeEngine @Inject constructor(
     }
 
     suspend fun getPlaylistVideos(playlistId: String): List<Video> {
+        Log.d(TAG, "getPlaylistVideos: fetching videos for playlist $playlistId")
         return try {
-            val group = contentService.getGroup(playlistId) ?: return emptyList()
+            val group = contentService.getGroup(playlistId) ?: return emptyList().also {
+                Log.w(TAG, "getPlaylistVideos: getGroup returned null for $playlistId")
+            }
             val items = (group.mediaItems ?: emptyList()).filterNotNull()
-            items.mapNotNull { it.toVideo() }
+            Log.d(TAG, "getPlaylistVideos: got ${items.size} items from group for $playlistId")
+            val videos = items.mapNotNull { it.toVideo() }
+            Log.d(TAG, "getPlaylistVideos: ${videos.size} videos mapped for $playlistId")
+            videos
         } catch (e: Exception) {
             Log.e(TAG, "getPlaylistVideos failed for $playlistId", e)
             emptyList()
@@ -563,12 +573,15 @@ class YouTubeEngine @Inject constructor(
     }
     private fun List<MediaGroup>.toSearchPlaylists(): List<SearchPlaylist> {
         val playlists = mutableListOf<SearchPlaylist>()
+        var debugCount = 0
+        var skipped = 0
         for (group in this) {
             for (item in (group.mediaItems ?: emptyList()).filterNotNull()) {
-                if (item.type == MediaItem.TYPE_PLAYLIST && !item.playlistId.isNullOrBlank()) {
+                val pid = item.playlistId
+                if (!pid.isNullOrBlank()) {
                     playlists.add(
                         SearchPlaylist(
-                            playlistId = item.playlistId,
+                            playlistId = pid,
                             title = item.title.orEmpty(),
                             channelName = item.author.orEmpty(),
                             thumbnailUrl = item.cardImageUrl?.ifBlank { null }
@@ -576,7 +589,15 @@ class YouTubeEngine @Inject constructor(
                             videoCount = 0
                         )
                     )
+                    debugCount++
+                } else {
+                    skipped++
                 }
+            }
+        }
+        Log.d(TAG, "toSearchPlaylists: $debugCount playlists found, $skipped skipped (no playlistId)")
+        return playlists
+    }
             }
         }
         Log.d(TAG, "toSearchPlaylists:  playlists found")
