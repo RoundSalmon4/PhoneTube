@@ -83,6 +83,9 @@ class PlayerViewModel @Inject constructor(
     private val _description = MutableStateFlow<String?>(null)
     val description: StateFlow<String?> = _description.asStateFlow()
 
+    private val _openLinksIn = MutableStateFlow("browser")
+    val openLinksIn: StateFlow<String> = _openLinksIn.asStateFlow()
+
     private val _showAddToPlaylist = MutableStateFlow(false)
     val showAddToPlaylist: StateFlow<Boolean> = _showAddToPlaylist.asStateFlow()
 
@@ -100,6 +103,7 @@ class PlayerViewModel @Inject constructor(
         startAutoSkip()
         restoreSpeedPreference()
         loadLandscapeLockPreference()
+        loadOpenLinksInPreference()
         loadPlaylists()
         startPeriodicHistorySave()
     }
@@ -274,6 +278,14 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             val enabled = playerPreferences.uiState.first().landscapeLock
             _landscapeLock.value = enabled
+        }
+    }
+
+    private fun loadOpenLinksInPreference() {
+        viewModelScope.launch {
+            playerPreferences.uiState.collect { prefs ->
+                _openLinksIn.value = prefs.openLinksIn
+            }
         }
     }
 

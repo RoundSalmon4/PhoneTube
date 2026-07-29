@@ -48,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 
 import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
+import com.roundsalmon4.phonetube.ui.components.openLink
 
 @Composable
 fun PlayerScreen(
@@ -65,6 +66,7 @@ fun PlayerScreen(
     val showAudioPicker by viewModel.showAudioPicker.collectAsStateWithLifecycle()
     val toastMessage by viewModel.toastMessage.collectAsStateWithLifecycle()
     val description by viewModel.description.collectAsStateWithLifecycle()
+    val openLinksIn by viewModel.openLinksIn.collectAsStateWithLifecycle()
     val showAddToPlaylist by viewModel.showAddToPlaylist.collectAsStateWithLifecycle()
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     var controlsVisible by remember { mutableStateOf(true) }
@@ -203,6 +205,14 @@ fun PlayerScreen(
                                     onToggleExpand = { expanded = !expanded },
                                     onTimestampClick = { seconds ->
                                         viewModel.seekTo(seconds * 1000)
+                                    },
+                                    onUrlClick = { url ->
+                                        openLink(url, openLinksIn, context) { _, _ ->
+                                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)).apply {
+                                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            }
+                                            context.startActivity(intent)
+                                        }
                                     }
                                 )
                             }
@@ -304,28 +314,43 @@ private fun DescriptionSection(
     description: String,
     expanded: Boolean,
     onToggleExpand: () -> Unit,
-    onTimestampClick: (Long) -> Unit
+    onTimestampClick: (Long) -> Unit,
+    onUrlClick: (String) -> Unit
 ) {
     val timestampRegex = Regex("""(\d{1,2}:)?(\d{1,2}):(\d{2})""")
+    val urlRegex = Regex("""https?://[^\s]+""")
     val annotatedString = buildAnnotatedString {
         val text = if (expanded) description else description.lines().take(2).joinToString("\n")
         var lastIndex = 0
-        for (match in timestampRegex.findAll(text)) {
-            if (match.range.first > lastIndex) {
-                append(text.substring(lastIndex, match.range.first))
+        val allMatches = (timestampRegex.findAll(text).map { Triple(it.range, "timestamp", it.value) } +
+                urlRegex.findAll(text).map { Triple(it.range, "url", it.value) })
+            .sortedBy { it.first.first }
+        for ((range, type, value) in allMatches) {
+            if (range.first > lastIndex) {
+                append(text.substring(lastIndex, range.first))
             }
-            val groups = match.groupValues
-            val hours = groups[1].trimEnd(':').toIntOrNull() ?: 0
-            val minutes = groups[2].toInt()
-            val seconds = groups[3].toInt()
-            val totalSeconds = hours * 3600L + minutes * 60L + seconds
-            val tag = "ts_$totalSeconds"
-            pushStringAnnotation(tag, match.value)
-            withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)) {
-                append(match.value)
+            when (type) {
+                "timestamp" -> {
+                    val groups = timestampRegex.find(value)?.groupValues ?: continue
+                    val hours = groups[1].trimEnd(':').toIntOrNull() ?: 0
+                    val minutes = groups[2].toInt()
+                    val seconds = groups[3].toInt()
+                    val totalSeconds = hours * 3600L + minutes * 60L + seconds
+                    pushStringAnnotation("ts_$totalSeconds", value)
+                    withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)) {
+                        append(value)
+                    }
+                    pop()
+                }
+                "url" -> {
+                    pushStringAnnotation("url", value)
+                    withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary)) {
+                        append(value)
+                    }
+                    pop()
+                }
             }
-            pop()
-            lastIndex = match.range.last + 1
+            lastIndex = range.last + 1
         }
         if (lastIndex < text.length) {
             append(text.substring(lastIndex))
@@ -339,9 +364,12 @@ private fun DescriptionSection(
             maxLines = if (expanded) Int.MAX_VALUE else 2,
             onClick = { offset ->
                 annotatedString.getStringAnnotations(offset, offset).firstOrNull()?.let { annotation ->
-                    val seconds = annotation.tag.removePrefix("ts_").toLongOrNull()
-                    if (seconds != null) {
-                        onTimestampClick(seconds)
+                    when (annotation.tag) {
+                        "url" -> onUrlClick(annotation.item)
+                        else -> {
+                            val seconds = annotation.tag.removePrefix("ts_").toLongOrNull()
+                            if (seconds != null) onTimestampClick(seconds)
+                        }
                     }
                 }
             }
