@@ -402,8 +402,8 @@ private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewMod
         SettingsCategory("Feeds")
 
         ListItem(
-            headlineContent = { Text("Drag to reorder", fontWeight = FontWeight.SemiBold) },
-            supportingContent = { Text("Use the handle to reorder feed sections on home screen") }
+            headlineContent = { Text("Reorder feeds", fontWeight = FontWeight.SemiBold) },
+            supportingContent = { Text("Use the arrows to change the order of feed sections on home screen") }
         )
 
         orderedFeeds.forEachIndexed { index, key ->

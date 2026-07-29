@@ -197,8 +197,20 @@ class HomeViewModel @Inject constructor(
                             )
                         } else null
                     }.filter { isFeedEnabled(it.source, prefs) }
-                    if (sections.isNotEmpty()) {
-                        _uiState.value = HomeUiState.Success(sections)
+                    // Reorder sections to match user's feed order
+                    val sourceToKey = mapOf(
+                        "Home" to "home", "What to Watch" to "what_to_watch", "Subscriptions" to "subscriptions",
+                        "Trending" to "trending", "Music" to "music", "Sports" to "sports",
+                        "Live" to "live", "News" to "news", "Gaming" to "gaming", "Kids" to "kids"
+                    )
+                    val sectionMap = sections.associateBy { it.source }
+                    val reordered = prefs.feedOrder.mapNotNull { key ->
+                        sourceToKey.entries.firstOrNull { it.value == key }?.key?.let { source ->
+                            sectionMap[source]
+                        }
+                    }
+                    if (reordered.isNotEmpty()) {
+                        _uiState.value = HomeUiState.Success(reordered)
                         val oldestFetchedAt = feedCacheDao.getOldestFetchedAt()
                         if (oldestFetchedAt != null && System.currentTimeMillis() - oldestFetchedAt > CACHE_MAX_AGE_MS) {
                             loadFromNetwork(isRefresh = false)
