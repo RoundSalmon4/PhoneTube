@@ -241,10 +241,6 @@ class HomeViewModel @Inject constructor(
                 val kidsFeed = kidsSections?.await()
                 val subscriptionsFeed = subscriptionsSection?.await()
 
-                val orderedFeeds = listOfNotNull(
-                    homeFeed, whatToWatchFeed, subscriptionsFeed, trendingFeed, sportsFeed, gamingFeed, liveFeed, newsFeed, musicFeed, kidsFeed
-                )
-
                 val feedSourceMap = mapOf(
                     "home" to homeFeed,
                     "what_to_watch" to whatToWatchFeed,
