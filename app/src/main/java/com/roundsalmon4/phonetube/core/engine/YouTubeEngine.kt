@@ -329,8 +329,11 @@ class YouTubeEngine @Inject constructor(
     suspend fun getPlaylistFirstVideoId(playlistId: String): String? {
         return try {
             withContext(Dispatchers.IO) {
-                val group = contentService.getGroup(playlistId) ?: return@withContext null
-                val items = (group.mediaItems ?: emptyList()).filterNotNull()
+                var group = contentService.getGroup(playlistId)
+                if (group == null && !playlistId.startsWith("VL")) {
+                    group = contentService.getGroup("VL$playlistId")
+                }
+                val items = (group?.mediaItems ?: emptyList()).filterNotNull()
                 items.firstOrNull()?.videoId
             }
         } catch (e: Exception) {
@@ -343,9 +346,13 @@ class YouTubeEngine @Inject constructor(
         Log.d(TAG, "getPlaylistVideos: fetching videos for playlist $playlistId")
         return try {
             withContext(Dispatchers.IO) {
-                val group = contentService.getGroup(playlistId)
+                var group = contentService.getGroup(playlistId)
+                if (group == null && !playlistId.startsWith("VL")) {
+                    Log.w(TAG, "getPlaylistVideos: bare ID failed, trying VL prefix")
+                    group = contentService.getGroup("VL$playlistId")
+                }
                 if (group == null) {
-                    Log.w(TAG, "getPlaylistVideos: getGroup returned null for $playlistId")
+                    Log.w(TAG, "getPlaylistVideos: all attempts failed for $playlistId")
                     return@withContext emptyList()
                 }
                 val items = (group.mediaItems ?: emptyList()).filterNotNull()
