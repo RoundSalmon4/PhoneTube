@@ -267,6 +267,10 @@ class SettingsViewModel @Inject constructor(
         playerPreferences.setPiPEnabled(enabled)
     }
 
+    fun setOpenLinksIn(mode: String) = viewModelScope.launch {
+        playerPreferences.setOpenLinksIn(mode)
+    }
+
     fun showClearHistoryDialog() { _showClearHistoryDialog.value = true }
     fun dismissClearHistoryDialog() { _showClearHistoryDialog.value = false }
 

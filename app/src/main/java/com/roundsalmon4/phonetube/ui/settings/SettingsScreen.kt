@@ -70,6 +70,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
+import com.roundsalmon4.phonetube.ui.components.WebViewDialog
+import com.roundsalmon4.phonetube.ui.components.openLink
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,6 +86,8 @@ fun SettingsScreen(
     val showClearPlaylistsDialog by viewModel.showClearPlaylistsDialog.collectAsState()
     val exportResult by viewModel.exportResult.collectAsState()
     val importResult by viewModel.importResult.collectAsState()
+    var webViewUrl by remember { mutableStateOf<String?>(null) }
+    var webViewTitle by remember { mutableStateOf("") }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
@@ -107,7 +111,15 @@ fun SettingsScreen(
             SearchSection(uiState, viewModel)
             AppearanceSection(uiState, viewModel)
             DataSection(viewModel, exportResult, importResult)
-            AboutSection(onLicenseClick, onCreditsClick)
+            AboutSection(
+                onLicenseClick = onLicenseClick,
+                onCreditsClick = onCreditsClick,
+                openLinksIn = uiState.openLinksIn,
+                onWebView = { url, title ->
+                    webViewUrl = url
+                    webViewTitle = title
+                }
+            )
 
             val context = LocalContext.current
             val versionName = remember {
@@ -163,6 +175,19 @@ fun SettingsScreen(
                 }
             }
         )
+    }
+
+    webViewUrl?.let { url ->
+        androidx.compose.material3.ModalBottomSheet(
+            onDismissRequest = { webViewUrl = null },
+            sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ) {
+            WebViewDialog(
+                url = url,
+                title = webViewTitle,
+                onDismiss = { webViewUrl = null }
+            )
+        }
     }
 }
 
@@ -257,6 +282,35 @@ private fun PlayerSection(uiState: PreferencesUiState, viewModel: SettingsViewMo
                 checked = uiState.pipEnabled,
                 onCheckedChange = { viewModel.setPiPEnabled(it) }
             )
+        }
+
+        var linkModeExpanded by remember { mutableStateOf(false) }
+        val linkModes = listOf("browser" to "Browser", "webview" to "WebView")
+        val currentLinkMode = linkModes.firstOrNull { it.first == uiState.openLinksIn }?.second ?: "Browser"
+
+        ExposedDropdownMenuBox(
+            expanded = linkModeExpanded,
+            onExpandedChange = { linkModeExpanded = it }
+        ) {
+            OutlinedTextField(
+                value = currentLinkMode,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Open Links In") },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = linkModeExpanded) }
+            )
+            ExposedDropdownMenu(expanded = linkModeExpanded, onDismissRequest = { linkModeExpanded = false }) {
+                linkModes.forEach { (key, label) ->
+                    DropdownMenuItem(
+                        text = { Text(label) },
+                        onClick = {
+                            viewModel.setOpenLinksIn(key)
+                            linkModeExpanded = false
+                        }
+                    )
+                }
+            }
         }
     }
 }
@@ -725,8 +779,13 @@ private fun DataSection(
 }
 
 @Composable
-private fun AboutSection(onLicenseClick: () -> Unit, onCreditsClick: () -> Unit) {
-    val uriHandler = LocalUriHandler.current
+private fun AboutSection(
+    onLicenseClick: () -> Unit,
+    onCreditsClick: () -> Unit,
+    openLinksIn: String,
+    onWebView: (url: String, title: String) -> Unit
+) {
+    val context = LocalContext.current
 
     Column {
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -734,7 +793,7 @@ private fun AboutSection(onLicenseClick: () -> Unit, onCreditsClick: () -> Unit)
 
         ListItem(
             modifier = Modifier.clickable {
-                runCatching { uriHandler.openUri("https://github.com/RoundSalmon4/SmartTube") }
+                openLink("https://github.com/RoundSalmon4/SmartTube", openLinksIn, context, onWebView)
             },
             headlineContent = { Text("Source Code", fontWeight = FontWeight.SemiBold) },
             supportingContent = { Text("View the project on GitHub") },
