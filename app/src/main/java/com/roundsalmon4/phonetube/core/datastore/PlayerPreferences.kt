@@ -45,6 +45,7 @@ private object Keys {
     val COLOR_SCHEME_MODE = stringPreferencesKey("color_scheme_mode")
     val VIDEO_SEARCH_LIMIT = intPreferencesKey("video_search_limit")
     val CHANNEL_SEARCH_LIMIT = intPreferencesKey("channel_search_limit")
+    val PLAYLIST_SEARCH_LIMIT = intPreferencesKey("playlist_search_limit")
     val PIP_ENABLED = booleanPreferencesKey("pip_enabled")
     val OPEN_LINKS_IN = stringPreferencesKey("open_links_in")
     val FEED_ORDER = stringPreferencesKey("feed_order")
@@ -85,6 +86,7 @@ data class PreferencesUiState(
     val colorSchemeMode: String = "STANDARD",
     val videoSearchLimit: Int = 50,
     val channelSearchLimit: Int = 20,
+    val playlistSearchLimit: Int = 10,
     val pipEnabled: Boolean = true,
     val openLinksIn: String = "browser", // "browser" or "webview"
     val feedOrder: List<String> = listOf(
@@ -124,6 +126,7 @@ class PlayerPreferences @Inject constructor(
             colorSchemeMode = prefs[Keys.COLOR_SCHEME_MODE] ?: "STANDARD",
             videoSearchLimit = prefs[Keys.VIDEO_SEARCH_LIMIT] ?: 50,
             channelSearchLimit = prefs[Keys.CHANNEL_SEARCH_LIMIT] ?: 20,
+            playlistSearchLimit = prefs[Keys.PLAYLIST_SEARCH_LIMIT] ?: 10,
             pipEnabled = prefs[Keys.PIP_ENABLED] ?: true,
             openLinksIn = prefs[Keys.OPEN_LINKS_IN] ?: "browser",
             feedOrder = parseFeedOrder(prefs[Keys.FEED_ORDER])
@@ -235,6 +238,10 @@ class PlayerPreferences @Inject constructor(
 
     suspend fun setChannelSearchLimit(limit: Int) {
         context.playerDataStore.edit { it[Keys.CHANNEL_SEARCH_LIMIT] = limit }
+    }
+
+    suspend fun setPlaylistSearchLimit(limit: Int) {
+        context.playerDataStore.edit { it[Keys.PLAYLIST_SEARCH_LIMIT] = limit }
     }
 
     suspend fun setPiPEnabled(enabled: Boolean) {

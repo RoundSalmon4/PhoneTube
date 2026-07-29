@@ -87,7 +87,10 @@ class SettingsViewModel @Inject constructor(
                 colorSchemeMode = prefs.colorSchemeMode,
                 videoSearchLimit = prefs.videoSearchLimit,
                 channelSearchLimit = prefs.channelSearchLimit,
-                pipEnabled = prefs.pipEnabled
+                pipEnabled = prefs.pipEnabled,
+                openLinksIn = prefs.openLinksIn,
+                playlistSearchLimit = prefs.playlistSearchLimit,
+                feedOrder = prefs.feedOrder
             ),
             playlists = playlists.map { playlist ->
                 val videos = playlistDao.getPlaylistVideosSync(playlist.id)
@@ -157,6 +160,9 @@ class SettingsViewModel @Inject constructor(
                     playerPreferences.setVideoSearchLimit(p.videoSearchLimit)
                     playerPreferences.setChannelSearchLimit(p.channelSearchLimit)
                     playerPreferences.setPiPEnabled(p.pipEnabled)
+                    playerPreferences.setOpenLinksIn(p.openLinksIn)
+                    playerPreferences.setPlaylistSearchLimit(p.playlistSearchLimit)
+                    playerPreferences.setFeedOrder(p.feedOrder)
                 }
 
                 if (data.subscriptions != null) {
@@ -261,6 +267,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setChannelSearchLimit(limit: Int) = viewModelScope.launch {
         playerPreferences.setChannelSearchLimit(limit)
+    }
+
+    fun setPlaylistSearchLimit(limit: Int) = viewModelScope.launch {
+        playerPreferences.setPlaylistSearchLimit(limit)
     }
 
     fun setPiPEnabled(enabled: Boolean) = viewModelScope.launch {

@@ -12,6 +12,7 @@ import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.model.SearchChannel
 import com.roundsalmon4.phonetube.core.engine.model.SearchFilter
+import com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist
 import com.roundsalmon4.phonetube.core.engine.model.Video
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -61,6 +62,7 @@ class SearchViewModel @Inject constructor(
 
     private var allVideos: List<Video> = emptyList()
     private var allChannels: List<SearchChannel> = emptyList()
+    private var allPlaylists: List<SearchPlaylist> = emptyList()
     private var suggestionJob: Job? = null
 
     init {
@@ -214,13 +216,18 @@ class SearchViewModel @Inject constructor(
                 SearchFilter.ALL, SearchFilter.CHANNELS -> allChannels.take(prefs.channelSearchLimit)
                 SearchFilter.VIDEOS -> emptyList()
             }
+            val filteredPlaylists = when (_filter.value) {
+                SearchFilter.ALL -> allPlaylists.take(prefs.playlistSearchLimit)
+                else -> emptyList()
+            }
 
-            if (filteredVideos.isEmpty() && filteredChannels.isEmpty()) {
+            if (filteredVideos.isEmpty() && filteredChannels.isEmpty() && filteredPlaylists.isEmpty()) {
                 _uiState.value = SearchUiState.Empty
             } else {
                 _uiState.value = SearchUiState.Results(
                     videos = filteredVideos,
-                    channels = filteredChannels
+                    channels = filteredChannels,
+                    playlists = filteredPlaylists
                 )
             }
         }
@@ -250,6 +257,45 @@ class SearchViewModel @Inject constructor(
         }
     }
 
+    fun getPlaylistFirstVideoId(playlistId: String, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val videoId = engine.getPlaylistFirstVideoId(playlistId)
+                if (videoId != null) onResult(videoId)
+            } catch (_: Exception) { }
+        }
+    }
+
+    fun savePlaylistAsLocal(playlist: SearchPlaylist) {
+        viewModelScope.launch {
+            try {
+                val videos = engine.getPlaylistVideos(playlist.playlistId)
+                if (videos.isEmpty()) return@launch
+                val id = playlistDao.insertPlaylist(
+                    LocalPlaylist(name = playlist.title, createdAt = System.currentTimeMillis())
+                )
+                for ((index, video) in videos.withIndex()) {
+                    playlistDao.insertVideo(
+                        PlaylistVideo(
+                            playlistId = id,
+                            videoId = video.videoId,
+                            title = video.title,
+                            channelName = video.author,
+                            thumbnailUrl = video.thumbnailUrl,
+                            durationMs = video.durationMs,
+                            position = index
+                        )
+                    )
+                }
+                playlistDao.updatePlaylist(
+                    LocalPlaylist(id = id, name = playlist.title, createdAt = System.currentTimeMillis(), videoCount = videos.size)
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "savePlaylistAsLocal failed", e)
+            }
+        }
+    }
+
     private fun search(query: String) {
         _uiState.value = SearchUiState.Loading
         viewModelScope.launch {
@@ -261,6 +307,7 @@ class SearchViewModel @Inject constructor(
                 ?.let { result ->
                     allVideos = result.sections.flatMap { it.videos }.distinctBy { it.videoId }
                     allChannels = result.channels
+                    allPlaylists = result.playlists
                     applyFilter()
                 }
         }
@@ -274,7 +321,8 @@ sealed interface SearchUiState {
     data class Error(val message: String) : SearchUiState
     data class Results(
         val videos: List<Video>,
-        val channels: List<SearchChannel>
+        val channels: List<SearchChannel>,
+        val playlists: List<SearchPlaylist> = emptyList()
     ) : SearchUiState
 }
 

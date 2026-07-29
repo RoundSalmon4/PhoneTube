@@ -37,7 +37,13 @@ data class PreferencesExport(
     val colorSchemeMode: String = "STANDARD",
     val videoSearchLimit: Int = 50,
     val channelSearchLimit: Int = 20,
-    val pipEnabled: Boolean = true
+    val pipEnabled: Boolean = true,
+    val openLinksIn: String = "browser",
+    val playlistSearchLimit: Int = 10,
+    val feedOrder: List<String> = listOf(
+        "home", "what_to_watch", "subscriptions", "trending",
+        "sports", "gaming", "live", "news", "music", "kids"
+    )
 )
 
 @Serializable

@@ -382,9 +382,38 @@ private fun SponsorBlockSection(uiState: PreferencesUiState, viewModel: Settings
                                     expanded = false
                                 }
                             )
+        }
+        
+        var playlistLimitExpanded by remember { mutableStateOf(false) }
+        val playlistLimits = listOf(5, 10, 20, 30, 50)
+        val currentPlaylistLimit = uiState.playlistSearchLimit
+
+        ExposedDropdownMenuBox(
+            expanded = playlistLimitExpanded,
+            onExpandedChange = { playlistLimitExpanded = it }
+        ) {
+            OutlinedTextField(
+                value = "$currentPlaylistLimit results",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Playlist Results Limit") },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = playlistLimitExpanded) }
+            )
+            ExposedDropdownMenu(expanded = playlistLimitExpanded, onDismissRequest = { playlistLimitExpanded = false }) {
+                playlistLimits.forEach { limit ->
+                    DropdownMenuItem(
+                        text = { Text("$limit results") },
+                        onClick = {
+                            viewModel.setPlaylistSearchLimit(limit)
+                            playlistLimitExpanded = false
                         }
-                    }
+                    )
                 }
+            }
+        }
+    }
+}
             }
         }
     }

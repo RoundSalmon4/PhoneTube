@@ -1,4 +1,4 @@
-package com.roundsalmon4.phonetube.core.engine
+﻿package com.roundsalmon4.phonetube.core.engine
 
 import android.util.Log
 import com.roundsalmon4.phonetube.core.engine.model.ChannelInfo
@@ -6,6 +6,7 @@ import com.roundsalmon4.phonetube.core.engine.model.ChannelSection
 import com.roundsalmon4.phonetube.core.engine.model.HomeFeed
 import com.roundsalmon4.phonetube.core.engine.model.HomeSection
 import com.roundsalmon4.phonetube.core.engine.model.SearchChannel
+import com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist
 import com.roundsalmon4.phonetube.core.engine.model.SearchResult
 import com.roundsalmon4.phonetube.core.engine.model.SearchSection
 import com.roundsalmon4.phonetube.core.engine.model.StreamFormat
@@ -202,9 +203,10 @@ class YouTubeEngine @Inject constructor(
             }
 
             val videos = groups.toSearchVideos()
+            val playlists = groups.toSearchPlaylists()
             val channelsFromSearch = groups.toSearchChannels()
 
-            Log.d(TAG, "search('$query'): ${videos.size} videos, ${channelsFromSearch.size} channels from search")
+            Log.d(TAG, "search('$query'): ${videos.size} videos, ${playlists.size} playlists, ${channelsFromSearch.size} channels from search")
 
             val channelGroups = try {
                 contentService.getSearchObserve(query, SearchOptions.TYPE_CHANNEL).awaitFirstOrDefault(emptyList())
@@ -221,11 +223,12 @@ class YouTubeEngine @Inject constructor(
 
             emit(SearchResult(
                 sections = sections,
-                channels = channels
+                channels = channels,
+                playlists = playlists
             ))
         } catch (e: Exception) {
             Log.e(TAG, "search('$query') failed", e)
-            emit(SearchResult(emptyList(), emptyList()))
+            emit(SearchResult(emptyList(), emptyList(), emptyList()))
         }
     }.flowOn(Dispatchers.IO)
 
@@ -239,7 +242,9 @@ class YouTubeEngine @Inject constructor(
             val groups = contentService.getChannelObserve(channelId).awaitFirstOrDefault(emptyList())
             val firstGroup = groups.firstOrNull()
             val sections = groups.mapNotNull { group ->
-                val videos = (group.mediaItems ?: emptyList()).filterNotNull().mapNotNull { it.toVideo() }
+                val videos = (group.mediaItems ?: emptyList()).filterNotNull()
+                    .flatMap { it.resolveVideos() }
+                    .distinctBy { it.videoId }
                 if (videos.isNotEmpty()) {
                     ChannelSection(title = group.title.orEmpty(), videos = videos)
                 } else null
@@ -319,6 +324,17 @@ class YouTubeEngine @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "getPlaylistFirstVideoId failed for $playlistId", e)
             null
+        }
+    }
+
+    suspend fun getPlaylistVideos(playlistId: String): List<Video> {
+        return try {
+            val group = contentService.getGroup(playlistId) ?: return emptyList()
+            val items = (group.mediaItems ?: emptyList()).filterNotNull()
+            items.mapNotNull { it.toVideo() }
+        } catch (e: Exception) {
+            Log.e(TAG, "getPlaylistVideos failed for $playlistId", e)
+            emptyList()
         }
     }
 
@@ -544,5 +560,26 @@ class YouTubeEngine @Inject constructor(
         }
         Log.d(TAG, "toSearchChannels: $debugCount channels found")
         return channels
+    }
+    private fun List<MediaGroup>.toSearchPlaylists(): List<SearchPlaylist> {
+        val playlists = mutableListOf<SearchPlaylist>()
+        for (group in this) {
+            for (item in (group.mediaItems ?: emptyList()).filterNotNull()) {
+                if (item.type == MediaItem.TYPE_PLAYLIST && !item.playlistId.isNullOrBlank()) {
+                    playlists.add(
+                        SearchPlaylist(
+                            playlistId = item.playlistId,
+                            title = item.title.orEmpty(),
+                            channelName = item.author.orEmpty(),
+                            thumbnailUrl = item.cardImageUrl?.ifBlank { null }
+                                ?: item.backgroundImageUrl?.ifBlank { null },
+                            videoCount = 0
+                        )
+                    )
+                }
+            }
+        }
+        Log.d(TAG, "toSearchPlaylists:  playlists found")
+        return playlists
     }
 }

@@ -224,6 +224,41 @@ fun SearchScreen(
                                 )
                             }
                         }
+                        if (state.playlists.isNotEmpty()) {
+                            item {
+                                Text(
+                                    "Playlists",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                            items(state.playlists, key = { "pl-${it.playlistId}" }) { playlist ->
+                                ListItem(
+                                    headlineContent = { Text(playlist.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                    supportingContent = { Text(playlist.channelName) },
+                                    leadingContent = {
+                                        AsyncImage(
+                                            model = playlist.thumbnailUrl,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(64.dp, 36.dp).clip(RoundedCornerShape(4.dp)),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    },
+                                    trailingContent = {
+                                        androidx.compose.material3.TextButton(onClick = {
+                                            viewModel.savePlaylistAsLocal(playlist)
+                                        }) {
+                                            Text("Save")
+                                        }
+                                    },
+                                    modifier = Modifier.clickable {
+                                        viewModel.getPlaylistFirstVideoId(playlist.playlistId) { videoId ->
+                                            onVideoClick(videoId)
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
