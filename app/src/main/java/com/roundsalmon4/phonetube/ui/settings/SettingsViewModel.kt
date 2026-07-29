@@ -285,6 +285,10 @@ class SettingsViewModel @Inject constructor(
         playerPreferences.setFeedOrder(order)
     }
 
+    fun setContinuePlaying(enabled: Boolean) = viewModelScope.launch {
+        playerPreferences.setContinuePlaying(enabled)
+    }
+
     fun showClearHistoryDialog() { _showClearHistoryDialog.value = true }
     fun dismissClearHistoryDialog() { _showClearHistoryDialog.value = false }
 

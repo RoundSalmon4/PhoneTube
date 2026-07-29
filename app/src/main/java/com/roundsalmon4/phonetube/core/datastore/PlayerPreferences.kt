@@ -49,6 +49,7 @@ private object Keys {
     val PIP_ENABLED = booleanPreferencesKey("pip_enabled")
     val OPEN_LINKS_IN = stringPreferencesKey("open_links_in")
     val FEED_ORDER = stringPreferencesKey("feed_order")
+    val CONTINUE_PLAYING = booleanPreferencesKey("continue_playing")
 }
 
 data class PreferencesUiState(
@@ -92,7 +93,8 @@ data class PreferencesUiState(
     val feedOrder: List<String> = listOf(
         "home", "what_to_watch", "subscriptions", "trending",
         "sports", "gaming", "live", "news", "music", "kids"
-    )
+    ),
+    val continuePlaying: Boolean = false
 )
 
 @Singleton
@@ -129,7 +131,8 @@ class PlayerPreferences @Inject constructor(
             playlistSearchLimit = prefs[Keys.PLAYLIST_SEARCH_LIMIT] ?: 10,
             pipEnabled = prefs[Keys.PIP_ENABLED] ?: true,
             openLinksIn = prefs[Keys.OPEN_LINKS_IN] ?: "browser",
-            feedOrder = parseFeedOrder(prefs[Keys.FEED_ORDER])
+            feedOrder = parseFeedOrder(prefs[Keys.FEED_ORDER]),
+            continuePlaying = prefs[Keys.CONTINUE_PLAYING] ?: false
         )
     }
 
@@ -254,5 +257,9 @@ class PlayerPreferences @Inject constructor(
 
     suspend fun setFeedOrder(order: List<String>) {
         context.playerDataStore.edit { it[Keys.FEED_ORDER] = serializeFeedOrder(order) }
+    }
+
+    suspend fun setContinuePlaying(enabled: Boolean) {
+        context.playerDataStore.edit { it[Keys.CONTINUE_PLAYING] = enabled }
     }
 }

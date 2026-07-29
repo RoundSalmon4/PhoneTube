@@ -45,6 +45,7 @@ import com.roundsalmon4.phonetube.ui.search.SearchScreen
 import com.roundsalmon4.phonetube.ui.settings.CreditsScreen
 import com.roundsalmon4.phonetube.ui.settings.LicenseScreen
 import com.roundsalmon4.phonetube.ui.settings.SettingsScreen
+import com.roundsalmon4.phonetube.ui.player.YouTubePlaylistScreen
 
 data class BottomNavItem(
     val label: String,
@@ -194,6 +195,9 @@ fun AppNavigation(
                         },
                         onChannelClick = { channelId ->
                             navController.navigate(Route.Channel(channelId))
+                        },
+                        onPlaylistClick = { playlistId, playlistTitle ->
+                            navController.navigate(Route.YouTubePlaylist(playlistId, playlistTitle))
                         }
                     )
                 }
@@ -229,6 +233,18 @@ fun AppNavigation(
                 composable<Route.PlaylistDetail> { backStackEntry ->
                     val route = backStackEntry.toRoute<Route.PlaylistDetail>()
                     PlaylistDetailScreen(
+                        onVideoClick = { videoId ->
+                            navController.navigate(Route.Player(videoId))
+                        },
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+
+                composable<Route.YouTubePlaylist> { backStackEntry ->
+                    val route = backStackEntry.toRoute<Route.YouTubePlaylist>()
+                    YouTubePlaylistScreen(
+                        playlistId = route.playlistId,
+                        playlistTitle = route.playlistTitle,
                         onVideoClick = { videoId ->
                             navController.navigate(Route.Player(videoId))
                         },

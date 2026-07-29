@@ -62,6 +62,7 @@ import com.roundsalmon4.phonetube.ui.components.VideoCard
 fun SearchScreen(
     onVideoClick: (String) -> Unit,
     onChannelClick: (String) -> Unit,
+    onPlaylistClick: ((playlistId: String, playlistTitle: String) -> Unit)? = null,
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val query by viewModel.query.collectAsStateWithLifecycle()
@@ -254,8 +255,12 @@ fun SearchScreen(
                                         }
                                     },
                                     modifier = Modifier.clickable {
-                                        viewModel.getPlaylistFirstVideoId(playlist) { videoId ->
-                                            onVideoClick(videoId)
+                                        if (onPlaylistClick != null) {
+                                            onPlaylistClick(playlist.playlistId, playlist.title)
+                                        } else {
+                                            viewModel.getPlaylistFirstVideoId(playlist) { videoId ->
+                                                onVideoClick(videoId)
+                                            }
                                         }
                                     }
                                 )

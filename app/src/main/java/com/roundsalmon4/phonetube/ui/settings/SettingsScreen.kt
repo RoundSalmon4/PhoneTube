@@ -326,6 +326,13 @@ private fun PlayerSection(uiState: PreferencesUiState, viewModel: SettingsViewMo
                 }
             }
         }
+
+        SwitchItem(
+            name = "Continue Playing",
+            description = "Automatically play the next suggested video when the current one ends",
+            checked = uiState.continuePlaying,
+            onCheckedChange = { viewModel.setContinuePlaying(it) }
+        )
     }
 }
 
