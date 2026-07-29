@@ -25,8 +25,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
@@ -40,9 +38,9 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
@@ -58,6 +56,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -68,6 +69,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -77,6 +79,13 @@ import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.ui.components.WebViewDialog
 import com.roundsalmon4.phonetube.ui.components.openLink
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -380,6 +389,7 @@ private fun SponsorBlockSection(uiState: PreferencesUiState, viewModel: Settings
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewModel) {
     val feedLabels = mapOf(
@@ -396,15 +406,14 @@ private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewMod
     )
 
     val orderedFeeds = uiState.feedOrder.filter { it in feedLabels }
+    var draggedIndex by remember { mutableIntStateOf(-1) }
+    var draggedOffset by remember { mutableFloatStateOf(0f) }
+    val density = LocalDensity.current
+    val itemHeightPx = with(density) { 56.dp.toPx() }
 
     Column {
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
         SettingsCategory("Feeds")
-
-        ListItem(
-            headlineContent = { Text("Reorder feeds", fontWeight = FontWeight.SemiBold) },
-            supportingContent = { Text("Use the arrows to change the order of feed sections on home screen") }
-        )
 
         orderedFeeds.forEachIndexed { index, key ->
             val label = feedLabels[key] ?: key
@@ -421,47 +430,59 @@ private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewMod
                 "subscriptions" -> uiState.feedSubscriptions
                 else -> true
             }
+            val isDragged = index == draggedIndex
 
-            ListItem(
-                headlineContent = {
-                    Text(label, fontWeight = FontWeight.SemiBold)
-                },
-                leadingContent = {
-                    Icon(
-                        imageVector = Icons.Default.DragHandle,
-                        contentDescription = "Reorder",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingContent = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (index > 0) {
-                            IconButton(onClick = {
-                                val mutable = orderedFeeds.toMutableList()
-                                val item = mutable.removeAt(index)
-                                mutable.add(index - 1, item)
-                                viewModel.setFeedOrder(mutable)
-                            }) {
-                                Icon(Icons.Default.ArrowUpward, contentDescription = "Move up", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                        if (index < orderedFeeds.size - 1) {
-                            IconButton(onClick = {
-                                val mutable = orderedFeeds.toMutableList()
-                                val item = mutable.removeAt(index)
-                                mutable.add(index + 1, item)
-                                viewModel.setFeedOrder(mutable)
-                            }) {
-                                Icon(Icons.Default.ArrowDownward, contentDescription = "Move down", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
+            Box(
+                modifier = Modifier
+                    .zIndex(if (isDragged) 1f else 0f)
+                    .then(if (isDragged) Modifier.shadow(4.dp) else Modifier)
+                    .offset { IntOffset(0, if (isDragged) draggedOffset.roundToInt() else 0) }
+            ) {
+                ListItem(
+                    colors = androidx.compose.material3.ListItemDefaults.colors(
+                        containerColor = if (isDragged) MaterialTheme.colorScheme.surfaceContainer else androidx.compose.ui.graphics.Color.Transparent
+                    ),
+                    headlineContent = { Text(label, fontWeight = FontWeight.SemiBold) },
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Default.DragHandle,
+                            contentDescription = "Drag to reorder",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .pointerInput(Unit) {
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = { draggedIndex = index; draggedOffset = 0f },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            draggedOffset += dragAmount.y
+                                            val currentIndex = draggedIndex
+                                            if (currentIndex >= 0) {
+                                                val targetIndex = (currentIndex + (draggedOffset / itemHeightPx).roundToInt())
+                                                    .coerceIn(0, orderedFeeds.size - 1)
+                                                if (targetIndex != currentIndex) {
+                                                    val mutable = orderedFeeds.toMutableList()
+                                                    val item = mutable.removeAt(currentIndex)
+                                                    mutable.add(targetIndex, item)
+                                                    viewModel.setFeedOrder(mutable)
+                                                    draggedIndex = targetIndex
+                                                    draggedOffset = 0f
+                                                }
+                                            }
+                                        },
+                                        onDragEnd = { draggedIndex = -1; draggedOffset = 0f },
+                                        onDragCancel = { draggedIndex = -1; draggedOffset = 0f }
+                                    )
+                                }
+                        )
+                    },
+                    trailingContent = {
                         Switch(
                             checked = enabled,
                             onCheckedChange = { viewModel.setFeedEnabled(key, it) }
                         )
                     }
-                }
-            )
+                )
+            }
         }
     }
 }
