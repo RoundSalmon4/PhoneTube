@@ -25,9 +25,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.AlertDialog
@@ -378,24 +381,32 @@ private fun SponsorBlockSection(uiState: PreferencesUiState, viewModel: Settings
 
 @Composable
 private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewModel) {
+    val feedLabels = mapOf(
+        "home" to "Home",
+        "what_to_watch" to "What to Watch",
+        "subscriptions" to "Subscriptions",
+        "trending" to "Trending",
+        "music" to "Music",
+        "sports" to "Sports",
+        "live" to "Live",
+        "news" to "News",
+        "gaming" to "Gaming",
+        "kids" to "Kids"
+    )
+
+    val orderedFeeds = uiState.feedOrder.filter { it in feedLabels }
+
     Column {
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
         SettingsCategory("Feeds")
 
-        val feeds = listOf(
-            "home" to "Home",
-            "subscriptions" to "Subscriptions",
-            "trending" to "Trending",
-            "what_to_watch" to "What to Watch",
-            "music" to "Music",
-            "sports" to "Sports",
-            "live" to "Live",
-            "news" to "News",
-            "gaming" to "Gaming",
-            "kids" to "Kids"
+        ListItem(
+            headlineContent = { Text("Drag to reorder", fontWeight = FontWeight.SemiBold) },
+            supportingContent = { Text("Use the handle to reorder feed sections on home screen") }
         )
 
-        feeds.forEach { (key, label) ->
+        orderedFeeds.forEachIndexed { index, key ->
+            val label = feedLabels[key] ?: key
             val enabled = when (key) {
                 "home" -> uiState.feedHome
                 "trending" -> uiState.feedTrending
@@ -410,11 +421,45 @@ private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewMod
                 else -> true
             }
 
-            SwitchItem(
-                name = label,
-                description = if (enabled) "Enabled" else "Disabled — won't load on startup",
-                checked = enabled,
-                onCheckedChange = { viewModel.setFeedEnabled(key, it) }
+            ListItem(
+                headlineContent = {
+                    Text(label, fontWeight = FontWeight.SemiBold)
+                },
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Default.DragHandle,
+                        contentDescription = "Reorder",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                trailingContent = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (index > 0) {
+                            IconButton(onClick = {
+                                val mutable = orderedFeeds.toMutableList()
+                                val item = mutable.removeAt(index)
+                                mutable.add(index - 1, item)
+                                viewModel.setFeedOrder(mutable)
+                            }) {
+                                Icon(Icons.Default.ArrowUpward, contentDescription = "Move up", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        if (index < orderedFeeds.size - 1) {
+                            IconButton(onClick = {
+                                val mutable = orderedFeeds.toMutableList()
+                                val item = mutable.removeAt(index)
+                                mutable.add(index + 1, item)
+                                viewModel.setFeedOrder(mutable)
+                            }) {
+                                Icon(Icons.Default.ArrowDownward, contentDescription = "Move down", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        Switch(
+                            checked = enabled,
+                            onCheckedChange = { viewModel.setFeedEnabled(key, it) }
+                        )
+                    }
+                }
             )
         }
     }

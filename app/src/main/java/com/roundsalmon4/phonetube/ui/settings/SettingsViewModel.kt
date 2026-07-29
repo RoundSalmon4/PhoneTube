@@ -271,6 +271,10 @@ class SettingsViewModel @Inject constructor(
         playerPreferences.setOpenLinksIn(mode)
     }
 
+    fun setFeedOrder(order: List<String>) = viewModelScope.launch {
+        playerPreferences.setFeedOrder(order)
+    }
+
     fun showClearHistoryDialog() { _showClearHistoryDialog.value = true }
     fun dismissClearHistoryDialog() { _showClearHistoryDialog.value = false }
 

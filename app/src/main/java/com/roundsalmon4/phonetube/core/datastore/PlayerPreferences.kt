@@ -47,6 +47,7 @@ private object Keys {
     val CHANNEL_SEARCH_LIMIT = intPreferencesKey("channel_search_limit")
     val PIP_ENABLED = booleanPreferencesKey("pip_enabled")
     val OPEN_LINKS_IN = stringPreferencesKey("open_links_in")
+    val FEED_ORDER = stringPreferencesKey("feed_order")
 }
 
 data class PreferencesUiState(
@@ -85,7 +86,11 @@ data class PreferencesUiState(
     val videoSearchLimit: Int = 50,
     val channelSearchLimit: Int = 20,
     val pipEnabled: Boolean = true,
-    val openLinksIn: String = "browser" // "browser" or "webview"
+    val openLinksIn: String = "browser", // "browser" or "webview"
+    val feedOrder: List<String> = listOf(
+        "home", "what_to_watch", "subscriptions", "trending",
+        "sports", "gaming", "live", "news", "music", "kids"
+    )
 )
 
 @Singleton
@@ -120,7 +125,8 @@ class PlayerPreferences @Inject constructor(
             videoSearchLimit = prefs[Keys.VIDEO_SEARCH_LIMIT] ?: 50,
             channelSearchLimit = prefs[Keys.CHANNEL_SEARCH_LIMIT] ?: 20,
             pipEnabled = prefs[Keys.PIP_ENABLED] ?: true,
-            openLinksIn = prefs[Keys.OPEN_LINKS_IN] ?: "browser"
+            openLinksIn = prefs[Keys.OPEN_LINKS_IN] ?: "browser",
+            feedOrder = parseFeedOrder(prefs[Keys.FEED_ORDER])
         )
     }
 
@@ -144,6 +150,16 @@ class PlayerPreferences @Inject constructor(
 
     private fun serializeCategories(categories: Map<String, String>): Set<String> =
         categories.map { "${it.key}=${it.value}" }.toSet()
+
+    private fun parseFeedOrder(raw: String?): List<String> {
+        if (raw.isNullOrBlank()) return listOf(
+            "home", "what_to_watch", "subscriptions", "trending",
+            "sports", "gaming", "live", "news", "music", "kids"
+        )
+        return raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+    }
+
+    private fun serializeFeedOrder(order: List<String>): String = order.joinToString(",")
 
     suspend fun setPlaybackSpeed(speed: Float) {
         context.playerDataStore.edit { it[Keys.PLAYBACK_SPEED] = speed }
@@ -227,5 +243,9 @@ class PlayerPreferences @Inject constructor(
 
     suspend fun setOpenLinksIn(mode: String) {
         context.playerDataStore.edit { it[Keys.OPEN_LINKS_IN] = mode }
+    }
+
+    suspend fun setFeedOrder(order: List<String>) {
+        context.playerDataStore.edit { it[Keys.FEED_ORDER] = serializeFeedOrder(order) }
     }
 }

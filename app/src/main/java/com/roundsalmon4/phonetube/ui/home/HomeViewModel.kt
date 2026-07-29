@@ -245,6 +245,23 @@ class HomeViewModel @Inject constructor(
                     homeFeed, whatToWatchFeed, subscriptionsFeed, trendingFeed, sportsFeed, gamingFeed, liveFeed, newsFeed, musicFeed, kidsFeed
                 )
 
+                val feedSourceMap = mapOf(
+                    "home" to homeFeed,
+                    "what_to_watch" to whatToWatchFeed,
+                    "subscriptions" to subscriptionsFeed,
+                    "trending" to trendingFeed,
+                    "music" to musicFeed,
+                    "sports" to sportsFeed,
+                    "live" to liveFeed,
+                    "news" to newsFeed,
+                    "gaming" to gamingFeed,
+                    "kids" to kidsFeed
+                )
+
+                val orderedFeeds = prefs.feedOrder.mapNotNull { key ->
+                    feedSourceMap[key]
+                }
+
                 val allSections = orderedFeeds.flatMap { it.sections }
                 val nonEmpty = allSections.filter { it.videos.isNotEmpty() }
                 if (nonEmpty.isNotEmpty()) {
