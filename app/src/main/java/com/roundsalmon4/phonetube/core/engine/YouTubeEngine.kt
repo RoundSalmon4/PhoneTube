@@ -334,8 +334,9 @@ class YouTubeEngine @Inject constructor(
     suspend fun getPlaylistVideos(playlistId: String): List<Video> {
         Log.d(TAG, "getPlaylistVideos: fetching videos for playlist $playlistId")
         return try {
-            val group = contentService.getGroup(playlistId) ?: return emptyList().also {
+            val group = contentService.getGroup(playlistId) ?: run {
                 Log.w(TAG, "getPlaylistVideos: getGroup returned null for $playlistId")
+                return@run emptyList()
             }
             val items = (group.mediaItems ?: emptyList()).filterNotNull()
             Log.d(TAG, "getPlaylistVideos: got ${items.size} items from group for $playlistId")
