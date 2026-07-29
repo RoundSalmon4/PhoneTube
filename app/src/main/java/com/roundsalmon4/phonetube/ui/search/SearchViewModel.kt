@@ -210,11 +210,11 @@ class SearchViewModel @Inject constructor(
             val prefs = playerPreferences.uiState.first()
             val filteredVideos = when (_filter.value) {
                 SearchFilter.ALL, SearchFilter.VIDEOS -> allVideos.take(prefs.videoSearchLimit)
-                SearchFilter.CHANNELS -> emptyList()
+                SearchFilter.CHANNELS, SearchFilter.PLAYLISTS -> emptyList()
             }
             val filteredChannels = when (_filter.value) {
                 SearchFilter.ALL, SearchFilter.CHANNELS -> allChannels.take(prefs.channelSearchLimit)
-                SearchFilter.VIDEOS -> emptyList()
+                SearchFilter.VIDEOS, SearchFilter.PLAYLISTS -> emptyList()
             }
             val filteredPlaylists = when (_filter.value) {
                 SearchFilter.ALL, SearchFilter.PLAYLISTS -> allPlaylists.take(prefs.playlistSearchLimit)
