@@ -26,6 +26,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -42,8 +43,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.roundsalmon4.phonetube.core.engine.model.ChannelSection
 import com.roundsalmon4.phonetube.core.engine.model.Video
+import com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist
 import com.roundsalmon4.phonetube.ui.components.VideoCard
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,6 +120,32 @@ fun ChannelScreen(
                             onVideoClick = onVideoClick,
                             onChannelClick = onChannelClick
                         )
+                        if (section.playlists.isNotEmpty()) {
+                            Text(
+                                "Playlists",
+                                style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                            section.playlists.forEach { playlist ->
+                                ListItem(
+                                    headlineContent = { Text(playlist.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                    supportingContent = { Text(playlist.channelName) },
+                                    leadingContent = {
+                                        AsyncImage(
+                                            model = playlist.thumbnailUrl,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(64.dp, 36.dp).clip(RoundedCornerShape(4.dp)),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    },
+                                    modifier = Modifier.clickable {
+                                        if (!playlist.firstVideoId.isNullOrBlank()) {
+                                            onVideoClick(playlist.firstVideoId)
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }

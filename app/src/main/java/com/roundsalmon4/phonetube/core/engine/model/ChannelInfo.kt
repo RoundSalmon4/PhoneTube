@@ -11,5 +11,6 @@ data class ChannelInfo(
 
 data class ChannelSection(
     val title: String,
-    val videos: List<Video>
+    val videos: List<Video>,
+    val playlists: List<SearchPlaylist> = emptyList()
 )

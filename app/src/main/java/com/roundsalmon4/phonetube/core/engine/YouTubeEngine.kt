@@ -250,13 +250,27 @@ class YouTubeEngine @Inject constructor(
             Log.d(TAG, "getChannel($channelId): ${groups.size} groups from API")
             val sections = groups.mapNotNull { group ->
                 val items = (group.mediaItems ?: emptyList()).filterNotNull()
-                val videoCount = items.count { it.videoId?.isNotBlank() == true }
-                val playlistCount = items.count { it.type == MediaItem.TYPE_PLAYLIST }
+                val videoItems = items.filter { it.videoId?.isNotBlank() == true || it.type != MediaItem.TYPE_PLAYLIST }
+                val playlistItems = items.filter { it.type == MediaItem.TYPE_PLAYLIST }
+                val videoCount = videoItems.size
+                val playlistCount = playlistItems.size
                 Log.d(TAG, "getChannel($channelId): group '${group.title?.take(30)}': $videoCount videos, $playlistCount playlists, ${items.size} total")
-                val videos = items.flatMap { it.resolveVideos() }
+                val videos = videoItems.flatMap { it.resolveVideos() }
                     .distinctBy { it.videoId }
-                if (videos.isNotEmpty()) {
-                    ChannelSection(title = group.title.orEmpty(), videos = videos)
+                val playlists = playlistItems.mapNotNull { item ->
+                    val pid = item.playlistId ?: item.channelId?.takeIf { it.startsWith("VL") }
+                    if (pid.isNullOrBlank()) return@mapNotNull null
+                    SearchPlaylist(
+                        playlistId = pid,
+                        title = item.title.orEmpty(),
+                        channelName = item.author.orEmpty(),
+                        thumbnailUrl = item.cardImageUrl?.ifBlank { null },
+                        videoCount = 0,
+                        firstVideoId = item.videoId?.takeIf { it.isNotBlank() }
+                    )
+                }
+                if (videos.isNotEmpty() || playlists.isNotEmpty()) {
+                    ChannelSection(title = group.title.orEmpty(), videos = videos, playlists = playlists)
                 } else null
             }
             val allVideoIds = sections.flatMap { it.videos }.map { it.videoId }.filter { it.isNotBlank() }
