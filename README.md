@@ -9,14 +9,16 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 | Feature | Description |
 |---------|-------------|
 | Home Feed | Browse YouTube recommendations, subscriptions, trending, music, sports, live, news, gaming, and kids content |
-| Search | Search YouTube with autocomplete suggestions and configurable result limits |
+| Search | Search YouTube with autocomplete suggestions and configurable result limits. Long press video to add to playlist or go to channel. Channel results include subscribe button |
 | Video Playback | Play videos with DASH and HLS streaming, quality picker, subtitle support, and audio track selection |
 | Background Play | Continue listening with a persistent notification and mini player controls |
+| Picture-in-Picture | Floating video window when leaving the app during playback (Android 8+) |
 | Mini Player | Persistent playback bar with play/pause, rewind, forward, close, and progress bar |
+| Description | Expand/collapse video description with clickable timestamps and URL links |
 | SponsorBlock | Skip sponsor segments and other interruptions automatically with per-category skip/toast/none controls |
-| Local Playlists | Create and manage playlists without a Google account, add from home feed or watch history |
-| Local Subscriptions | Subscribe to channels locally — latest videos appear on the home feed |
-| Subscriptions Feed | Home screen shows recent uploads from your subscribed channels |
+| Local Playlists | Create and manage playlists without a Google account, add from home feed, player screen, or watch history. Drag-to-reorder videos within a playlist |
+| Import/Export | Backup and restore settings, playlists, and subscriptions to/from JSON files |
+| Local Subscriptions | Subscribe to channels locally. Latest videos appear on the home feed. Subscribe directly from search results |
 | Watch History | Your watch history is saved locally with resume position and progress indicators |
 | Channel Pages | Browse channel videos and subscribe locally |
 | Deep Linking | Open YouTube video, playlist, channel, and shorts links directly in PhoneTube |
@@ -24,10 +26,12 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 | Quality Picker | Choose video quality from available formats with current resolution shown |
 | Audio Track Picker | Select between available audio tracks when multiple are present |
 | Subtitles | Toggle and select subtitle tracks |
-| Feed Toggle | Enable or disable individual feed sources for faster loading |
+| Feed Toggle | Enable or disable individual feed sources |
+| Feed Order | Drag-to-reorder feed sections in settings |
 | Feed Cache | Feed data is cached with watch progress for instant loading on return |
-| Customization | Choose theme colors, enable AMOLED dark mode, or use your wallpaper colors on Android 12+ |
-| Settings | Configure playback defaults, SponsorBlock categories, search limits, and which feeds to show |
+| Open Links | Choose between in-app WebView or system browser for opening links |
+| Customization | Choose theme colors, enable AMOLED dark mode, or use your wallpaper colors on Android 12+. Picture-in-Picture toggle |
+| Settings | Configure playback defaults, SponsorBlock categories, search limits, feed order, link opening mode, and data import/export |
 
 ## Installation
 

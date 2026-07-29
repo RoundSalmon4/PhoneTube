@@ -89,6 +89,54 @@ private val credits = listOf(
         description = "REST API client",
         url = "https://github.com/square/retrofit",
         license = "Apache 2.0"
+    ),
+    CreditEntry(
+        name = "Kotlinx Serialization",
+        description = "JSON serialization for export, navigation routes",
+        url = "https://github.com/Kotlin/kotlinx.serialization",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
+        name = "Room",
+        description = "Local database for history, playlists, subscriptions, feed cache",
+        url = "https://developer.android.com/jetpack/androidx/releases/room",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
+        name = "DataStore",
+        description = "Preferences storage",
+        url = "https://developer.android.com/topic/libraries/architecture/datastore",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
+        name = "Navigation Compose",
+        description = "Type-safe screen navigation",
+        url = "https://developer.android.com/develop/ui/compose/navigation",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
+        name = "Kotlin Coroutines",
+        description = "Async runtime for network calls and database operations",
+        url = "https://github.com/Kotlin/kotlinx.coroutines",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
+        name = "RxJava 2",
+        description = "Reactive streams bridge for MediaServiceCore",
+        url = "https://github.com/ReactiveX/RxJava",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
+        name = "Cronet",
+        description = "Network stack via OkHttp Cronet interceptor",
+        url = "https://developer.android.com/guide/topics/connectivity/cronet",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
+        name = "J2V8",
+        description = "JavaScript runtime for PoToken generation and nsig solver",
+        url = "https://github.com/eclipsesource/J2V8",
+        license = "EPL-1.0"
     )
 )
 
