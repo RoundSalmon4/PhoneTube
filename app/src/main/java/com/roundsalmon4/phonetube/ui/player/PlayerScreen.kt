@@ -48,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 
 import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
+import com.roundsalmon4.phonetube.ui.components.WebViewDialog
 import com.roundsalmon4.phonetube.ui.components.openLink
 
 @Composable
@@ -71,6 +72,8 @@ fun PlayerScreen(
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     var controlsVisible by remember { mutableStateOf(true) }
     var expanded by remember { mutableStateOf(false) }
+    var webViewUrl by remember { mutableStateOf<String?>(null) }
+    var webViewTitle by remember { mutableStateOf("") }
 
     val context = LocalContext.current
     val activity = context as? Activity
@@ -207,11 +210,9 @@ fun PlayerScreen(
                                         viewModel.seekTo(seconds * 1000)
                                     },
                                     onUrlClick = { url ->
-                                        openLink(url, openLinksIn, context) { _, _ ->
-                                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url)).apply {
-                                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                            }
-                                            context.startActivity(intent)
+                                        openLink(url, openLinksIn, context) { u, title ->
+                                            webViewUrl = u
+                                            webViewTitle = title
                                         }
                                     }
                                 )
@@ -305,6 +306,14 @@ fun PlayerScreen(
             onDismiss = { viewModel.hideAddToPlaylist() },
             onAddToPlaylist = { viewModel.addToPlaylist(it) },
             onCreatePlaylist = { viewModel.createPlaylistAndAdd(it) }
+        )
+    }
+
+    webViewUrl?.let { url ->
+        WebViewDialog(
+            url = url,
+            title = webViewTitle,
+            onDismiss = { webViewUrl = null }
         )
     }
 }
