@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.rx2.await
 import kotlinx.coroutines.rx2.awaitFirstOrDefault
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -322,9 +323,11 @@ class YouTubeEngine @Inject constructor(
 
     suspend fun getPlaylistFirstVideoId(playlistId: String): String? {
         return try {
-            val group = contentService.getGroup(playlistId) ?: return null
-            val items = (group.mediaItems ?: emptyList()).filterNotNull()
-            items.firstOrNull()?.videoId
+            withContext(Dispatchers.IO) {
+                val group = contentService.getGroup(playlistId) ?: return@withContext null
+                val items = (group.mediaItems ?: emptyList()).filterNotNull()
+                items.firstOrNull()?.videoId
+            }
         } catch (e: Exception) {
             Log.e(TAG, "getPlaylistFirstVideoId failed for $playlistId", e)
             null
@@ -334,16 +337,18 @@ class YouTubeEngine @Inject constructor(
     suspend fun getPlaylistVideos(playlistId: String): List<Video> {
         Log.d(TAG, "getPlaylistVideos: fetching videos for playlist $playlistId")
         return try {
-            val group = contentService.getGroup(playlistId)
-            if (group == null) {
-                Log.w(TAG, "getPlaylistVideos: getGroup returned null for $playlistId")
-                return emptyList()
+            withContext(Dispatchers.IO) {
+                val group = contentService.getGroup(playlistId)
+                if (group == null) {
+                    Log.w(TAG, "getPlaylistVideos: getGroup returned null for $playlistId")
+                    return@withContext emptyList()
+                }
+                val items = (group.mediaItems ?: emptyList()).filterNotNull()
+                Log.d(TAG, "getPlaylistVideos: got ${items.size} items from group for $playlistId")
+                items.mapNotNull { it.toVideo() }.also { videos ->
+                    Log.d(TAG, "getPlaylistVideos: ${videos.size} videos mapped for $playlistId")
+                }
             }
-            val items = (group.mediaItems ?: emptyList()).filterNotNull()
-            Log.d(TAG, "getPlaylistVideos: got ${items.size} items from group for $playlistId")
-            val videos = items.mapNotNull { it.toVideo() }
-            Log.d(TAG, "getPlaylistVideos: ${videos.size} videos mapped for $playlistId")
-            videos
         } catch (e: Exception) {
             Log.e(TAG, "getPlaylistVideos failed for $playlistId", e)
             emptyList()
