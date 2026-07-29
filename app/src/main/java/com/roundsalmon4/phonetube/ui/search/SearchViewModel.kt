@@ -217,7 +217,7 @@ class SearchViewModel @Inject constructor(
                 SearchFilter.VIDEOS -> emptyList()
             }
             val filteredPlaylists = when (_filter.value) {
-                SearchFilter.ALL -> allPlaylists.take(prefs.playlistSearchLimit)
+                SearchFilter.ALL, SearchFilter.PLAYLISTS -> allPlaylists.take(prefs.playlistSearchLimit)
                 else -> emptyList()
             }
 

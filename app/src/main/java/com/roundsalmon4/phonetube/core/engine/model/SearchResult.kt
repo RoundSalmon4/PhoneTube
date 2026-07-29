@@ -28,5 +28,6 @@ data class SearchPlaylist(
 enum class SearchFilter {
     ALL,
     VIDEOS,
-    CHANNELS
+    CHANNELS,
+    PLAYLISTS
 }

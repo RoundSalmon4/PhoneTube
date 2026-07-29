@@ -216,22 +216,6 @@ fun SearchScreen(
                                 onLongClick = { longPressedVideo = video }
                             )
                         }
-                        if (state.channels.isNotEmpty()) {
-                            items(state.channels, key = { "ch-${it.channelId}" }) { channel ->
-                                ChannelCard(
-                                    channel = channel,
-                                    onClick = { onChannelClick(channel.channelId) },
-                                    isSubscribed = channel.channelId in subscribedChannels,
-                                    onSubscribe = { channelId ->
-                                        if (channelId in subscribedChannels) {
-                                            viewModel.unsubscribeFromChannel(channelId)
-                                        } else {
-                                            viewModel.subscribeToChannel(channelId, channel.name, channel.thumbnailUrl)
-                                        }
-                                    }
-                                )
-                            }
-                        }
                         if (state.playlists.isNotEmpty()) {
                             item {
                                 Text(
@@ -267,6 +251,22 @@ fun SearchScreen(
                                 )
                             }
                         }
+                        if (state.channels.isNotEmpty()) {
+                            items(state.channels, key = { "ch-${it.channelId}" }) { channel ->
+                                ChannelCard(
+                                    channel = channel,
+                                    onClick = { onChannelClick(channel.channelId) },
+                                    isSubscribed = channel.channelId in subscribedChannels,
+                                    onSubscribe = { channelId ->
+                                        if (channelId in subscribedChannels) {
+                                            viewModel.unsubscribeFromChannel(channelId)
+                                        } else {
+                                            viewModel.subscribeToChannel(channelId, channel.name, channel.thumbnailUrl)
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -287,6 +287,7 @@ private fun FilterChips(filter: SearchFilter, onFilterChange: (SearchFilter) -> 
                 SearchFilter.ALL -> "All"
                 SearchFilter.VIDEOS -> "Videos"
                 SearchFilter.CHANNELS -> "Channels"
+                SearchFilter.PLAYLISTS -> "Playlists"
             }
             FilterChip(
                 selected = filter == entry,
