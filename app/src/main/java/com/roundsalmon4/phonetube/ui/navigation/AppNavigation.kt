@@ -269,8 +269,6 @@ fun AppNavigation(
                 composable<Route.Settings> {
                     SettingsScreen(
                         onLicenseClick = { navController.navigate(Route.License) },
-
-(Showing lines 248-250 of 247)
                         onCreditsClick = { navController.navigate(Route.Credits) }
                     )
                 }

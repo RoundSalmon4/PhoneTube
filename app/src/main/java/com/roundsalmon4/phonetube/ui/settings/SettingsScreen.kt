@@ -389,7 +389,6 @@ private fun SponsorBlockSection(uiState: PreferencesUiState, viewModel: Settings
                                     expanded = false
                                 }
                             )
-        ${'$'}}}
         }
     }
 }
