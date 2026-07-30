@@ -258,7 +258,7 @@ class YouTubeEngine @Inject constructor(
                 val videos = videoItems.flatMap { it.resolveVideos() }
                     .distinctBy { it.videoId }
                 val playlists = playlistItems.mapNotNull { item ->
-                    val pid = item.playlistId ?: item.channelId?.takeIf { it.startsWith("VL") }
+                    val pid = item.playlistId ?: item.channelId?.takeIf { it.startsWith("VL") }?.removePrefix("VL")
                     if (pid.isNullOrBlank()) return@mapNotNull null
                     SearchPlaylist(
                         playlistId = pid,

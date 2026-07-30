@@ -48,7 +48,7 @@ class YouTubePlaylistViewModel @Inject constructor(
             try {
                 val result = engine.getPlaylistVideos(playlistId)
                 if (result.isEmpty()) {
-                    _error.value = "This playlist could not be loaded. Standard playlists only (PL prefix)."
+                    _error.value = "This playlist could not be loaded. Try viewing from search instead."
                 } else {
                     _videos.value = result
                 }
