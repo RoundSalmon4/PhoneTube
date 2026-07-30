@@ -43,7 +43,8 @@ data class PreferencesExport(
     val feedOrder: List<String> = listOf(
         "home", "what_to_watch", "subscriptions", "trending",
         "sports", "gaming", "live", "news", "music", "kids"
-    )
+    ),
+    val continuePlaying: Boolean = false
 )
 
 @Serializable

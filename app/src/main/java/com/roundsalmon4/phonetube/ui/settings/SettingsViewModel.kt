@@ -90,7 +90,8 @@ class SettingsViewModel @Inject constructor(
                 pipEnabled = prefs.pipEnabled,
                 openLinksIn = prefs.openLinksIn,
                 playlistSearchLimit = prefs.playlistSearchLimit,
-                feedOrder = prefs.feedOrder
+                feedOrder = prefs.feedOrder,
+                continuePlaying = prefs.continuePlaying
             ),
             playlists = playlists.map { playlist ->
                 val videos = playlistDao.getPlaylistVideosSync(playlist.id)
@@ -163,6 +164,7 @@ class SettingsViewModel @Inject constructor(
                     playerPreferences.setOpenLinksIn(p.openLinksIn)
                     playerPreferences.setPlaylistSearchLimit(p.playlistSearchLimit)
                     playerPreferences.setFeedOrder(p.feedOrder)
+                    playerPreferences.setContinuePlaying(p.continuePlaying)
                 }
 
                 if (data.subscriptions != null) {

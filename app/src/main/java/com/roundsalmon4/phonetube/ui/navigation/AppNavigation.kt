@@ -184,6 +184,9 @@ fun AppNavigation(
                         onBackClick = { navController.popBackStack() },
                         onChannelClick = { channelId ->
                             navController.navigate(Route.Channel(channelId))
+                        },
+                        onVideoPlayNext = { nextVideoId ->
+                            navController.navigate(Route.Player(nextVideoId))
                         }
                     )
                 }
@@ -197,7 +200,7 @@ fun AppNavigation(
                             navController.navigate(Route.Channel(channelId))
                         },
                         onPlaylistClick = { playlistId, playlistTitle ->
-                            navController.navigate(Route.YouTubePlaylist(playlistId, playlistTitle))
+                            navController.navigate(Route.YouTubePlaylist(playlistId, playlistTitle, ""))
                         }
                     )
                 }
@@ -212,7 +215,10 @@ fun AppNavigation(
                         onChannelClick = { channelId ->
                             navController.navigate(Route.Channel(channelId))
                         },
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = { navController.popBackStack() },
+                        onPlaylistClick = { playlistId, playlistTitle, firstVideoId ->
+                            navController.navigate(Route.YouTubePlaylist(playlistId, playlistTitle, firstVideoId))
+                        }
                     )
                 }
 
@@ -263,6 +269,8 @@ fun AppNavigation(
                 composable<Route.Settings> {
                     SettingsScreen(
                         onLicenseClick = { navController.navigate(Route.License) },
+
+(Showing lines 248-250 of 247)
                         onCreditsClick = { navController.navigate(Route.Credits) }
                     )
                 }

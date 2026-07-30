@@ -2,6 +2,7 @@ package com.roundsalmon4.phonetube.ui.player
 
 import android.app.Application
 import android.util.Log
+import androidx.media3.common.Player
 import androidx.media3.common.C
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
@@ -92,9 +93,13 @@ class PlayerViewModel @Inject constructor(
     private val _playlists = MutableStateFlow<List<LocalPlaylist>>(emptyList())
     val playlists: StateFlow<List<LocalPlaylist>> = _playlists.asStateFlow()
 
+    private val _navigateToVideo = MutableStateFlow<String?>(null)
+    val navigateToVideo: StateFlow<String?> = _navigateToVideo.asStateFlow()
+
     val playbackState: StateFlow<PlayerPlaybackSnapshot> = playerController.playbackState
 
     private val historyMutex = Mutex()
+    private var continuePlayingListener: Player.Listener? = null
 
     init {
         loadStreamInfo()
@@ -106,6 +111,7 @@ class PlayerViewModel @Inject constructor(
         loadOpenLinksInPreference()
         loadPlaylists()
         startPeriodicHistorySave()
+        setupContinuePlaying()
     }
 
     private fun loadStreamInfo() {
@@ -440,8 +446,11 @@ class PlayerViewModel @Inject constructor(
 
     fun clearToast() { _toastMessage.value = null }
 
+    fun clearNavigateToVideo() { _navigateToVideo.value = null }
+
     override fun onCleared() {
         super.onCleared()
+        continuePlayingListener?.let { playerController.exoPlayer.removeListener(it) }
         try {
             val positionMs = playerController.exoPlayer.currentPosition
             if (positionMs > 0) {
@@ -503,6 +512,29 @@ class PlayerViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun setupContinuePlaying() {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED) {
+                    viewModelScope.launch {
+                        val prefs = playerPreferences.uiState.first()
+                        if (!prefs.continuePlaying) return@launch
+                        try {
+                            val meta = engine.getMetadata(videoId).firstOrNull()
+                            val next = meta?.suggestions?.firstOrNull()
+                            if (next != null) {
+                                Log.d(TAG, "Continue playing: loading next video ${next.videoId}")
+                                _navigateToVideo.value = next.videoId
+                            }
+                        } catch (_: Exception) { }
+                    }
+                }
+            }
+        }
+        continuePlayingListener = listener
+        playerController.exoPlayer.addListener(listener)
     }
 }
 

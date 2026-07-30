@@ -56,6 +56,7 @@ fun PlayerScreen(
     videoId: String,
     onBackClick: () -> Unit,
     onChannelClick: ((String) -> Unit)? = null,
+    onVideoPlayNext: ((String) -> Unit)? = null,
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -70,6 +71,7 @@ fun PlayerScreen(
     val openLinksIn by viewModel.openLinksIn.collectAsStateWithLifecycle()
     val showAddToPlaylist by viewModel.showAddToPlaylist.collectAsStateWithLifecycle()
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
+    val navigateToVideo by viewModel.navigateToVideo.collectAsStateWithLifecycle()
     var controlsVisible by remember { mutableStateOf(true) }
     var expanded by remember { mutableStateOf(false) }
     var webViewUrl by remember { mutableStateOf<String?>(null) }
@@ -118,6 +120,13 @@ fun PlayerScreen(
         toastMessage?.let {
             android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
             viewModel.clearToast()
+        }
+    }
+
+    LaunchedEffect(navigateToVideo) {
+        navigateToVideo?.let { nextId ->
+            viewModel.clearNavigateToVideo()
+            onVideoPlayNext?.invoke(nextId)
         }
     }
 
