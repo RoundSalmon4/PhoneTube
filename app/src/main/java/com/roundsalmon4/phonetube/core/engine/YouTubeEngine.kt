@@ -360,6 +360,22 @@ class YouTubeEngine @Inject constructor(
         Log.d(TAG, "getPlaylistVideos: fetching videos for playlist $playlistId")
         return try {
             withContext(Dispatchers.IO) {
+                // Try browse API (proper endpoint) first
+                val browseId = if (playlistId.startsWith("VL")) playlistId else "VL$playlistId"
+                try {
+                    val browseResult = contentService.getPlaylist(browseId)
+                    if (browseResult != null && browseResult.isNotEmpty()) {
+                        val items = browseResult.flatMap { (it?.mediaItems ?: emptyList()).filterNotNull() }
+                        if (items.isNotEmpty()) {
+                            Log.d(TAG, "getPlaylistVideos: got ${items.size} items via browse for $playlistId")
+                            val videos = items.mapNotNull { it.toVideo() }
+                            if (videos.isNotEmpty()) return@withContext videos
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "getPlaylistVideos: browse failed, falling back", e)
+                }
+                // Fallback: continuation-based getGroup
                 var group = contentService.getGroup(playlistId)
                 if (group == null && !playlistId.startsWith("VL")) {
                     Log.w(TAG, "getPlaylistVideos: bare ID failed, trying VL prefix")
