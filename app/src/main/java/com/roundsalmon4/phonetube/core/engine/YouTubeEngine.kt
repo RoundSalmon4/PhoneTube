@@ -1,4 +1,4 @@
-﻿package com.roundsalmon4.phonetube.core.engine
+package com.roundsalmon4.phonetube.core.engine
 
 import android.util.Log
 import com.roundsalmon4.phonetube.core.engine.model.ChannelInfo
@@ -632,6 +632,7 @@ class YouTubeEngine @Inject constructor(
                             sampleVideoIds = newIds
                         )
                 }
+                }
             }
         }
         val playlists = playlistMap.values.toList()
@@ -639,3 +640,4 @@ class YouTubeEngine @Inject constructor(
         return playlists
     }
 }
+
