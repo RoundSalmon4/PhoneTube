@@ -611,7 +611,7 @@ class YouTubeEngine @Inject constructor(
                 val pid = item.playlistId
                 val channelPid = item.channelId?.takeIf { it.startsWith("VL") }?.removePrefix("VL")
                 val effectivePid = pid ?: (if (item.type == MediaItem.TYPE_PLAYLIST) channelPid else null)
-                if (!effectivePid.isNullOrBlank() && effectivePid.startsWith("PL")) {
+                if (!effectivePid.isNullOrBlank() && !effectivePid.startsWith("RD")) {
                     if (effectivePid !in playlistMap) {
                         playlistMap[effectivePid] = SearchPlaylist(
                             playlistId = effectivePid,
@@ -638,7 +638,7 @@ class YouTubeEngine @Inject constructor(
             }
         }
         val playlists = playlistMap.values.toList()
-        Log.d(TAG, "toSearchPlaylists: ${playlists.size} playlists found")
+        Log.d(TAG, "toSearchPlaylists: ${playlists.size} playlists found (excluding RD mixes)")
         return playlists
     }
 }

@@ -62,6 +62,7 @@ import kotlin.math.roundToInt
 @Composable
 fun PlaylistDetailScreen(
     onVideoClick: (String) -> Unit,
+    onChannelClick: ((String) -> Unit)? = null,
     onBackClick: () -> Unit,
     viewModel: PlaylistDetailViewModel = hiltViewModel()
 ) {
@@ -144,7 +145,8 @@ fun PlaylistDetailScreen(
                                 draggedOffset = 0f
                             },
                             onRemove = { viewModel.removeVideo(video.videoId) },
-                            onClick = { onVideoClick(video.videoId) }
+                            onClick = { onVideoClick(video.videoId) },
+                            onChannelClick = onChannelClick
                         )
                     }
                 }
@@ -163,7 +165,8 @@ private fun PlaylistItem(
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
     onRemove: () -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onChannelClick: ((String) -> Unit)? = null
 ) {
     val bgColor = if (isDragging) MaterialTheme.colorScheme.surfaceContainer else Color.Transparent
 

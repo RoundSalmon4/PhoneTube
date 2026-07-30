@@ -153,6 +153,7 @@ fun LibraryScreen(
                     onVideoClick = onVideoClick,
                     onDeleteEntry = { viewModel.deleteHistoryEntry(it) },
                     onAddToPlaylist = { viewModel.showAddToPlaylistDialog(it) },
+                    onChannelClick = onChannelClick,
                     onClearAll = { viewModel.clearHistory() }
                 )
                 LibraryTab.PLAYLISTS -> PlaylistsTab(
@@ -176,6 +177,7 @@ private fun HistoryTab(
     onVideoClick: (String) -> Unit,
     onDeleteEntry: (String) -> Unit,
     onAddToPlaylist: (WatchHistoryEntry) -> Unit,
+    onChannelClick: ((String) -> Unit)? = null,
     onClearAll: () -> Unit
 ) {
     var longPressedEntry by remember { mutableStateOf<WatchHistoryEntry?>(null) }
@@ -199,6 +201,18 @@ private fun HistoryTab(
                         }
                         .padding(vertical = 12.dp)
                 )
+                if (onChannelClick != null && entry.channelId.isNotBlank()) {
+                    Text(
+                        "Go to channel",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                longPressedEntry = null
+                                onChannelClick(entry.channelId)
+                            }
+                            .padding(vertical = 12.dp)
+                    )
+                }
                 Text(
                     "Delete",
                     modifier = Modifier
