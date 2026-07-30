@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalContext
 import com.roundsalmon4.phonetube.core.engine.model.ChannelSection
 import com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist
 import com.roundsalmon4.phonetube.core.engine.model.Video
@@ -67,7 +68,16 @@ fun ChannelScreen(
     val isSubscribed by viewModel.isSubscribed.collectAsStateWithLifecycle()
     val addToPlaylistVideo by viewModel.addToPlaylistVideo.collectAsStateWithLifecycle()
     val channelPlaylists by viewModel.playlists.collectAsStateWithLifecycle()
+    val saveMessage by viewModel.saveMessage.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var longPressedVideo by remember { mutableStateOf<Video?>(null) }
+
+    LaunchedEffect(saveMessage) {
+        saveMessage?.let {
+            android.widget.Toast.makeText(context, it, android.widget.Toast.LENGTH_SHORT).show()
+            viewModel.clearSaveMessage()
+        }
+    }
 
     longPressedVideo?.let { video ->
         ModalBottomSheet(onDismissRequest = { longPressedVideo = null }) {

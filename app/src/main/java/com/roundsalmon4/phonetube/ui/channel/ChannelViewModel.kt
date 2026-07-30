@@ -48,6 +48,9 @@ class ChannelViewModel @Inject constructor(
     private val _playlists = MutableStateFlow<List<LocalPlaylist>>(emptyList())
     val playlists: StateFlow<List<LocalPlaylist>> = _playlists.asStateFlow()
 
+    private val _saveMessage = MutableStateFlow<String?>(null)
+    val saveMessage: StateFlow<String?> = _saveMessage.asStateFlow()
+
     init {
         loadChannel()
         observeSubscription()
@@ -163,13 +166,16 @@ class ChannelViewModel @Inject constructor(
         }
     }
 
+    fun clearSaveMessage() { _saveMessage.value = null }
+
     fun saveChannelPlaylist(playlist: com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist) {
         viewModelScope.launch {
             try {
                 val videos = engine.getPlaylistVideos(playlist.playlistId)
                 Log.d(TAG, "saveChannelPlaylist: got ${videos.size} videos for ${playlist.playlistId}")
                 if (videos.isEmpty()) {
-                    Log.w(TAG, "saveChannelPlaylist: no videos returned, aborting")
+                    Log.w(TAG, "saveChannelPlaylist: no videos returned")
+                    _saveMessage.value = "Could not save this playlist"
                     return@launch
                 }
                 val id = playlistDao.insertPlaylist(LocalPlaylist(name = playlist.title, createdAt = System.currentTimeMillis()))
@@ -178,8 +184,10 @@ class ChannelViewModel @Inject constructor(
                 }
                 playlistDao.updatePlaylist(LocalPlaylist(id = id, name = playlist.title, createdAt = System.currentTimeMillis(), videoCount = videos.size))
                 Log.d(TAG, "saveChannelPlaylist: saved ${videos.size} videos")
+                _saveMessage.value = "Playlist saved"
             } catch (e: Exception) {
                 Log.e(TAG, "saveChannelPlaylist failed", e)
+                _saveMessage.value = "Save failed"
             }
         }
     }
