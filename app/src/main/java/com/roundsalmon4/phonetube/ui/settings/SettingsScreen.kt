@@ -1,4 +1,4 @@
-package com.roundsalmon4.phonetube.ui.settings
+﻿package com.roundsalmon4.phonetube.ui.settings
 
 import android.os.Build
 import android.widget.Toast
@@ -200,9 +200,10 @@ fun SettingsScreen(
                 url = url,
                 title = webViewTitle,
                 onDismiss = { webViewUrl = null }
-            )
-        }
+        )
     }
+}
+}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -390,6 +391,7 @@ private fun SponsorBlockSection(uiState: PreferencesUiState, viewModel: Settings
                                 }
                             )
         }
+        }
     }
 }
 
@@ -470,8 +472,10 @@ private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewMod
                                                     viewModel.setFeedOrder(mutable)
                                                     draggedIndex = targetIndex
                                                     draggedOffset = 0f
-                                                }
-                                            }
+}
+}
+}
+
                                         },
                                         onDragEnd = { draggedIndex = -1; draggedOffset = 0f },
                                         onDragCancel = { draggedIndex = -1; draggedOffset = 0f }
@@ -947,4 +951,6 @@ private fun SwitchItem(
             Switch(checked = checked, onCheckedChange = null)
         }
     )
+}
+
 }
