@@ -360,6 +360,28 @@ class YouTubeEngine @Inject constructor(
         Log.d(TAG, "getPlaylistVideos: fetching videos for playlist $playlistId")
         return try {
             withContext(Dispatchers.IO) {
+                // Try direct browse API via BrowseService2Wrapper (bypasses continuation endpoint)
+                val browseId = if (playlistId.startsWith("VL")) playlistId else "VL$playlistId"
+                try {
+                    val browseResult = com.liskovsoft.youtubeapi.browse.v2.BrowseService2Wrapper.INSTANCE.getChannel(browseId, null)
+                    if (browseResult != null) {
+                        val groups = browseResult.first
+                        if (!groups.isNullOrEmpty()) {
+                            val items = groups.flatMap { (it?.mediaItems ?: emptyList()).filterNotNull() }
+                            if (items.isNotEmpty()) {
+                                Log.d(TAG, "getPlaylistVideos: got ${items.size} items via browse for $playlistId")
+                                val videos = items.mapNotNull { it.toVideo() }
+                                if (videos.isNotEmpty()) {
+                                    Log.d(TAG, "getPlaylistVideos: ${videos.size} videos mapped via browse")
+                                    return@withContext videos
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "getPlaylistVideos: browse approach failed, falling back", e)
+                }
+                // Fallback: try the continuation-based getGroup approach
                 var group = contentService.getGroup(playlistId)
                 if (group == null && !playlistId.startsWith("VL")) {
                     Log.w(TAG, "getPlaylistVideos: bare ID failed, trying VL prefix")
