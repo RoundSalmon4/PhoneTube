@@ -609,7 +609,7 @@ class YouTubeEngine @Inject constructor(
         for (group in this) {
             for (item in (group.mediaItems ?: emptyList()).filterNotNull()) {
                 val pid = item.playlistId
-                if (!pid.isNullOrBlank()) {
+                if (!pid.isNullOrBlank() && pid.startsWith("PL")) {
                     if (pid !in playlistMap) {
                         playlistMap[pid] = SearchPlaylist(
                             playlistId = pid,
@@ -621,14 +621,16 @@ class YouTubeEngine @Inject constructor(
                             firstVideoId = item.videoId?.takeIf { it.isNotBlank() }
                         )
                     }
-                    // Count videos in this playlist
+                    // Count videos and collect sample IDs
                     val entry = playlistMap[pid]!!
-                    if (!item.videoId.isNullOrBlank()) {
+                    val videoId = item.videoId?.takeIf { it.isNotBlank() }
+                    if (videoId != null) {
+                        val newIds = (entry.sampleVideoIds + videoId).take(20) // Max 20 sample IDs
                         playlistMap[pid] = entry.copy(
                             videoCount = entry.videoCount + 1,
-                            firstVideoId = entry.firstVideoId ?: item.videoId
+                            firstVideoId = entry.firstVideoId ?: videoId,
+                            sampleVideoIds = newIds
                         )
-                    }
                 }
             }
         }

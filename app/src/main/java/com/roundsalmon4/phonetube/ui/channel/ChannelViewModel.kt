@@ -163,6 +163,27 @@ class ChannelViewModel @Inject constructor(
         }
     }
 
+    fun saveChannelPlaylist(playlist: com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist) {
+        viewModelScope.launch {
+            try {
+                val videos = engine.getPlaylistVideos(playlist.playlistId)
+                Log.d(TAG, "saveChannelPlaylist: got ${videos.size} videos for ${playlist.playlistId}")
+                if (videos.isEmpty()) {
+                    Log.w(TAG, "saveChannelPlaylist: no videos returned, aborting")
+                    return@launch
+                }
+                val id = playlistDao.insertPlaylist(LocalPlaylist(name = playlist.title, createdAt = System.currentTimeMillis()))
+                for ((index, video) in videos.withIndex()) {
+                    playlistDao.insertVideo(PlaylistVideo(playlistId = id, videoId = video.videoId, title = video.title, channelName = video.author, thumbnailUrl = video.thumbnailUrl, durationMs = video.durationMs, position = index))
+                }
+                playlistDao.updatePlaylist(LocalPlaylist(id = id, name = playlist.title, createdAt = System.currentTimeMillis(), videoCount = videos.size))
+                Log.d(TAG, "saveChannelPlaylist: saved ${videos.size} videos")
+            } catch (e: Exception) {
+                Log.e(TAG, "saveChannelPlaylist failed", e)
+            }
+        }
+    }
+
     fun retry() {
         loadChannel()
     }

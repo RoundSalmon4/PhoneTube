@@ -47,18 +47,8 @@ class YouTubePlaylistViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val result = engine.getPlaylistVideos(playlistId)
-                if (result.isEmpty() && firstVideoId.isNotBlank()) {
-                    // Fallback: fetch metadata for the first video
-                    try {
-                        val meta = engine.getMetadata(firstVideoId).firstOrNull()
-                        if (meta != null) {
-                            _videos.value = listOf(meta.video)
-                            return@launch
-                        }
-                    } catch (_: Exception) { }
-                    _error.value = "Could not load this playlist. The playlist may be a YouTube Mix which can't be fully fetched."
-                } else if (result.isEmpty()) {
-                    _error.value = "Could not load playlist"
+                if (result.isEmpty()) {
+                    _error.value = "This playlist could not be loaded. Standard playlists only (PL prefix)."
                 } else {
                     _videos.value = result
                 }

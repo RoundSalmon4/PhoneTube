@@ -131,32 +131,32 @@ fun ChannelScreen(
                     item {
                         ChannelHeader(name = state.name, avatarUrl = state.avatarUrl, subscriberCount = state.subscriberCount, isSubscribed = isSubscribed, onSubscribeClick = { viewModel.toggleSubscription() })
                     }
-                    items(state.sections, key = { it.title }) { section ->
-                        if (section.videos.isNotEmpty()) {
-                            ChannelVideoRow(title = section.title, videos = section.videos, onVideoClick = onVideoClick, onChannelClick = onChannelClick, onVideoLongClick = { longPressedVideo = it })
+                    // Aggregate all playlists from all sections
+                    val allPlaylists = state.sections.flatMap { it.playlists }
+                    items(state.sections.filter { it.videos.isNotEmpty() }, key = { it.title }) { section ->
+                        ChannelVideoRow(title = section.title, videos = section.videos, onVideoClick = onVideoClick, onChannelClick = onChannelClick, onVideoLongClick = { longPressedVideo = it })
+                    }
+                    if (allPlaylists.isNotEmpty()) {
+                        item {
+                            Text("Playlists", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                         }
-                        section.playlists.forEach { playlist ->
+                        items(allPlaylists, key = { it.playlistId }) { playlist ->
                             ListItem(
                                 headlineContent = { Text(playlist.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                                 supportingContent = { Text(playlist.channelName) },
-                                leadingContent = {
-                                    AsyncImage(model = playlist.thumbnailUrl, contentDescription = null, modifier = Modifier.size(64.dp, 36.dp).clip(RoundedCornerShape(4.dp)), contentScale = ContentScale.Crop)
-                                },
+                                leadingContent = { AsyncImage(model = playlist.thumbnailUrl, contentDescription = null, modifier = Modifier.size(64.dp, 36.dp).clip(RoundedCornerShape(4.dp)), contentScale = ContentScale.Crop) },
                                 trailingContent = {
                                     Row {
                                         if (onPlaylistClick != null) {
-                                            TextButton(onClick = {
-                                                onPlaylistClick(playlist.playlistId, playlist.title, playlist.firstVideoId ?: "")
-                                            }) { Text("View") }
+                                            TextButton(onClick = { onPlaylistClick(playlist.playlistId, playlist.title, playlist.firstVideoId ?: "") }) { Text("View") }
                                         }
+                                        TextButton(onClick = {
+                                            viewModel.saveChannelPlaylist(playlist)
+                                        }) { Text("Save") }
                                     }
                                 },
                                 modifier = Modifier.clickable {
-                                    if (onPlaylistClick != null) {
-                                        onPlaylistClick(playlist.playlistId, playlist.title, playlist.firstVideoId ?: "")
-                                    } else if (!playlist.firstVideoId.isNullOrBlank()) {
-                                        onVideoClick(playlist.firstVideoId)
-                                    }
+                                    if (onPlaylistClick != null) onPlaylistClick(playlist.playlistId, playlist.title, playlist.firstVideoId ?: "")
                                 }
                             )
                         }

@@ -283,32 +283,8 @@ class SearchViewModel @Inject constructor(
                 val videos = engine.getPlaylistVideos(playlist.playlistId)
                 Log.d(TAG, "savePlaylistAsLocal: got ${videos.size} videos from API")
                 if (videos.isEmpty()) {
-                    // Fallback: try saving at least one video if we have it from search
-                    if (!playlist.firstVideoId.isNullOrBlank()) {
-                        Log.d(TAG, "savePlaylistAsLocal: fallback to single video from search")
-                        val id = playlistDao.insertPlaylist(
-                            LocalPlaylist(name = playlist.title, createdAt = System.currentTimeMillis())
-                        )
-                        playlistDao.insertVideo(
-                            PlaylistVideo(
-                                playlistId = id,
-                                videoId = playlist.firstVideoId,
-                                title = playlist.title,
-                                channelName = playlist.channelName,
-                                thumbnailUrl = playlist.thumbnailUrl ?: "",
-                                durationMs = 0L,
-                                position = 0
-                            )
-                        )
-                        playlistDao.updatePlaylist(
-                            LocalPlaylist(id = id, name = playlist.title, createdAt = System.currentTimeMillis(), videoCount = 1)
-                        )
-                        Log.d(TAG, "savePlaylistAsLocal: saved 1 video from search fallback")
-                        _saveMessage.value = "Playlist saved (1 video)"
-                    } else {
-                        Log.w(TAG, "savePlaylistAsLocal: no videos returned, aborting")
-                        _saveMessage.value = "Could not save playlist"
-                    }
+                    Log.w(TAG, "savePlaylistAsLocal: no videos returned, aborting")
+                    _saveMessage.value = "Could not save playlist"
                     return@launch
                 }
                 val id = playlistDao.insertPlaylist(
