@@ -25,5 +25,6 @@ data class CachedFeedVideo(
     val durationMs: Long,
     val viewCount: String,
     val position: Int,
-    val percentWatched: Int = 0
+    val percentWatched: Int = 0,
+    val publishedDate: Long = 0
 )

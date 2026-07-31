@@ -400,6 +400,7 @@ class YouTubeEngine @Inject constructor(
             Log.d(TAG, "toVideo: null videoId for type=${getType()} title='${getTitle()?.take(40)}' channelId=${getChannelId()?.take(8)}")
             return null
         }
+        val timestamp = getPublishedDate()
         return Video(
             videoId = videoId,
             title = getTitle().orEmpty(),
@@ -408,9 +409,53 @@ class YouTubeEngine @Inject constructor(
             thumbnailUrl = getCardImageUrl().orEmpty(),
             durationMs = getDurationMs(),
             viewCount = null,
-            publishedDate = getPublishedDate(),
+            publishedDate = if (timestamp > 0) timestamp else parseProductionDate(getProductionDate()),
             percentWatched = getPercentWatched()
         )
+    }
+
+    /**
+     * Converts YouTube's published-time text ("2 years ago", "Streamed 5 hours ago",
+     * "Aug 9, 2024", "2022-09-11T23:39:38+00:00") into epoch millis.
+     */
+    private fun parseProductionDate(text: String?): Long {
+        if (text.isNullOrBlank()) return 0L
+        val trimmed = text.trim()
+
+        // ISO date prefix: "2022-09-11T23:39:38+00:00" or "2022-09-11"
+        if (trimmed.length >= 10 && trimmed[4] == '-') {
+            try {
+                val fmt = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                fmt.parse(trimmed.take(10))?.let { if (it.time > 0) return it.time }
+            } catch (_: Exception) { }
+        }
+
+        // Relative: "2 years ago", "Streamed 5 hours ago", "Premiered 3 weeks ago"
+        val relative = Regex("""(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago""", RegexOption.IGNORE_CASE)
+        relative.find(trimmed)?.let { match ->
+            val amount = match.groupValues[1].toLongOrNull() ?: return@let
+            val unitMs = when (match.groupValues[2].lowercase()) {
+                "second" -> 1000L
+                "minute" -> 60_000L
+                "hour" -> 3_600_000L
+                "day" -> 86_400_000L
+                "week" -> 604_800_000L
+                "month" -> 2_592_000_000L
+                "year" -> 31_536_000_000L
+                else -> 0L
+            }
+            if (unitMs > 0) return System.currentTimeMillis() - amount * unitMs
+        }
+
+        // Absolute dates: "Aug 9, 2024", "9 Aug 2024", "08/09/2024"
+        for (pattern in listOf("MMM d, yyyy", "d MMM yyyy", "MM/dd/yyyy")) {
+            try {
+                val fmt = java.text.SimpleDateFormat(pattern, java.util.Locale.US)
+                fmt.parse(trimmed)?.let { if (it.time > 0) return it.time }
+            } catch (_: Exception) { }
+        }
+
+        return 0L
     }
 
     private fun MediaItemFormatInfo.toStreamInfo(): StreamInfo = StreamInfo(
@@ -458,7 +503,7 @@ class YouTubeEngine @Inject constructor(
             thumbnailUrl = getAuthorImageUrl().orEmpty(),
             durationMs = getDurationMs(),
             viewCount = getViewCount(),
-            publishedDate = 0L,
+            publishedDate = parseProductionDate(getPublishedDate()),
             percentWatched = getPercentWatched()
         ),
         description = getDescription().orEmpty(),
