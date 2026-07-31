@@ -9,8 +9,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.database.HistoryDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
+import com.roundsalmon4.phonetube.core.database.PlaylistSaver
+import com.roundsalmon4.phonetube.core.database.PlaylistVideoInfo
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
-import com.roundsalmon4.phonetube.core.database.entity.PlaylistVideo
 import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
@@ -103,6 +104,7 @@ class PlayerViewModel @Inject constructor(
     private var continuePlayingListener: Player.Listener? = null
 
     init {
+        playerStateManager.isPlayerScreenVisible = true
         loadStreamInfo()
         loadSponsorSegments()
         loadDescription()
@@ -130,7 +132,6 @@ class PlayerViewModel @Inject constructor(
                     playerStateManager.updateVideoInfo(
                         videoId = videoId,
                         title = info.title,
-                        channelName = info.author,
                         thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
                     )
                     startPlayback(info)
@@ -214,12 +215,12 @@ class PlayerViewModel @Inject constructor(
                 if (videoGroups.isEmpty()) return@launch
 
                 // Find the best matching format
-                val formats = info.urlFormats.filter { it.height != null }
+                val formats = info.urlFormats
                 val bestMatch = formats.minByOrNull {
-                    kotlin.math.abs((it.height ?: 0) - targetHeight)
+                    kotlin.math.abs(it.height - targetHeight)
                 }
 
-                if (bestMatch != null && bestMatch.height != null) {
+                if (bestMatch != null) {
                     selectVideoTrack(bestMatch.height, bestMatch.fps?.toIntOrNull() ?: 0)
                 }
             } catch (e: Exception) {
@@ -239,18 +240,18 @@ class PlayerViewModel @Inject constructor(
                 _uiState.value = PlayerUiState.Error(info.playabilityReason ?: "Video is unavailable")
             }
             isLive && info.hlsManifestUrl != null -> {
-                playerController.playHls(info.hlsManifestUrl)
+                playerController.playHls(info.hlsManifestUrl, info.subtitles, info.title, info.author)
             }
             info.dashManifestUrl != null -> {
-                playerController.playDash(info.dashManifestUrl)
+                playerController.playDash(info.dashManifestUrl, info.subtitles, info.title, info.author)
             }
             info.hlsManifestUrl != null -> {
-                playerController.playHls(info.hlsManifestUrl)
+                playerController.playHls(info.hlsManifestUrl, info.subtitles, info.title, info.author)
             }
             info.urlFormats.isNotEmpty() -> {
                 val best = info.urlFormats.firstOrNull { it.url != null }
                 if (best != null) {
-                    playerController.playUrl(best.url!!, best.mimeType)
+                    playerController.playUrl(best.url!!, best.mimeType, info.subtitles, info.title, info.author)
                 } else {
                     _uiState.value = PlayerUiState.Error("No playable format found")
                 }
@@ -339,6 +340,10 @@ class PlayerViewModel @Inject constructor(
 
                 // Don't resume if video was finished (within 5 seconds of end)
                 if (entry.positionMs > 0 && entry.positionMs < durationMs - 5000) {
+                    // Restore the speed this video was watched at
+                    if (entry.speed > 0f && entry.speed != prefs.playbackSpeed) {
+                        playerController.setPlaybackSpeed(entry.speed)
+                    }
                     // Wait for player to be ready before seeking
                     delay(1000)
                     Log.d(TAG, "Resuming from ${entry.positionMs}ms")
@@ -364,6 +369,9 @@ class PlayerViewModel @Inject constructor(
 
     fun setPlaybackSpeed(speed: Float) {
         playerController.setPlaybackSpeed(speed)
+        viewModelScope.launch {
+            playerPreferences.setPlaybackSpeed(speed)
+        }
     }
 
     fun selectSubtitle(subtitle: SubtitleTrackInfo?) {
@@ -393,50 +401,40 @@ class PlayerViewModel @Inject constructor(
     fun showAddToPlaylist() { _showAddToPlaylist.value = true }
     fun hideAddToPlaylist() { _showAddToPlaylist.value = false }
     fun addToPlaylist(playlist: LocalPlaylist) {
+        val info = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.let {
+            PlaylistVideoInfo(
+                videoId = videoId,
+                title = it.title,
+                channelName = it.author,
+                thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                durationMs = it.lengthSeconds * 1000
+            )
+        } ?: return
         viewModelScope.launch {
-            try {
-                val count = playlistDao.getVideoCount(playlist.id)
-                playlistDao.insertVideo(
-                    PlaylistVideo(
-                        playlistId = playlist.id,
-                        videoId = videoId,
-                        title = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.title ?: "",
-                        channelName = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.author ?: "",
-                        thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
-                        durationMs = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.lengthSeconds?.times(1000) ?: 0L,
-                        position = count
-                    )
-                )
-                playlistDao.updatePlaylist(playlist.copy(videoCount = count + 1))
+            if (PlaylistSaver.addToPlaylist(playlistDao, info, playlist)) {
                 _toastMessage.value = "Added to playlist"
                 _showAddToPlaylist.value = false
-            } catch (e: Exception) {
-                Log.w(TAG, "addToPlaylist failed", e)
+            } else {
+                Log.w(TAG, "addToPlaylist failed")
             }
         }
     }
     fun createPlaylistAndAdd(name: String) {
+        val info = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.let {
+            PlaylistVideoInfo(
+                videoId = videoId,
+                title = it.title,
+                channelName = it.author,
+                thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                durationMs = it.lengthSeconds * 1000
+            )
+        } ?: return
         viewModelScope.launch {
-            try {
-                val id = playlistDao.insertPlaylist(
-                    LocalPlaylist(name = name.trim(), createdAt = System.currentTimeMillis())
-                )
-                playlistDao.insertVideo(
-                    PlaylistVideo(
-                        playlistId = id,
-                        videoId = videoId,
-                        title = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.title ?: "",
-                        channelName = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.author ?: "",
-                        thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
-                        durationMs = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.lengthSeconds?.times(1000) ?: 0L,
-                        position = 0
-                    )
-                )
-                playlistDao.updatePlaylist(LocalPlaylist(id = id, name = name.trim(), createdAt = System.currentTimeMillis(), videoCount = 1))
+            if (PlaylistSaver.createAndAdd(playlistDao, info, name)) {
                 _toastMessage.value = "Created and added to playlist"
                 _showAddToPlaylist.value = false
-            } catch (e: Exception) {
-                Log.w(TAG, "createPlaylistAndAdd failed", e)
+            } else {
+                Log.w(TAG, "createPlaylistAndAdd failed")
             }
         }
     }
@@ -451,6 +449,7 @@ class PlayerViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        playerStateManager.isPlayerScreenVisible = false
         continuePlayingListener?.let { playerController.exoPlayer.removeListener(it) }
         try {
             val positionMs = playerController.exoPlayer.currentPosition

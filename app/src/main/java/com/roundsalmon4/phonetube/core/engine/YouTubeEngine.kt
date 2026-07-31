@@ -265,7 +265,6 @@ class YouTubeEngine @Inject constructor(
                         title = item.title.orEmpty(),
                         channelName = item.author.orEmpty(),
                         thumbnailUrl = item.cardImageUrl?.ifBlank { null },
-                        videoCount = 0,
                         firstVideoId = item.videoId?.takeIf { it.isNotBlank() }
                     )
                 }
@@ -287,12 +286,10 @@ class YouTubeEngine @Inject constructor(
             val channelName = sections.firstOrNull()?.videos?.firstOrNull()?.author?.takeIf { it.isNotBlank() }
             val channelInfo = firstGroup?.let {
                 ChannelInfo(
-                    channelId = it.channelId.orEmpty(),
                     name = channelName ?: it.title.orEmpty(),
                     avatarUrl = avatarUrl,
                     subscriberCount = null,
-                    description = null,
-                    isSubscribed = false
+                    description = null
                 )
             }
             emit(ChannelResult(channelInfo, sections))
@@ -393,14 +390,11 @@ class YouTubeEngine @Inject constructor(
             durationMs = getDurationMs(),
             viewCount = null,
             publishedDate = getPublishedDate(),
-            isLive = isLive,
-            isShort = isShorts,
             percentWatched = getPercentWatched()
         )
     }
 
     private fun MediaItemFormatInfo.toStreamInfo(): StreamInfo = StreamInfo(
-        videoId = getVideoId().orEmpty(),
         title = getTitle().orEmpty(),
         author = getAuthor().orEmpty(),
         channelId = getChannelId().orEmpty(),
@@ -412,24 +406,19 @@ class YouTubeEngine @Inject constructor(
         subtitles = (subtitles ?: emptyList()).map { it.toSubtitleTrack() },
         dashManifestUrl = getDashManifestUrl(),
         hlsManifestUrl = getHlsManifestUrl(),
-        storyboardUrl = try { createStoryboard()?.let { it.getGroupUrl(0) } } catch (_: Exception) { null },
         isUnplayable = isUnplayable,
         playabilityReason = getPlayabilityReason()
     )
 
     private fun com.liskovsoft.mediaserviceinterfaces.data.MediaFormat.toStreamFormat(): StreamFormat =
         StreamFormat(
-            formatType = getFormatType(),
             url = getUrl(),
             mimeType = getMimeType(),
             itag = getITag(),
-            width = getWidth(),
             height = getHeight(),
             bitrate = getBitrate(),
             fps = getFps(),
-            qualityLabel = getQualityLabel(),
-            language = getLanguage(),
-            isDrc = isDrc
+            qualityLabel = getQualityLabel()
         )
 
     private fun com.liskovsoft.mediaserviceinterfaces.data.MediaSubtitle.toSubtitleTrack(): SubtitleTrack =
@@ -451,8 +440,6 @@ class YouTubeEngine @Inject constructor(
             durationMs = getDurationMs(),
             viewCount = getViewCount(),
             publishedDate = 0L,
-            isLive = isLive,
-            isShort = false,
             percentWatched = getPercentWatched()
         ),
         description = getDescription().orEmpty(),
@@ -614,21 +601,15 @@ class YouTubeEngine @Inject constructor(
                             channelName = item.author.orEmpty(),
                             thumbnailUrl = item.cardImageUrl?.ifBlank { null }
                                 ?: item.backgroundImageUrl?.ifBlank { null },
-                            videoCount = 0,
                             firstVideoId = item.videoId?.takeIf { it.isNotBlank() }
                         )
+                    } else {
+                        val entry = playlistMap[effectivePid]!!
+                        val videoId = item.videoId?.takeIf { it.isNotBlank() }
+                        if (videoId != null && entry.firstVideoId.isNullOrBlank()) {
+                            playlistMap[effectivePid] = entry.copy(firstVideoId = videoId)
+                        }
                     }
-                    // Count videos and collect sample IDs
-                    val entry = playlistMap[effectivePid]!!
-                    val videoId = item.videoId?.takeIf { it.isNotBlank() }
-                    if (videoId != null) {
-                        val newIds = (entry.sampleVideoIds + videoId).take(20)
-                        playlistMap[effectivePid] = entry.copy(
-                            videoCount = entry.videoCount + 1,
-                            firstVideoId = entry.firstVideoId ?: videoId,
-                            sampleVideoIds = newIds
-                        )
-                }
                 }
             }
         }

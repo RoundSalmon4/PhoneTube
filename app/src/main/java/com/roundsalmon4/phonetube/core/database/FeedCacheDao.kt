@@ -27,10 +27,6 @@ interface FeedCacheDao {
     @Query("SELECT * FROM feed_sections ORDER BY id")
     fun getAllSections(): Flow<List<CachedSectionWithVideos>>
 
-    @Transaction
-    @Query("SELECT * FROM feed_sections WHERE source = :source")
-    fun getSection(source: String): Flow<CachedSectionWithVideos?>
-
     @Query("SELECT fetchedAt FROM feed_sections ORDER BY fetchedAt ASC LIMIT 1")
     suspend fun getOldestFetchedAt(): Long?
 

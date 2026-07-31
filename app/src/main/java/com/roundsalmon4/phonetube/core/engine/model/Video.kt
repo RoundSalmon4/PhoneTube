@@ -9,7 +9,5 @@ data class Video(
     val durationMs: Long,
     val viewCount: String?,
     val publishedDate: Long,
-    val isLive: Boolean,
-    val isShort: Boolean,
     val percentWatched: Int
 )

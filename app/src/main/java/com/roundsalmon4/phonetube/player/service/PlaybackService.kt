@@ -2,7 +2,6 @@ package com.roundsalmon4.phonetube.player.service
 
 import android.app.PendingIntent
 import android.content.Intent
-import android.content.pm.ServiceInfo
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -16,11 +15,6 @@ class PlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
-        startForeground(
-            FOREGROUND_SERVICE_ID,
-            createNotification(),
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
-        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -55,36 +49,7 @@ class PlaybackService : MediaSessionService() {
         super.onDestroy()
     }
 
-    private fun createNotification(): android.app.Notification {
-        val channel = android.app.NotificationChannel(
-            NOTIFICATION_CHANNEL_ID,
-            "Playback",
-            android.app.NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "Playing video"
-        }
-        val manager = getSystemService(android.app.NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
-
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0,
-            Intent(this, MainActivity::class.java),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        return android.app.Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
-            .setContentTitle("PhoneTube")
-            .setContentText("Playing video")
-            .setSmallIcon(android.R.drawable.ic_media_play)
-            .setContentIntent(pendingIntent)
-            .setOngoing(true)
-            .build()
-    }
-
     companion object {
-        private const val NOTIFICATION_CHANNEL_ID = "playback"
-        private const val FOREGROUND_SERVICE_ID = 1
-
         @Volatile
         var playerController: PlayerEngineController? = null
 

@@ -12,9 +12,6 @@ interface SubscriptionDao {
     @Query("SELECT * FROM subscriptions ORDER BY subscribedAt DESC")
     fun getAll(): Flow<List<LocalSubscription>>
 
-    @Query("SELECT * FROM subscriptions WHERE channelId = :channelId")
-    suspend fun getByChannelId(channelId: String): LocalSubscription?
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun subscribe(subscription: LocalSubscription)
 

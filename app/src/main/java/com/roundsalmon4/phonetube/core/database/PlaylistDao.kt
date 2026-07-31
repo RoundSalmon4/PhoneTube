@@ -36,9 +36,6 @@ interface PlaylistDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertVideo(video: PlaylistVideo)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertVideos(videos: List<PlaylistVideo>)
-
     @Query("DELETE FROM playlist_videos WHERE playlistId = :playlistId AND videoId = :videoId")
     suspend fun removeVideo(playlistId: Long, videoId: String)
 

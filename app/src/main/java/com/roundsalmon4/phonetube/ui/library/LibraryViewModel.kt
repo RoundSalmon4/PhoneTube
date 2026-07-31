@@ -4,10 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.database.HistoryDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
+import com.roundsalmon4.phonetube.core.database.PlaylistSaver
+import com.roundsalmon4.phonetube.core.database.PlaylistVideoInfo
 import com.roundsalmon4.phonetube.core.database.SubscriptionDao
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.database.entity.LocalSubscription
-import com.roundsalmon4.phonetube.core.database.entity.PlaylistVideo
 import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
 import dagger.hilt.android.lifecycle.HiltViewModel
 import android.util.Log
@@ -115,23 +116,10 @@ class LibraryViewModel @Inject constructor(
     fun addToPlaylist(playlist: LocalPlaylist) {
         val entry = _addToPlaylistEntry.value ?: return
         viewModelScope.launch {
-            try {
-                val count = playlistDao.getVideoCount(playlist.id)
-                playlistDao.insertVideo(
-                    PlaylistVideo(
-                        playlistId = playlist.id,
-                        videoId = entry.videoId,
-                        title = entry.title,
-                        channelName = entry.channelName,
-                        thumbnailUrl = entry.thumbnailUrl,
-                        durationMs = entry.durationMs,
-                        position = count
-                    )
-                )
-                playlistDao.updatePlaylist(playlist.copy(videoCount = count + 1))
+            if (PlaylistSaver.addToPlaylist(playlistDao, entry.toPlaylistVideoInfo(), playlist)) {
                 _addToPlaylistEntry.value = null
-            } catch (e: Exception) {
-                Log.e(TAG, "addToPlaylist failed", e)
+            } else {
+                Log.e(TAG, "addToPlaylist failed")
             }
         }
     }
@@ -139,25 +127,10 @@ class LibraryViewModel @Inject constructor(
     fun createPlaylistAndAdd(name: String) {
         val entry = _addToPlaylistEntry.value ?: return
         viewModelScope.launch {
-            try {
-                val id = playlistDao.insertPlaylist(
-                    LocalPlaylist(name = name, createdAt = System.currentTimeMillis())
-                )
-                playlistDao.insertVideo(
-                    PlaylistVideo(
-                        playlistId = id,
-                        videoId = entry.videoId,
-                        title = entry.title,
-                        channelName = entry.channelName,
-                        thumbnailUrl = entry.thumbnailUrl,
-                        durationMs = entry.durationMs,
-                        position = 0
-                    )
-                )
-                playlistDao.updatePlaylist(LocalPlaylist(id = id, name = name, createdAt = System.currentTimeMillis(), videoCount = 1))
+            if (PlaylistSaver.createAndAdd(playlistDao, entry.toPlaylistVideoInfo(), name)) {
                 _addToPlaylistEntry.value = null
-            } catch (e: Exception) {
-                Log.e(TAG, "createPlaylistAndAdd failed", e)
+            } else {
+                Log.e(TAG, "createPlaylistAndAdd failed")
             }
         }
     }
@@ -166,3 +139,11 @@ class LibraryViewModel @Inject constructor(
         private const val TAG = "LibraryVM"
     }
 }
+
+private fun WatchHistoryEntry.toPlaylistVideoInfo() = PlaylistVideoInfo(
+    videoId = videoId,
+    title = title,
+    channelName = channelName,
+    thumbnailUrl = thumbnailUrl,
+    durationMs = durationMs
+)

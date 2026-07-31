@@ -13,5 +13,5 @@ sealed interface Route {
     @Serializable data object License : Route
     @Serializable data object Credits : Route
     @Serializable data class PlaylistDetail(val playlistId: Long) : Route
-    @Serializable data class YouTubePlaylist(val playlistId: String, val playlistTitle: String, val firstVideoId: String = "") : Route
+    @Serializable data class YouTubePlaylist(val playlistId: String, val playlistTitle: String) : Route
 }

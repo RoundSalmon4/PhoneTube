@@ -7,7 +7,6 @@ data class PlayerPlaybackSnapshot(
     val bufferedPosition: Long = 0L,
     val playbackSpeed: Float = 1.0f,
     val isBuffering: Boolean = false,
-    val isLive: Boolean = false,
     val videoWidth: Int = 0,
     val videoHeight: Int = 0,
     val currentQualityLabel: String = "",
@@ -19,14 +18,11 @@ data class PlayerPlaybackSnapshot(
 
 data class SubtitleTrackInfo(
     val index: Int,
-    val languageCode: String,
-    val name: String,
-    val mimeType: String
+    val name: String
 )
 
 data class AudioTrackInfo(
     val index: Int,
     val languageCode: String,
-    val name: String,
-    val mimeType: String
+    val name: String
 )

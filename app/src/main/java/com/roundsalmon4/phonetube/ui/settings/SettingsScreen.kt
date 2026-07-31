@@ -6,14 +6,12 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -59,10 +57,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -71,10 +67,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.ui.components.WebViewDialog
@@ -98,7 +92,6 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val showClearHistoryDialog by viewModel.showClearHistoryDialog.collectAsState()
     val showClearPlaylistsDialog by viewModel.showClearPlaylistsDialog.collectAsState()
-    val exportResult by viewModel.exportResult.collectAsState()
     val importResult by viewModel.importResult.collectAsState()
     var webViewUrl by remember { mutableStateOf<String?>(null) }
     var webViewTitle by remember { mutableStateOf("") }
@@ -124,7 +117,7 @@ fun SettingsScreen(
             FeedsSection(uiState, viewModel)
             SearchSection(uiState, viewModel)
             AppearanceSection(uiState, viewModel)
-            DataSection(viewModel, exportResult, importResult)
+            DataSection(viewModel, importResult)
             AboutSection(
                 onLicenseClick = onLicenseClick,
                 onCreditsClick = onCreditsClick,
@@ -805,12 +798,10 @@ private fun Color.luminance(): Float = 0.299f * red + 0.587f * green + 0.114f * 
 @Composable
 private fun DataSection(
     viewModel: SettingsViewModel,
-    exportResult: String?,
     importResult: String?
 ) {
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val snackbarHostState = androidx.compose.material3.SnackbarHostState()
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")

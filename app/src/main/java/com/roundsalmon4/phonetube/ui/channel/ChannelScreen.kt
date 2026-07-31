@@ -48,8 +48,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
-import com.roundsalmon4.phonetube.core.engine.model.ChannelSection
-import com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist
 import com.roundsalmon4.phonetube.core.engine.model.Video
 import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
 import com.roundsalmon4.phonetube.ui.components.VideoCard
@@ -62,7 +60,7 @@ fun ChannelScreen(
     onVideoClick: (String) -> Unit,
     onChannelClick: (String) -> Unit,
     onBackClick: () -> Unit,
-    onPlaylistClick: ((playlistId: String, playlistTitle: String, firstVideoId: String) -> Unit)? = null,
+    onPlaylistClick: ((playlistId: String, playlistTitle: String) -> Unit)? = null,
     viewModel: ChannelViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -159,7 +157,7 @@ fun ChannelScreen(
                                 trailingContent = {
                                     Row {
                                         if (onPlaylistClick != null) {
-                                            TextButton(onClick = { onPlaylistClick(playlist.playlistId, playlist.title, playlist.firstVideoId ?: "") }) { Text("View") }
+                                            TextButton(onClick = { onPlaylistClick(playlist.playlistId, playlist.title) }) { Text("View") }
                                         }
                                         TextButton(onClick = {
                                             viewModel.saveChannelPlaylist(playlist)
@@ -167,7 +165,7 @@ fun ChannelScreen(
                                     }
                                 },
                                 modifier = Modifier.clickable {
-                                    if (onPlaylistClick != null) onPlaylistClick(playlist.playlistId, playlist.title, playlist.firstVideoId ?: "")
+                                    if (onPlaylistClick != null) onPlaylistClick(playlist.playlistId, playlist.title)
                                 }
                             )
                         }

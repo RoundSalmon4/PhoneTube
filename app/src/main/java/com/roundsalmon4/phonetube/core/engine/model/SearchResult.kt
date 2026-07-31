@@ -22,9 +22,7 @@ data class SearchPlaylist(
     val title: String,
     val channelName: String,
     val thumbnailUrl: String?,
-    val videoCount: Int,
-    val firstVideoId: String? = null,
-    val sampleVideoIds: List<String> = emptyList()
+    val firstVideoId: String? = null
 )
 
 enum class SearchFilter {

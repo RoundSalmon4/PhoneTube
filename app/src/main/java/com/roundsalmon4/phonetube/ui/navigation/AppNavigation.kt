@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.popUpTo
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -29,7 +30,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
-import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.YouTubeLink
 import com.roundsalmon4.phonetube.core.engine.YouTubeUrlParser
 import com.roundsalmon4.phonetube.player.PlayerEngineController
@@ -65,8 +65,7 @@ fun AppNavigation(
     playerStateManager: PlayerStateManager,
     playerController: PlayerEngineController,
     playerPreferences: PlayerPreferences,
-    deepLinkUri: kotlinx.coroutines.flow.StateFlow<Uri?>,
-    engine: YouTubeEngine
+    deepLinkUri: kotlinx.coroutines.flow.StateFlow<Uri?>
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
@@ -95,10 +94,7 @@ fun AppNavigation(
                         navController.navigate(Route.Player(link.id))
                     }
                     YouTubeLink.Type.PLAYLIST -> {
-                        val firstVideoId = engine.getPlaylistFirstVideoId(link.id)
-                        if (firstVideoId != null) {
-                            navController.navigate(Route.Player(firstVideoId))
-                        }
+                        navController.navigate(Route.YouTubePlaylist(link.id, "YouTube Playlist"))
                     }
                     YouTubeLink.Type.CHANNEL -> {
                         navController.navigate(Route.Channel(link.id))
@@ -186,7 +182,10 @@ fun AppNavigation(
                             navController.navigate(Route.Channel(channelId))
                         },
                         onVideoPlayNext = { nextVideoId ->
-                            navController.navigate(Route.Player(nextVideoId))
+                            navController.navigate(Route.Player(nextVideoId)) {
+                                popUpTo<Route.Player> { inclusive = true }
+                                launchSingleTop = true
+                            }
                         }
                     )
                 }
@@ -200,7 +199,7 @@ fun AppNavigation(
                             navController.navigate(Route.Channel(channelId))
                         },
                         onPlaylistClick = { playlistId, playlistTitle ->
-                            navController.navigate(Route.YouTubePlaylist(playlistId, playlistTitle, ""))
+                            navController.navigate(Route.YouTubePlaylist(playlistId, playlistTitle))
                         }
                     )
                 }
@@ -216,8 +215,8 @@ fun AppNavigation(
                             navController.navigate(Route.Channel(channelId))
                         },
                         onBackClick = { navController.popBackStack() },
-                        onPlaylistClick = { playlistId, playlistTitle, firstVideoId ->
-                            navController.navigate(Route.YouTubePlaylist(playlistId, playlistTitle, firstVideoId))
+                        onPlaylistClick = { playlistId, playlistTitle ->
+                            navController.navigate(Route.YouTubePlaylist(playlistId, playlistTitle))
                         }
                     )
                 }

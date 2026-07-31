@@ -1,22 +1,29 @@
 package com.roundsalmon4.phonetube.player
 
 import android.content.Context
+import android.net.Uri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.MergingMediaSource
+import androidx.media3.exoplayer.source.SingleSampleMediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import com.roundsalmon4.phonetube.core.engine.model.SubtitleTrack
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +35,8 @@ import kotlinx.coroutines.launch
 class PlayerEngineController(context: Context) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private val dataSourceFactory = DefaultDataSource.Factory(context)
 
     private val trackSelector = DefaultTrackSelector(context).apply {
         setParameters(buildUponParameters().setMaxVideoSizeSd())
@@ -84,30 +93,74 @@ class PlayerEngineController(context: Context) {
         startSnapshotPolling()
     }
 
-    fun playDash(manifestUrl: String) {
-        val mediaItem = MediaItem.Builder()
-            .setUri(manifestUrl)
-            .setMimeType("application/dash+xml")
-            .build()
-        exoPlayer.setMediaItem(mediaItem)
-        exoPlayer.prepare()
-        exoPlayer.playWhenReady = true
+    fun playDash(
+        manifestUrl: String,
+        subtitles: List<SubtitleTrack> = emptyList(),
+        title: String? = null,
+        artist: String? = null,
+        artworkUrl: String? = null
+    ) {
+        play(buildMediaItem(manifestUrl, "application/dash+xml", title, artist, artworkUrl), subtitles)
     }
 
-    fun playHls(manifestUrl: String) {
-        val mediaItem = MediaItem.Builder()
-            .setUri(manifestUrl)
-            .setMimeType("application/x-mpegURL")
-            .build()
-        exoPlayer.setMediaItem(mediaItem)
-        exoPlayer.prepare()
-        exoPlayer.playWhenReady = true
+    fun playHls(
+        manifestUrl: String,
+        subtitles: List<SubtitleTrack> = emptyList(),
+        title: String? = null,
+        artist: String? = null,
+        artworkUrl: String? = null
+    ) {
+        play(buildMediaItem(manifestUrl, "application/x-mpegURL", title, artist, artworkUrl), subtitles)
     }
 
-    fun playUrl(url: String, mimeType: String?) {
-        val builder = MediaItem.Builder().setUri(url)
+    fun playUrl(
+        url: String,
+        mimeType: String?,
+        subtitles: List<SubtitleTrack> = emptyList(),
+        title: String? = null,
+        artist: String? = null,
+        artworkUrl: String? = null
+    ) {
+        play(buildMediaItem(url, mimeType, title, artist, artworkUrl), subtitles)
+    }
+
+    private fun buildMediaItem(
+        uri: String,
+        mimeType: String?,
+        title: String?,
+        artist: String?,
+        artworkUrl: String?
+    ): MediaItem {
+        val builder = MediaItem.Builder().setUri(uri)
         mimeType?.let { builder.setMimeType(it) }
-        exoPlayer.setMediaItem(builder.build())
+        if (!title.isNullOrBlank()) {
+            builder.setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setArtist(artist)
+                    .build()
+            )
+        }
+        artworkUrl?.let { builder.setArtworkUri(Uri.parse(it)) }
+        return builder.build()
+    }
+
+    private fun play(mediaItem: MediaItem, subtitles: List<SubtitleTrack>) {
+        if (subtitles.isEmpty()) {
+            exoPlayer.setMediaItem(mediaItem)
+        } else {
+            val mainSource = DefaultMediaSourceFactory(dataSourceFactory).createMediaSource(mediaItem)
+            val textSources = subtitles.map { subtitle ->
+                val format = Format.Builder()
+                    .setSampleMimeType(subtitle.mimeType.ifBlank { "text/vtt" })
+                    .setLanguage(subtitle.languageCode.ifBlank { null })
+                    .setLabel(subtitle.name.ifBlank { subtitle.languageCode })
+                    .build()
+                SingleSampleMediaSource.Factory(dataSourceFactory)
+                    .createMediaSource(Uri.parse(subtitle.baseUrl), format, C.TIME_UNSET)
+            }
+            exoPlayer.setMediaSource(MergingMediaSource(mainSource, *textSources.toTypedArray()))
+        }
         exoPlayer.prepare()
         exoPlayer.playWhenReady = true
     }
@@ -228,12 +281,6 @@ class PlayerEngineController(context: Context) {
         }
     }
 
-    fun release() {
-        exoPlayer.removeListener(playerListener)
-        scope.cancel()
-        exoPlayer.release()
-    }
-
     private fun startSnapshotPolling() {
         scope.launch {
             while (isActive) {
@@ -267,9 +314,7 @@ class PlayerEngineController(context: Context) {
                 val format = group.getTrackFormat(i)
                 SubtitleTrackInfo(
                     index = subtitleIndex++,
-                    languageCode = format.language ?: "unknown",
-                    name = format.label ?: format.language ?: "Unknown",
-                    mimeType = format.sampleMimeType ?: ""
+                    name = format.label ?: format.language ?: "Unknown"
                 )
             }
         }
@@ -286,8 +331,7 @@ class PlayerEngineController(context: Context) {
                 AudioTrackInfo(
                     index = audioIndex++,
                     languageCode = format.language ?: "unknown",
-                    name = format.label ?: format.language ?: "Unknown",
-                    mimeType = format.sampleMimeType ?: ""
+                    name = format.label ?: format.language ?: "Unknown"
                 )
             }
         }
@@ -300,7 +344,6 @@ class PlayerEngineController(context: Context) {
                 bufferedPosition = exoPlayer.bufferedPosition.coerceAtLeast(0),
                 playbackSpeed = exoPlayer.playbackParameters.speed,
                 isBuffering = exoPlayer.playbackState == Player.STATE_BUFFERING,
-                isLive = exoPlayer.isCurrentMediaItemLive,
                 videoWidth = exoPlayer.videoSize.width,
                 videoHeight = exoPlayer.videoSize.height,
                 currentQualityLabel = qualityLabel,

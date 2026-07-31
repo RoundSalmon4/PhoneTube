@@ -1,16 +1,13 @@
 package com.roundsalmon4.phonetube.ui.library.playlist
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -21,7 +18,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.PlayArrow
@@ -62,7 +58,6 @@ import kotlin.math.roundToInt
 @Composable
 fun PlaylistDetailScreen(
     onVideoClick: (String) -> Unit,
-    onChannelClick: ((String) -> Unit)? = null,
     onBackClick: () -> Unit,
     viewModel: PlaylistDetailViewModel = hiltViewModel()
 ) {
@@ -145,8 +140,7 @@ fun PlaylistDetailScreen(
                                 draggedOffset = 0f
                             },
                             onRemove = { viewModel.removeVideo(video.videoId) },
-                            onClick = { onVideoClick(video.videoId) },
-                            onChannelClick = onChannelClick
+                            onClick = { onVideoClick(video.videoId) }
                         )
                     }
                 }
@@ -165,8 +159,7 @@ private fun PlaylistItem(
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit,
     onRemove: () -> Unit,
-    onClick: () -> Unit,
-    onChannelClick: ((String) -> Unit)? = null
+    onClick: () -> Unit
 ) {
     val bgColor = if (isDragging) MaterialTheme.colorScheme.surfaceContainer else Color.Transparent
 

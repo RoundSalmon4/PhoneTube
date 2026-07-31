@@ -9,7 +9,6 @@ import javax.inject.Singleton
 data class MiniPlayerState(
     val videoId: String = "",
     val title: String = "",
-    val channelName: String = "",
     val thumbnailUrl: String = "",
     val isPlaying: Boolean = false,
     val currentPosition: Long = 0L,
@@ -22,19 +21,20 @@ data class MiniPlayerState(
 @Singleton
 class PlayerStateManager @Inject constructor() {
 
+    @Volatile
+    var isPlayerScreenVisible: Boolean = false
+
     private val _miniPlayerState = MutableStateFlow(MiniPlayerState())
     val miniPlayerState: StateFlow<MiniPlayerState> = _miniPlayerState.asStateFlow()
 
     fun updateVideoInfo(
         videoId: String,
         title: String,
-        channelName: String,
         thumbnailUrl: String
     ) {
         _miniPlayerState.value = _miniPlayerState.value.copy(
             videoId = videoId,
             title = title,
-            channelName = channelName,
             thumbnailUrl = thumbnailUrl
         )
     }

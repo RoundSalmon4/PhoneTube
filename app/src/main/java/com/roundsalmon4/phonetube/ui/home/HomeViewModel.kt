@@ -5,13 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.database.FeedCacheDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
+import com.roundsalmon4.phonetube.core.database.PlaylistSaver
+import com.roundsalmon4.phonetube.core.database.PlaylistVideoInfo
 import com.roundsalmon4.phonetube.core.database.SubscriptionDao
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.core.database.entity.CachedFeedSection
 import com.roundsalmon4.phonetube.core.database.entity.CachedFeedVideo
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
-import com.roundsalmon4.phonetube.core.database.entity.PlaylistVideo
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.model.HomeSection
 import com.roundsalmon4.phonetube.core.engine.model.Video
@@ -137,7 +138,15 @@ class HomeViewModel @Inject constructor(
                     feed?.sections?.filter { it.videos.isNotEmpty() } ?: emptyList()
                 }
 
-                val merged = (homeVideos ?: emptyList()) + enabledSections + newSections
+                val allSections = (homeVideos ?: emptyList()) + enabledSections + newSections
+                val sectionMap = allSections.associateBy { it.source }
+                val ordered = prefs.feedOrder.mapNotNull { key ->
+                    SOURCE_TO_FEED_KEY.entries.firstOrNull { it.value == key }?.key?.let { source ->
+                        sectionMap[source]
+                    }
+                }
+                val leftover = allSections.filter { it.source !in ordered.map { o -> o.source } }
+                val merged = ordered + leftover
 
                 if (merged.isNotEmpty()) {
                     _uiState.value = HomeUiState.Success(merged)
@@ -344,23 +353,10 @@ class HomeViewModel @Inject constructor(
     fun addToPlaylist(playlist: LocalPlaylist) {
         val video = _addToPlaylistVideo.value ?: return
         viewModelScope.launch {
-            try {
-                val count = playlistDao.getVideoCount(playlist.id)
-                playlistDao.insertVideo(
-                    PlaylistVideo(
-                        playlistId = playlist.id,
-                        videoId = video.videoId,
-                        title = video.title,
-                        channelName = video.author,
-                        thumbnailUrl = video.thumbnailUrl,
-                        durationMs = video.durationMs,
-                        position = count
-                    )
-                )
-                playlistDao.updatePlaylist(playlist.copy(videoCount = count + 1))
+            if (PlaylistSaver.addToPlaylist(playlistDao, video.toPlaylistVideoInfo(), playlist)) {
                 _addToPlaylistVideo.value = null
-            } catch (e: Exception) {
-                Log.e(TAG, "addToPlaylist failed", e)
+            } else {
+                Log.e(TAG, "addToPlaylist failed")
             }
         }
     }
@@ -368,25 +364,10 @@ class HomeViewModel @Inject constructor(
     fun createPlaylistAndAdd(name: String) {
         val video = _addToPlaylistVideo.value ?: return
         viewModelScope.launch {
-            try {
-                val id = playlistDao.insertPlaylist(
-                    LocalPlaylist(name = name, createdAt = System.currentTimeMillis())
-                )
-                playlistDao.insertVideo(
-                    PlaylistVideo(
-                        playlistId = id,
-                        videoId = video.videoId,
-                        title = video.title,
-                        channelName = video.author,
-                        thumbnailUrl = video.thumbnailUrl,
-                        durationMs = video.durationMs,
-                        position = 0
-                    )
-                )
-                playlistDao.updatePlaylist(LocalPlaylist(id = id, name = name, createdAt = System.currentTimeMillis(), videoCount = 1))
+            if (PlaylistSaver.createAndAdd(playlistDao, video.toPlaylistVideoInfo(), name)) {
                 _addToPlaylistVideo.value = null
-            } catch (e: Exception) {
-                Log.e(TAG, "createPlaylistAndAdd failed", e)
+            } else {
+                Log.e(TAG, "createPlaylistAndAdd failed")
             }
         }
     }
@@ -401,8 +382,6 @@ private fun CachedFeedVideo.toVideo() = Video(
     durationMs = durationMs,
     viewCount = viewCount.ifBlank { null },
     publishedDate = 0L,
-    isLive = durationMs == Long.MAX_VALUE,
-    isShort = false,
     percentWatched = percentWatched
 )
 

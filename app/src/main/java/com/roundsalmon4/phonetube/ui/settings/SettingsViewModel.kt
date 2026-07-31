@@ -41,9 +41,6 @@ class SettingsViewModel @Inject constructor(
     private val _showClearPlaylistsDialog = MutableStateFlow(false)
     val showClearPlaylistsDialog: StateFlow<Boolean> = _showClearPlaylistsDialog.asStateFlow()
 
-    private val _exportResult = MutableStateFlow<String?>(null)
-    val exportResult: StateFlow<String?> = _exportResult.asStateFlow()
-
     private val _importResult = MutableStateFlow<String?>(null)
     val importResult: StateFlow<String?> = _importResult.asStateFlow()
 
@@ -53,7 +50,6 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun clearExportResult() { _exportResult.value = null }
     fun clearImportResult() { _importResult.value = null }
 
     suspend fun buildExportJson(): String {
