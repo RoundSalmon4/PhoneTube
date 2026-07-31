@@ -22,7 +22,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.popUpTo
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -182,10 +181,8 @@ fun AppNavigation(
                             navController.navigate(Route.Channel(channelId))
                         },
                         onVideoPlayNext = { nextVideoId ->
-                            navController.navigate(Route.Player(nextVideoId)) {
-                                popUpTo<Route.Player> { inclusive = true }
-                                launchSingleTop = true
-                            }
+                            navController.popBackStack()
+                            navController.navigate(Route.Player(nextVideoId))
                         }
                     )
                 }

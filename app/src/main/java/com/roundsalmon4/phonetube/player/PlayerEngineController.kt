@@ -4,7 +4,6 @@ import android.content.Context
 import android.net.Uri
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
-import androidx.media3.common.Format
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
@@ -133,15 +132,13 @@ class PlayerEngineController(context: Context) {
     ): MediaItem {
         val builder = MediaItem.Builder().setUri(uri)
         mimeType?.let { builder.setMimeType(it) }
-        if (!title.isNullOrBlank()) {
-            builder.setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(title)
-                    .setArtist(artist)
-                    .build()
-            )
+        if (!title.isNullOrBlank() || artworkUrl != null) {
+            val metadataBuilder = MediaMetadata.Builder()
+            title?.let { metadataBuilder.setTitle(it) }
+            artist?.let { metadataBuilder.setArtist(it) }
+            artworkUrl?.let { metadataBuilder.setArtworkUri(Uri.parse(it)) }
+            builder.setMediaMetadata(metadataBuilder.build())
         }
-        artworkUrl?.let { builder.setArtworkUri(Uri.parse(it)) }
         return builder.build()
     }
 
@@ -151,13 +148,15 @@ class PlayerEngineController(context: Context) {
         } else {
             val mainSource = DefaultMediaSourceFactory(dataSourceFactory).createMediaSource(mediaItem)
             val textSources = subtitles.map { subtitle ->
-                val format = Format.Builder()
-                    .setSampleMimeType(subtitle.mimeType.ifBlank { "text/vtt" })
+                val subtitleConfiguration = MediaItem.SubtitleConfiguration.Builder(
+                    Uri.parse(subtitle.baseUrl)
+                )
+                    .setMimeType(subtitle.mimeType.ifBlank { "text/vtt" })
                     .setLanguage(subtitle.languageCode.ifBlank { null })
                     .setLabel(subtitle.name.ifBlank { subtitle.languageCode })
                     .build()
                 SingleSampleMediaSource.Factory(dataSourceFactory)
-                    .createMediaSource(Uri.parse(subtitle.baseUrl), format, C.TIME_UNSET)
+                    .createMediaSource(subtitleConfiguration, C.TIME_UNSET)
             }
             exoPlayer.setMediaSource(MergingMediaSource(mainSource, *textSources.toTypedArray()))
         }
