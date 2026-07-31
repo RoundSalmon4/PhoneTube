@@ -11,27 +11,30 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 | Home Feed | Browse YouTube recommendations, subscriptions, trending, music, sports, live, news, gaming, and kids content |
 | Search | Search YouTube with autocomplete suggestions and configurable result limits. Long press video to add to playlist or go to channel. Channel results include subscribe button |
 | Video Playback | Play videos with DASH and HLS streaming, quality picker, subtitle support, and audio track selection |
-| Background Play | Continue listening with a persistent notification and mini player controls |
-| Picture-in-Picture | Floating video window when leaving the app during playback (Android 8+) |
+| Background Play | Continue listening with a persistent notification (with media controls) and mini player controls |
+| Picture-in-Picture | Floating video window when leaving the player during playback (Android 8+) |
 | Mini Player | Persistent playback bar with play/pause, rewind, forward, close, and progress bar |
+| Continue Playing | Automatically plays the next suggested video when one ends (optional) |
 | Description | Expand/collapse video description with clickable timestamps and URL links |
 | SponsorBlock | Skip sponsor segments and other interruptions automatically with per-category skip/toast/none controls |
 | Local Playlists | Create and manage playlists without a Google account, add from home feed, player screen, or watch history. Drag-to-reorder videos within a playlist |
+| YouTube Playlist Viewer | Browse YouTube playlists from search, channel pages, or playlist links, with Play All and save-to-library. Loads the full playlist, not just the first page |
+| Saved Playlist Indicator | Playlists already in your library show a "Saved" state. Save again for a duplicate with a configurable confirmation prompt |
 | Import/Export | Backup and restore settings, playlists, and subscriptions to/from JSON files |
 | Local Subscriptions | Subscribe to channels locally. Latest videos appear on the home feed. Subscribe directly from search results |
-| Watch History | Your watch history is saved locally with resume position and progress indicators |
-| Channel Pages | Browse channel videos and subscribe locally |
-| Deep Linking | Open YouTube video, playlist, channel, and shorts links directly in PhoneTube |
-| Speed Control | Adjust playback speed from 0.25x to 3.0x |
+| Watch History | Your watch history is saved locally with resume position, playback speed, and progress indicators |
+| Channel Pages | Browse channel videos and playlists, save them locally, and subscribe |
+| Deep Linking | Open YouTube video, playlist (into the playlist viewer), channel, and shorts links directly in PhoneTube |
+| Speed Control | Adjust playback speed from 0.25x to 3.0x, persisted across videos |
 | Quality Picker | Choose video quality from available formats with current resolution shown |
 | Audio Track Picker | Select between available audio tracks when multiple are present |
-| Subtitles | Toggle and select subtitle tracks |
+| Subtitles | Toggle and select subtitle tracks, including side-loaded tracks for direct video URLs |
 | Feed Toggle | Enable or disable individual feed sources |
 | Feed Order | Drag-to-reorder feed sections in settings |
 | Feed Cache | Feed data is cached with watch progress for instant loading on return |
 | Open Links | Choose between in-app WebView or system browser for opening links |
-| Customization | Choose theme colors, enable AMOLED dark mode, or use your wallpaper colors on Android 12+. Picture-in-Picture toggle |
-| Settings | Configure playback defaults, SponsorBlock categories, search limits, feed order, link opening mode, and data import/export |
+| Customization | Choose theme colors, enable AMOLED dark mode, or use your wallpaper colors on Android 12+. Picture-in-Picture and landscape lock toggles |
+| Settings | Configure playback defaults, SponsorBlock categories, search limits, feed order, link opening mode, duplicate playlist warning, and data import/export |
 
 ## Installation
 
