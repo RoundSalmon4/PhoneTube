@@ -50,6 +50,7 @@ private object Keys {
     val OPEN_LINKS_IN = stringPreferencesKey("open_links_in")
     val FEED_ORDER = stringPreferencesKey("feed_order")
     val CONTINUE_PLAYING = booleanPreferencesKey("continue_playing")
+    val DUPLICATE_PLAYLIST_WARNING = booleanPreferencesKey("duplicate_playlist_warning")
 }
 
 data class PreferencesUiState(
@@ -94,7 +95,8 @@ data class PreferencesUiState(
         "home", "what_to_watch", "subscriptions", "trending",
         "sports", "gaming", "live", "news", "music", "kids"
     ),
-    val continuePlaying: Boolean = false
+    val continuePlaying: Boolean = false,
+    val duplicatePlaylistWarning: Boolean = true
 )
 
 @Singleton
@@ -132,7 +134,8 @@ class PlayerPreferences @Inject constructor(
             pipEnabled = prefs[Keys.PIP_ENABLED] ?: true,
             openLinksIn = prefs[Keys.OPEN_LINKS_IN] ?: "browser",
             feedOrder = parseFeedOrder(prefs[Keys.FEED_ORDER]),
-            continuePlaying = prefs[Keys.CONTINUE_PLAYING] ?: false
+            continuePlaying = prefs[Keys.CONTINUE_PLAYING] ?: false,
+            duplicatePlaylistWarning = prefs[Keys.DUPLICATE_PLAYLIST_WARNING] ?: true
         )
     }
 
@@ -261,5 +264,9 @@ class PlayerPreferences @Inject constructor(
 
     suspend fun setContinuePlaying(enabled: Boolean) {
         context.playerDataStore.edit { it[Keys.CONTINUE_PLAYING] = enabled }
+    }
+
+    suspend fun setDuplicatePlaylistWarning(enabled: Boolean) {
+        context.playerDataStore.edit { it[Keys.DUPLICATE_PLAYLIST_WARNING] = enabled }
     }
 }

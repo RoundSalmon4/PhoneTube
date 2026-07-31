@@ -64,6 +64,12 @@ class SearchViewModel @Inject constructor(
     private val _subscribedChannels = MutableStateFlow<Set<String>>(emptySet())
     val subscribedChannels: StateFlow<Set<String>> = _subscribedChannels.asStateFlow()
 
+    private val _savedPlaylistIds = MutableStateFlow<Set<String>>(emptySet())
+    val savedPlaylistIds: StateFlow<Set<String>> = _savedPlaylistIds.asStateFlow()
+
+    private val _pendingSavePlaylist = MutableStateFlow<SearchPlaylist?>(null)
+    val pendingSavePlaylist: StateFlow<SearchPlaylist?> = _pendingSavePlaylist.asStateFlow()
+
     private var allVideos: List<Video> = emptyList()
     private var allChannels: List<SearchChannel> = emptyList()
     private var allPlaylists: List<SearchPlaylist> = emptyList()
@@ -72,6 +78,7 @@ class SearchViewModel @Inject constructor(
     init {
         loadSubscriptions()
         loadPlaylists()
+        loadSavedPlaylistIds()
     }
 
     private fun loadSubscriptions() {
@@ -85,6 +92,14 @@ class SearchViewModel @Inject constructor(
     private fun loadPlaylists() {
         viewModelScope.launch {
             playlistDao.getAllPlaylists().collect { _playlists.value = it }
+        }
+    }
+
+    private fun loadSavedPlaylistIds() {
+        viewModelScope.launch {
+            playlistDao.getSavedPlaylistIds().collect { ids ->
+                _savedPlaylistIds.value = ids.map { it.removePrefix("VL") }.toSet()
+            }
         }
     }
 
@@ -261,7 +276,7 @@ class SearchViewModel @Inject constructor(
                     return@launch
                 }
                 val id = playlistDao.insertPlaylist(
-                    LocalPlaylist(name = playlist.title, createdAt = System.currentTimeMillis())
+                    LocalPlaylist(name = playlist.title, createdAt = System.currentTimeMillis(), sourcePlaylistId = playlist.playlistId.removePrefix("VL"))
                 )
                 Log.d(TAG, "savePlaylistAsLocal: created playlist id=$id")
                 for ((index, video) in videos.withIndex()) {
@@ -278,7 +293,7 @@ class SearchViewModel @Inject constructor(
                     )
                 }
                 playlistDao.updatePlaylist(
-                    LocalPlaylist(id = id, name = playlist.title, createdAt = System.currentTimeMillis(), videoCount = videos.size)
+                    LocalPlaylist(id = id, name = playlist.title, createdAt = System.currentTimeMillis(), videoCount = videos.size, sourcePlaylistId = playlist.playlistId.removePrefix("VL"))
                 )
                 Log.d(TAG, "savePlaylistAsLocal: saved ${videos.size} videos")
                 _saveMessage.value = "Playlist saved"
@@ -287,6 +302,28 @@ class SearchViewModel @Inject constructor(
                 _saveMessage.value = "Save failed"
             }
         }
+    }
+
+    fun onSavePlaylist(playlist: SearchPlaylist) {
+        viewModelScope.launch {
+            val prefs = playerPreferences.uiState.first()
+            val isSaved = playlist.playlistId.removePrefix("VL") in _savedPlaylistIds.value
+            if (isSaved && prefs.duplicatePlaylistWarning) {
+                _pendingSavePlaylist.value = playlist
+            } else {
+                savePlaylistAsLocal(playlist)
+            }
+        }
+    }
+
+    fun confirmSaveDuplicate() {
+        val playlist = _pendingSavePlaylist.value ?: return
+        _pendingSavePlaylist.value = null
+        savePlaylistAsLocal(playlist)
+    }
+
+    fun dismissSaveDuplicate() {
+        _pendingSavePlaylist.value = null
     }
 
     fun clearSaveMessage() { _saveMessage.value = null }

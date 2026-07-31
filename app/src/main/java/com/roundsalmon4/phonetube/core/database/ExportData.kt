@@ -44,7 +44,8 @@ data class PreferencesExport(
         "home", "what_to_watch", "subscriptions", "trending",
         "sports", "gaming", "live", "news", "music", "kids"
     ),
-    val continuePlaying: Boolean = false
+    val continuePlaying: Boolean = false,
+    val duplicatePlaylistWarning: Boolean = true
 )
 
 @Serializable

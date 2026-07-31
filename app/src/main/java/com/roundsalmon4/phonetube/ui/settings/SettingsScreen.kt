@@ -581,6 +581,13 @@ private fun SearchSection(uiState: PreferencesUiState, viewModel: SettingsViewMo
                 }
             }
         }
+
+        SwitchItem(
+            name = "Duplicate Playlist Warning",
+            description = "Ask before saving a playlist that is already in your library",
+            checked = uiState.duplicatePlaylistWarning,
+            onCheckedChange = { viewModel.setDuplicatePlaylistWarning(it) }
+        )
     }
 }
 

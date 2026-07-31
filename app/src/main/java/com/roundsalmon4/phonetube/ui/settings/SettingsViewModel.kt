@@ -87,7 +87,8 @@ class SettingsViewModel @Inject constructor(
                 openLinksIn = prefs.openLinksIn,
                 playlistSearchLimit = prefs.playlistSearchLimit,
                 feedOrder = prefs.feedOrder,
-                continuePlaying = prefs.continuePlaying
+                continuePlaying = prefs.continuePlaying,
+                duplicatePlaylistWarning = prefs.duplicatePlaylistWarning
             ),
             playlists = playlists.map { playlist ->
                 val videos = playlistDao.getPlaylistVideosSync(playlist.id)
@@ -161,6 +162,7 @@ class SettingsViewModel @Inject constructor(
                     playerPreferences.setPlaylistSearchLimit(p.playlistSearchLimit)
                     playerPreferences.setFeedOrder(p.feedOrder)
                     playerPreferences.setContinuePlaying(p.continuePlaying)
+                    playerPreferences.setDuplicatePlaylistWarning(p.duplicatePlaylistWarning)
                 }
 
                 if (data.subscriptions != null) {
@@ -285,6 +287,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setContinuePlaying(enabled: Boolean) = viewModelScope.launch {
         playerPreferences.setContinuePlaying(enabled)
+    }
+
+    fun setDuplicatePlaylistWarning(enabled: Boolean) = viewModelScope.launch {
+        playerPreferences.setDuplicatePlaylistWarning(enabled)
     }
 
     fun showClearHistoryDialog() { _showClearHistoryDialog.value = true }

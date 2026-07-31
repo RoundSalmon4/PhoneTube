@@ -12,6 +12,7 @@ import com.roundsalmon4.phonetube.core.database.toPlaylistVideoInfo
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.database.entity.LocalSubscription
 import com.roundsalmon4.phonetube.core.database.entity.PlaylistVideo
+import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.model.ChannelSection
 import com.roundsalmon4.phonetube.core.engine.model.Video
@@ -30,7 +31,8 @@ class ChannelViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val engine: YouTubeEngine,
     private val subscriptionDao: SubscriptionDao,
-    private val playlistDao: PlaylistDao
+    private val playlistDao: PlaylistDao,
+    private val playerPreferences: PlayerPreferences
 ) : ViewModel() {
 
     companion object {
@@ -54,10 +56,17 @@ class ChannelViewModel @Inject constructor(
     private val _saveMessage = MutableStateFlow<String?>(null)
     val saveMessage: StateFlow<String?> = _saveMessage.asStateFlow()
 
+    private val _savedPlaylistIds = MutableStateFlow<Set<String>>(emptySet())
+    val savedPlaylistIds: StateFlow<Set<String>> = _savedPlaylistIds.asStateFlow()
+
+    private val _pendingSavePlaylist = MutableStateFlow<com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist?>(null)
+    val pendingSavePlaylist: StateFlow<com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist?> = _pendingSavePlaylist.asStateFlow()
+
     init {
         loadChannel()
         observeSubscription()
         loadPlaylists()
+        loadSavedPlaylistIds()
     }
 
     private fun loadChannel() {
@@ -132,6 +141,14 @@ class ChannelViewModel @Inject constructor(
         }
     }
 
+    private fun loadSavedPlaylistIds() {
+        viewModelScope.launch {
+            playlistDao.getSavedPlaylistIds().collect { ids ->
+                _savedPlaylistIds.value = ids.map { it.removePrefix("VL") }.toSet()
+            }
+        }
+    }
+
     fun showAddToPlaylistDialog(video: Video) {
         _addToPlaylistVideo.value = video
     }
@@ -164,6 +181,28 @@ class ChannelViewModel @Inject constructor(
 
     fun clearSaveMessage() { _saveMessage.value = null }
 
+    fun onSavePlaylist(playlist: com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist) {
+        viewModelScope.launch {
+            val prefs = playerPreferences.uiState.first()
+            val isSaved = playlist.playlistId.removePrefix("VL") in _savedPlaylistIds.value
+            if (isSaved && prefs.duplicatePlaylistWarning) {
+                _pendingSavePlaylist.value = playlist
+            } else {
+                saveChannelPlaylist(playlist)
+            }
+        }
+    }
+
+    fun confirmSaveDuplicate() {
+        val playlist = _pendingSavePlaylist.value ?: return
+        _pendingSavePlaylist.value = null
+        saveChannelPlaylist(playlist)
+    }
+
+    fun dismissSaveDuplicate() {
+        _pendingSavePlaylist.value = null
+    }
+
     fun saveChannelPlaylist(playlist: com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist) {
         viewModelScope.launch {
             try {
@@ -174,11 +213,11 @@ class ChannelViewModel @Inject constructor(
                     _saveMessage.value = "Could not save this playlist"
                     return@launch
                 }
-                val id = playlistDao.insertPlaylist(LocalPlaylist(name = playlist.title, createdAt = System.currentTimeMillis()))
+                val id = playlistDao.insertPlaylist(LocalPlaylist(name = playlist.title, createdAt = System.currentTimeMillis(), sourcePlaylistId = playlist.playlistId.removePrefix("VL")))
                 for ((index, video) in videos.withIndex()) {
                     playlistDao.insertVideo(PlaylistVideo(playlistId = id, videoId = video.videoId, title = video.title, channelName = video.author, thumbnailUrl = video.thumbnailUrl, durationMs = video.durationMs, position = index))
                 }
-                playlistDao.updatePlaylist(LocalPlaylist(id = id, name = playlist.title, createdAt = System.currentTimeMillis(), videoCount = videos.size))
+                playlistDao.updatePlaylist(LocalPlaylist(id = id, name = playlist.title, createdAt = System.currentTimeMillis(), videoCount = videos.size, sourcePlaylistId = playlist.playlistId.removePrefix("VL")))
                 Log.d(TAG, "saveChannelPlaylist: saved ${videos.size} videos")
                 _saveMessage.value = "Playlist saved"
             } catch (e: Exception) {

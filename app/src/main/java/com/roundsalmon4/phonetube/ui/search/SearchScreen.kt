@@ -19,6 +19,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -70,6 +71,8 @@ fun SearchScreen(
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val addToPlaylistVideo by viewModel.addToPlaylistVideo.collectAsStateWithLifecycle()
     val subscribedChannels by viewModel.subscribedChannels.collectAsStateWithLifecycle()
+    val savedPlaylistIds by viewModel.savedPlaylistIds.collectAsStateWithLifecycle()
+    val pendingSavePlaylist by viewModel.pendingSavePlaylist.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val saveMessage by viewModel.saveMessage.collectAsStateWithLifecycle()
@@ -133,6 +136,24 @@ fun SearchScreen(
             onDismiss = { viewModel.dismissAddToPlaylistDialog() },
             onAddToPlaylist = { viewModel.addToPlaylist(it) },
             onCreatePlaylist = { viewModel.createPlaylistAndAdd(it) }
+        )
+    }
+
+    pendingSavePlaylist?.let { playlist ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissSaveDuplicate() },
+            title = { Text("Save duplicate?") },
+            text = { Text("\"${playlist.title}\" is already in your library. Save a duplicate anyway?") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmSaveDuplicate() }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissSaveDuplicate() }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 
@@ -246,10 +267,11 @@ fun SearchScreen(
                                         )
                                     },
                                     trailingContent = {
+                                        val isSaved = playlist.playlistId.removePrefix("VL") in savedPlaylistIds
                                         androidx.compose.material3.TextButton(onClick = {
-                                            viewModel.savePlaylistAsLocal(playlist)
+                                            viewModel.onSavePlaylist(playlist)
                                         }) {
-                                            Text("Save")
+                                            Text(if (isSaved) "Saved" else "Save")
                                         }
                                     },
                                     modifier = Modifier.clickable {

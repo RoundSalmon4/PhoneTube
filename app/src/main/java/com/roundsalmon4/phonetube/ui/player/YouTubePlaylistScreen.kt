@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -61,6 +62,8 @@ fun YouTubePlaylistScreen(
     val videos by viewModel.videos.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val saveMessage by viewModel.saveMessage.collectAsStateWithLifecycle()
+    val isSaved by viewModel.isSaved.collectAsStateWithLifecycle()
+    val showDuplicateDialog by viewModel.showDuplicateDialog.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var longPressedVideo by remember { mutableStateOf<Video?>(null) }
 
@@ -96,8 +99,8 @@ fun YouTubePlaylistScreen(
                 },
                 actions = {
                     if (videos != null && videos!!.isNotEmpty()) {
-                        androidx.compose.material3.TextButton(onClick = { viewModel.savePlaylist() }) {
-                            Text("Save")
+                        androidx.compose.material3.TextButton(onClick = { viewModel.onSavePlaylist() }) {
+                            Text(if (isSaved) "Saved" else "Save")
                         }
                     }
                 }
@@ -151,5 +154,23 @@ fun YouTubePlaylistScreen(
                 }
             }
         }
+    }
+
+    if (showDuplicateDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissDuplicateDialog() },
+            title = { Text("Save duplicate?") },
+            text = { Text("This playlist is already in your library. Save a duplicate anyway?") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { viewModel.confirmSaveDuplicate() }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { viewModel.dismissDuplicateDialog() }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

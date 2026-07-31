@@ -8,5 +8,6 @@ data class LocalPlaylist(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
     val createdAt: Long,
-    val videoCount: Int = 0
+    val videoCount: Int = 0,
+    val sourcePlaylistId: String? = null
 )

@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.database.entity.PlaylistVideo
+import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.model.Video
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,7 +21,8 @@ import javax.inject.Inject
 class YouTubePlaylistViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val engine: YouTubeEngine,
-    private val playlistDao: PlaylistDao
+    private val playlistDao: PlaylistDao,
+    private val playerPreferences: PlayerPreferences
 ) : ViewModel() {
 
     companion object { private const val TAG = "YTPlaylistVM" }
@@ -37,9 +39,27 @@ class YouTubePlaylistViewModel @Inject constructor(
     private val _saveMessage = MutableStateFlow<String?>(null)
     val saveMessage: StateFlow<String?> = _saveMessage.asStateFlow()
 
-    init { load() }
+    private val _isSaved = MutableStateFlow(false)
+    val isSaved: StateFlow<Boolean> = _isSaved.asStateFlow()
+
+    private val _showDuplicateDialog = MutableStateFlow(false)
+    val showDuplicateDialog: StateFlow<Boolean> = _showDuplicateDialog.asStateFlow()
+
+    init {
+        load()
+        observeSaved()
+    }
 
     fun clearSaveMessage() { _saveMessage.value = null }
+
+    private fun observeSaved() {
+        viewModelScope.launch {
+            val normalizedId = playlistId.removePrefix("VL")
+            playlistDao.getSavedPlaylistIds().collect { ids ->
+                _isSaved.value = normalizedId in ids.map { it.removePrefix("VL") }
+            }
+        }
+    }
 
     private fun load() {
         viewModelScope.launch {
@@ -57,6 +77,26 @@ class YouTubePlaylistViewModel @Inject constructor(
         }
     }
 
+    fun onSavePlaylist() {
+        viewModelScope.launch {
+            val prefs = playerPreferences.uiState.first()
+            if (_isSaved.value && prefs.duplicatePlaylistWarning) {
+                _showDuplicateDialog.value = true
+            } else {
+                savePlaylist()
+            }
+        }
+    }
+
+    fun confirmSaveDuplicate() {
+        _showDuplicateDialog.value = false
+        savePlaylist()
+    }
+
+    fun dismissDuplicateDialog() {
+        _showDuplicateDialog.value = false
+    }
+
     fun savePlaylist() {
         val v = _videos.value ?: return
         if (v.isEmpty()) return
@@ -64,7 +104,7 @@ class YouTubePlaylistViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val id = playlistDao.insertPlaylist(
-                    LocalPlaylist(name = playlistTitle, createdAt = System.currentTimeMillis())
+                    LocalPlaylist(name = playlistTitle, createdAt = System.currentTimeMillis(), sourcePlaylistId = playlistId.removePrefix("VL"))
                 )
                 for ((index, video) in v.withIndex()) {
                     playlistDao.insertVideo(
@@ -80,7 +120,7 @@ class YouTubePlaylistViewModel @Inject constructor(
                     )
                 }
                 playlistDao.updatePlaylist(
-                    LocalPlaylist(id = id, name = playlistTitle, createdAt = System.currentTimeMillis(), videoCount = v.size)
+                    LocalPlaylist(id = id, name = playlistTitle, createdAt = System.currentTimeMillis(), videoCount = v.size, sourcePlaylistId = playlistId.removePrefix("VL"))
                 )
                 _saveMessage.value = "Playlist saved"
             } catch (e: Exception) {

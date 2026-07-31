@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -68,6 +69,8 @@ fun ChannelScreen(
     val addToPlaylistVideo by viewModel.addToPlaylistVideo.collectAsStateWithLifecycle()
     val channelPlaylists by viewModel.playlists.collectAsStateWithLifecycle()
     val saveMessage by viewModel.saveMessage.collectAsStateWithLifecycle()
+    val savedPlaylistIds by viewModel.savedPlaylistIds.collectAsStateWithLifecycle()
+    val pendingSavePlaylist by viewModel.pendingSavePlaylist.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var longPressedVideo by remember { mutableStateOf<Video?>(null) }
 
@@ -102,6 +105,24 @@ fun ChannelScreen(
             onDismiss = { viewModel.dismissAddToPlaylistDialog() },
             onAddToPlaylist = { viewModel.addToPlaylist(it) },
             onCreatePlaylist = { viewModel.createPlaylistAndAdd(it) }
+        )
+    }
+
+    pendingSavePlaylist?.let { playlist ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissSaveDuplicate() },
+            title = { Text("Save duplicate?") },
+            text = { Text("\"${playlist.title}\" is already in your library. Save a duplicate anyway?") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmSaveDuplicate() }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissSaveDuplicate() }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 
@@ -159,9 +180,10 @@ fun ChannelScreen(
                                         if (onPlaylistClick != null) {
                                             TextButton(onClick = { onPlaylistClick(playlist.playlistId, playlist.title) }) { Text("View") }
                                         }
+                                        val isSaved = playlist.playlistId.removePrefix("VL") in savedPlaylistIds
                                         TextButton(onClick = {
-                                            viewModel.saveChannelPlaylist(playlist)
-                                        }) { Text("Save") }
+                                            viewModel.onSavePlaylist(playlist)
+                                        }) { Text(if (isSaved) "Saved" else "Save") }
                                     }
                                 },
                                 modifier = Modifier.clickable {
