@@ -40,6 +40,7 @@ class YouTubeEngine @Inject constructor(
     companion object {
         private const val TAG = "YouTubeEngine"
         private const val MAX_SECTION_VIDEOS = 20
+        private const val MAX_PLAYLIST_PAGES = 30
     }
 
     private val serviceManager: ServiceManager
@@ -359,9 +360,27 @@ class YouTubeEngine @Inject constructor(
                 val browseId = if (playlistId.startsWith("VL")) playlistId else "VL$playlistId"
                 val browseResult = contentService.getPlaylist(browseId)
                 if (browseResult != null && browseResult.isNotEmpty()) {
-                    val items = browseResult.flatMap { (it?.mediaItems ?: emptyList()).filterNotNull() }
-                    Log.d(TAG, "getPlaylistVideos: got ${items.size} items via browse for $playlistId")
-                    items.mapNotNull { it.toVideo() }
+                    val allItems = mutableListOf<MediaItem>()
+                    browseResult.forEach { group ->
+                        allItems.addAll((group.mediaItems ?: emptyList()).filterNotNull())
+                    }
+                    // Page through the playlist via continuation keys
+                    var lastGroup: MediaGroup? = browseResult.lastOrNull()?.takeIf { it.nextPageKey != null }
+                    var pages = 0
+                    while (lastGroup != null && pages < MAX_PLAYLIST_PAGES) {
+                        val next = try {
+                            contentService.continueGroup(lastGroup)
+                        } catch (e: Exception) {
+                            Log.w(TAG, "getPlaylistVideos: continue failed: ${e.message?.take(80)}")
+                            null
+                        }
+                        if (next == null) break
+                        allItems.addAll((next.mediaItems ?: emptyList()).filterNotNull())
+                        lastGroup = next.takeIf { it.nextPageKey != null }
+                        pages++
+                    }
+                    Log.d(TAG, "getPlaylistVideos: got ${allItems.size} items via browse for $playlistId")
+                    allItems.mapNotNull { it.toVideo() }.distinctBy { it.videoId }
                 } else {
                     Log.w(TAG, "getPlaylistVideos: browse returned empty for $playlistId")
                     emptyList()
