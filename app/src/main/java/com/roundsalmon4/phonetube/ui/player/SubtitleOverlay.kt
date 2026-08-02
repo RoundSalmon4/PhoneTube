@@ -13,7 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextShadow
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -58,7 +58,7 @@ fun SubtitleOverlay(
                     textAlign = TextAlign.Center,
                     style = TextStyle(
                         background = Color.Black.copy(alpha = 0.5f),
-                        shadow = TextShadow(
+                        shadow = Shadow(
                             color = Color.Black.copy(alpha = 0.8f),
                             offset = androidx.compose.ui.geometry.Offset.Zero,
                             blurRadius = 8f
