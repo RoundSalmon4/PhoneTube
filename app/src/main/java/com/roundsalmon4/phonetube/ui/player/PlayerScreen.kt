@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -163,10 +164,19 @@ fun PlayerScreen(
 
                 if (isLandscape) {
                     // Landscape: full screen player
-                    PlayerSurface(
-                        player = player,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                        PlayerSurface(
+                            player = player,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        SubtitleOverlay(
+                            player = player,
+                            fontSizeSp = (maxWidth.value / 30f).coerceIn(14f, 32f),
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 48.dp)
+                        )
+                    }
                 } else {
                     // Portrait: player at top with dynamic aspect ratio, info below
                     Column(modifier = Modifier.fillMaxSize()) {
@@ -178,7 +188,7 @@ fun PlayerScreen(
                             16f / 9f
                         }
 
-                        Box(
+                        BoxWithConstraints(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .aspectRatio(aspectRatio),
@@ -187,6 +197,13 @@ fun PlayerScreen(
                             PlayerSurface(
                                 player = player,
                                 modifier = Modifier.fillMaxSize()
+                            )
+                            SubtitleOverlay(
+                                player = player,
+                                fontSizeSp = (maxWidth.value / 30f).coerceIn(14f, 32f),
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 16.dp)
                             )
                         }
 
@@ -265,14 +282,6 @@ fun PlayerScreen(
             onSubtitleClick = { viewModel.showSubtitlePicker() },
             onAudioClick = { viewModel.showAudioPicker() },
             visible = controlsVisible
-        )
-
-        // Pin captions to the bottom of the screen, above the control bar
-        SubtitleOverlay(
-            player = viewModel.playerController.exoPlayer,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 104.dp)
         )
     }
 

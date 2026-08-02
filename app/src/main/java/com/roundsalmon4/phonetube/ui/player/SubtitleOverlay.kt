@@ -25,6 +25,7 @@ import androidx.media3.common.text.CueGroup
 @Composable
 fun SubtitleOverlay(
     player: Player?,
+    fontSizeSp: Float = 18f,
     modifier: Modifier = Modifier
 ) {
     var currentCues by remember { mutableStateOf<List<Cue>>(emptyList()) }
@@ -54,7 +55,7 @@ fun SubtitleOverlay(
                 Text(
                     text = cue.text.toString(),
                     color = Color.White,
-                    fontSize = 18.sp,
+                    fontSize = fontSizeSp.sp,
                     textAlign = TextAlign.Center,
                     style = TextStyle(
                         background = Color.Black.copy(alpha = 0.5f),
