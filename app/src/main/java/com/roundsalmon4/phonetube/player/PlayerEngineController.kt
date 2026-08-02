@@ -11,10 +11,15 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.MergingMediaSource
+import androidx.media3.exoplayer.source.SingleSampleMediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import com.roundsalmon4.phonetube.core.engine.model.SubtitleTrack
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -29,6 +34,8 @@ import kotlinx.coroutines.launch
 class PlayerEngineController(context: Context) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private val dataSourceFactory = DefaultDataSource.Factory(context)
 
     private val trackSelector = DefaultTrackSelector(context).apply {
         setParameters(buildUponParameters().setMaxVideoSizeSd())
@@ -87,30 +94,33 @@ class PlayerEngineController(context: Context) {
 
     fun playDash(
         manifestUrl: String,
+        subtitles: List<SubtitleTrack> = emptyList(),
         title: String? = null,
         artist: String? = null,
         artworkUrl: String? = null
     ) {
-        play(buildMediaItem(manifestUrl, "application/dash+xml", title, artist, artworkUrl))
+        play(buildMediaItem(manifestUrl, "application/dash+xml", title, artist, artworkUrl), subtitles)
     }
 
     fun playHls(
         manifestUrl: String,
+        subtitles: List<SubtitleTrack> = emptyList(),
         title: String? = null,
         artist: String? = null,
         artworkUrl: String? = null
     ) {
-        play(buildMediaItem(manifestUrl, "application/x-mpegURL", title, artist, artworkUrl))
+        play(buildMediaItem(manifestUrl, "application/x-mpegURL", title, artist, artworkUrl), subtitles)
     }
 
     fun playUrl(
         url: String,
         mimeType: String?,
+        subtitles: List<SubtitleTrack> = emptyList(),
         title: String? = null,
         artist: String? = null,
         artworkUrl: String? = null
     ) {
-        play(buildMediaItem(url, mimeType, title, artist, artworkUrl))
+        play(buildMediaItem(url, mimeType, title, artist, artworkUrl), subtitles)
     }
 
     private fun buildMediaItem(
@@ -132,8 +142,28 @@ class PlayerEngineController(context: Context) {
         return builder.build()
     }
 
-    private fun play(mediaItem: MediaItem) {
-        exoPlayer.setMediaItem(mediaItem)
+    private fun play(mediaItem: MediaItem, subtitles: List<SubtitleTrack>) {
+        if (subtitles.isEmpty()) {
+            exoPlayer.setMediaItem(mediaItem)
+        } else {
+            val mainSource = DefaultMediaSourceFactory(dataSourceFactory).createMediaSource(mediaItem)
+            val textSources = subtitles.map { subtitle ->
+                // Use WebVTT when the track is TTML — much more reliably decoded by ExoPlayer
+                val useVtt = subtitle.mimeType.contains("ttml")
+                val subtitleUrl = if (useVtt) subtitle.baseUrl.replace("fmt=ttml", "fmt=vtt") else subtitle.baseUrl
+                val subtitleMime = if (useVtt) "text/vtt" else subtitle.mimeType.ifBlank { "text/vtt" }
+                val subtitleConfiguration = MediaItem.SubtitleConfiguration.Builder(
+                    Uri.parse(subtitleUrl)
+                )
+                    .setMimeType(subtitleMime)
+                    .setLanguage(subtitle.languageCode.ifBlank { null })
+                    .setLabel(subtitle.name.ifBlank { subtitle.languageCode })
+                    .build()
+                SingleSampleMediaSource.Factory(dataSourceFactory)
+                    .createMediaSource(subtitleConfiguration, C.TIME_UNSET)
+            }
+            exoPlayer.setMediaSource(MergingMediaSource(mainSource, *textSources.toTypedArray()))
+        }
         exoPlayer.prepare()
         exoPlayer.playWhenReady = true
     }

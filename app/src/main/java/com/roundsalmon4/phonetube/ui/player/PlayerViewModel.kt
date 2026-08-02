@@ -240,18 +240,18 @@ class PlayerViewModel @Inject constructor(
                 _uiState.value = PlayerUiState.Error(info.playabilityReason ?: "Video is unavailable")
             }
             isLive && info.hlsManifestUrl != null -> {
-                playerController.playHls(info.hlsManifestUrl, info.title, info.author)
+                playerController.playHls(info.hlsManifestUrl, info.subtitles, info.title, info.author)
             }
             info.dashManifestUrl != null -> {
-                playerController.playDash(info.dashManifestUrl, info.title, info.author)
+                playerController.playDash(info.dashManifestUrl, info.subtitles, info.title, info.author)
             }
             info.hlsManifestUrl != null -> {
-                playerController.playHls(info.hlsManifestUrl, info.title, info.author)
+                playerController.playHls(info.hlsManifestUrl, info.subtitles, info.title, info.author)
             }
             info.urlFormats.isNotEmpty() -> {
                 val best = info.urlFormats.firstOrNull { it.url != null }
                 if (best != null) {
-                    playerController.playUrl(best.url!!, best.mimeType, info.title, info.author)
+                    playerController.playUrl(best.url!!, best.mimeType, info.subtitles, info.title, info.author)
                 } else {
                     _uiState.value = PlayerUiState.Error("No playable format found")
                 }
