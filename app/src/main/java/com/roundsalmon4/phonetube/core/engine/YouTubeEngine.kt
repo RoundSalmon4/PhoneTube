@@ -338,6 +338,22 @@ class YouTubeEngine @Inject constructor(
         }
     }
 
+    /**
+     * Fetches the latest videos from a set of channels via their public RSS feeds.
+     */
+    suspend fun getRssFeedVideos(channelIds: List<String>): List<Video> {
+        return try {
+            withContext(Dispatchers.IO) {
+                val group = contentService.getRssFeedObserve(*channelIds.toTypedArray())
+                    .awaitFirstOrDefault(null)
+                group?.mediaItems?.filterNotNull()?.mapNotNull { it.toVideo() } ?: emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getRssFeedVideos failed", e)
+            emptyList()
+        }
+    }
+
     suspend fun getPlaylistFirstVideoId(playlistId: String): String? {
         return try {
             withContext(Dispatchers.IO) {

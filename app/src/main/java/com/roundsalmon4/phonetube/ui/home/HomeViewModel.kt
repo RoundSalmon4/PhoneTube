@@ -46,6 +46,7 @@ class HomeViewModel @Inject constructor(
     companion object {
         private const val TAG = "HomeVM"
         private const val CACHE_MAX_AGE_MS = 15 * 60 * 1000L
+        private const val REFRESH_INTERVAL_MS = 5 * 60 * 1000L
 
         private val SOURCE_TO_FEED_KEY = mapOf(
             "Home" to "home",
@@ -90,6 +91,7 @@ class HomeViewModel @Inject constructor(
     val addToPlaylistVideo: StateFlow<Video?> = _addToPlaylistVideo.asStateFlow()
 
     private var homeRetryJob: Job? = null
+    private var lastRefreshAt = 0L
     private val cacheMutex = Mutex()
 
     init {
@@ -125,10 +127,12 @@ class HomeViewModel @Inject constructor(
 
                 val currentSources = enabledSections.map { it.source }.toSet()
 
-                // Refresh a feed if it's missing entirely, or if its videos carry no publish
-                // dates yet (e.g. cached before the date feature was added).
+                // Refresh a feed when it's missing, carries no publish dates yet, or the last
+                // refresh happened a while ago.
+                val forceRefresh = System.currentTimeMillis() - lastRefreshAt >= REFRESH_INTERVAL_MS
                 fun shouldRefresh(source: String): Boolean {
                     if (source !in currentSources) return true
+                    if (forceRefresh) return true
                     val section = enabledSections.firstOrNull { it.source == source }
                     val hasAnyDate = section?.videos?.any { it.publishedDate > 0 } ?: false
                     return !hasAnyDate
@@ -165,6 +169,7 @@ class HomeViewModel @Inject constructor(
                 } else {
                     _uiState.value = HomeUiState.Empty
                 }
+                lastRefreshAt = System.currentTimeMillis()
             } catch (e: Exception) {
                 Log.e(TAG, "Home refresh failed", e)
             } finally {
@@ -177,22 +182,14 @@ class HomeViewModel @Inject constructor(
         return try {
             val subscriptions = subscriptionDao.getAll().first()
             if (subscriptions.isEmpty()) return null
-            val allVideos = mutableListOf<Video>()
-            for ((index, sub) in subscriptions.take(10).withIndex()) {
-                try {
-                    if (index > 0) delay(500)
-                    val result = engine.getChannel(sub.channelId).firstOrNull()
-                    val videos = result?.sections?.flatMap { it.videos }?.take(5) ?: emptyList()
-                    allVideos.addAll(videos)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to fetch channel ${sub.channelId}: ${e.message?.take(60)}")
-                }
-            }
-            if (allVideos.isEmpty()) null
+            val channelIds = subscriptions.take(10).map { it.channelId }
+            val videos = engine.getRssFeedVideos(channelIds)
+            Log.d(TAG, "fetchSubscriptionsFeed: got ${videos.size} videos from ${channelIds.size} channels")
+            if (videos.isEmpty()) null
             else com.roundsalmon4.phonetube.core.engine.model.HomeFeed(
                 sections = listOf(com.roundsalmon4.phonetube.core.engine.model.HomeSection(
                     title = "Subscriptions",
-                    videos = allVideos.distinctBy { it.videoId }.take(20),
+                    videos = videos.distinctBy { it.videoId }.take(20),
                     source = "Subscriptions"
                 ))
             )
