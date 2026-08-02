@@ -1,6 +1,5 @@
 package com.roundsalmon4.phonetube.ui.player
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -22,10 +21,7 @@ import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
 import androidx.media3.common.text.Cue
 import androidx.media3.common.text.CueGroup
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.text.TextOutput
 
-@UnstableApi
 @Composable
 fun SubtitleOverlay(
     player: Player?,
@@ -37,18 +33,13 @@ fun SubtitleOverlay(
         if (player == null) {
             return@DisposableEffect onDispose {}
         }
-        val textOutput = object : TextOutput {
-            @Suppress("DEPRECATION")
-            override fun onCues(cues: List<Cue>) {
-                // Legacy path; the CueGroup variant below carries the same data.
-            }
-
+        val listener = object : Player.Listener {
             override fun onCues(cueGroup: CueGroup) {
                 currentCues = cueGroup.cues
             }
         }
-        player.addTextOutput(textOutput)
-        onDispose { player.removeTextOutput(textOutput) }
+        player.addListener(listener)
+        onDispose { player.removeListener(listener) }
     }
 
     val visibleCues = currentCues.filter { !it.text.isNullOrBlank() }
