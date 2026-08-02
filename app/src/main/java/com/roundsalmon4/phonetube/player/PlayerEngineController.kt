@@ -11,15 +11,10 @@ import androidx.media3.common.Player
 import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
-import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.exoplayer.source.MergingMediaSource
-import androidx.media3.exoplayer.source.SingleSampleMediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
-import com.roundsalmon4.phonetube.core.engine.model.SubtitleTrack
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,8 +30,6 @@ class PlayerEngineController(context: Context) {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    private val dataSourceFactory = DefaultDataSource.Factory(context)
-
     private val trackSelector = DefaultTrackSelector(context).apply {
         setParameters(buildUponParameters().setMaxVideoSizeSd())
     }
@@ -47,7 +40,7 @@ class PlayerEngineController(context: Context) {
 
     val exoPlayer: ExoPlayer = ExoPlayer.Builder(context)
         .setRenderersFactory(
-            DefaultRenderersFactory(context)
+            PlaybackRenderersFactory(context)
                 .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
         )
         .setTrackSelector(trackSelector)
@@ -94,33 +87,30 @@ class PlayerEngineController(context: Context) {
 
     fun playDash(
         manifestUrl: String,
-        subtitles: List<SubtitleTrack> = emptyList(),
         title: String? = null,
         artist: String? = null,
         artworkUrl: String? = null
     ) {
-        play(buildMediaItem(manifestUrl, "application/dash+xml", title, artist, artworkUrl), subtitles)
+        play(buildMediaItem(manifestUrl, "application/dash+xml", title, artist, artworkUrl))
     }
 
     fun playHls(
         manifestUrl: String,
-        subtitles: List<SubtitleTrack> = emptyList(),
         title: String? = null,
         artist: String? = null,
         artworkUrl: String? = null
     ) {
-        play(buildMediaItem(manifestUrl, "application/x-mpegURL", title, artist, artworkUrl), subtitles)
+        play(buildMediaItem(manifestUrl, "application/x-mpegURL", title, artist, artworkUrl))
     }
 
     fun playUrl(
         url: String,
         mimeType: String?,
-        subtitles: List<SubtitleTrack> = emptyList(),
         title: String? = null,
         artist: String? = null,
         artworkUrl: String? = null
     ) {
-        play(buildMediaItem(url, mimeType, title, artist, artworkUrl), subtitles)
+        play(buildMediaItem(url, mimeType, title, artist, artworkUrl))
     }
 
     private fun buildMediaItem(
@@ -142,24 +132,8 @@ class PlayerEngineController(context: Context) {
         return builder.build()
     }
 
-    private fun play(mediaItem: MediaItem, subtitles: List<SubtitleTrack>) {
-        if (subtitles.isEmpty()) {
-            exoPlayer.setMediaItem(mediaItem)
-        } else {
-            val mainSource = DefaultMediaSourceFactory(dataSourceFactory).createMediaSource(mediaItem)
-            val textSources = subtitles.map { subtitle ->
-                val subtitleConfiguration = MediaItem.SubtitleConfiguration.Builder(
-                    Uri.parse(subtitle.baseUrl)
-                )
-                    .setMimeType(subtitle.mimeType.ifBlank { "text/vtt" })
-                    .setLanguage(subtitle.languageCode.ifBlank { null })
-                    .setLabel(subtitle.name.ifBlank { subtitle.languageCode })
-                    .build()
-                SingleSampleMediaSource.Factory(dataSourceFactory)
-                    .createMediaSource(subtitleConfiguration, C.TIME_UNSET)
-            }
-            exoPlayer.setMediaSource(MergingMediaSource(mainSource, *textSources.toTypedArray()))
-        }
+    private fun play(mediaItem: MediaItem) {
+        exoPlayer.setMediaItem(mediaItem)
         exoPlayer.prepare()
         exoPlayer.playWhenReady = true
     }
