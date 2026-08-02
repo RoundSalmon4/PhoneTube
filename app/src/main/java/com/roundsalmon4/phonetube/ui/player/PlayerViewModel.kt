@@ -317,7 +317,7 @@ class PlayerViewModel @Inject constructor(
                             thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
                             durationMs = info.lengthSeconds * 1000,
                             positionMs = 0L,
-                            speed = playerPreferences.uiState.first().playbackSpeed,
+                            speed = playerController.exoPlayer.playbackParameters.speed,
                             timestamp = System.currentTimeMillis()
                         )
                         historyDao.upsert(entry)
@@ -369,9 +369,6 @@ class PlayerViewModel @Inject constructor(
 
     fun setPlaybackSpeed(speed: Float) {
         playerController.setPlaybackSpeed(speed)
-        viewModelScope.launch {
-            playerPreferences.setPlaybackSpeed(speed)
-        }
     }
 
     fun selectSubtitle(subtitle: SubtitleTrackInfo?) {
@@ -479,6 +476,7 @@ class PlayerViewModel @Inject constructor(
                     if (current != null) {
                         historyDao.upsert(current.copy(
                             positionMs = positionMs,
+                            speed = playerController.exoPlayer.playbackParameters.speed,
                             timestamp = System.currentTimeMillis()
                         ))
                         Log.d(TAG, "Saved history position for $videoId: ${positionMs}ms")

@@ -124,16 +124,26 @@ class HomeViewModel @Inject constructor(
                 } else null
 
                 val currentSources = enabledSections.map { it.source }.toSet()
+
+                // Refresh a feed if it's missing entirely, or if its videos carry no publish
+                // dates yet (e.g. cached before the date feature was added).
+                fun shouldRefresh(source: String): Boolean {
+                    if (source !in currentSources) return true
+                    val section = enabledSections.firstOrNull { it.source == source }
+                    val hasAnyDate = section?.videos?.any { it.publishedDate > 0 } ?: false
+                    return !hasAnyDate
+                }
+
                 val newFeeds = mutableListOf<kotlinx.coroutines.Deferred<com.roundsalmon4.phonetube.core.engine.model.HomeFeed?>>()
-                if (prefs.feedTrending && "Trending" !in currentSources) newFeeds.add(async { engine.getTrending().firstOrNull() })
-                if (prefs.feedWhatToWatch && "What to Watch" !in currentSources) newFeeds.add(async { engine.getWhatToWatch().firstOrNull() })
-                if (prefs.feedSports && "Sports" !in currentSources) newFeeds.add(async { engine.getSports().firstOrNull() })
-                if (prefs.feedGaming && "Gaming" !in currentSources) newFeeds.add(async { engine.getGaming().firstOrNull() })
-                if (prefs.feedLive && "Live" !in currentSources) newFeeds.add(async { engine.getLive().firstOrNull() })
-                if (prefs.feedNews && "News" !in currentSources) newFeeds.add(async { engine.getNews().firstOrNull() })
-                if (prefs.feedMusic && "Music" !in currentSources) newFeeds.add(async { engine.getMusic().firstOrNull() })
-                if (prefs.feedKids && "Kids" !in currentSources) newFeeds.add(async { engine.getKidsHome().firstOrNull() })
-                if (prefs.feedSubscriptions && "Subscriptions" !in currentSources) newFeeds.add(async { fetchSubscriptionsFeed() })
+                if (prefs.feedTrending && shouldRefresh("Trending")) newFeeds.add(async { engine.getTrending().firstOrNull() })
+                if (prefs.feedWhatToWatch && shouldRefresh("What to Watch")) newFeeds.add(async { engine.getWhatToWatch().firstOrNull() })
+                if (prefs.feedSports && shouldRefresh("Sports")) newFeeds.add(async { engine.getSports().firstOrNull() })
+                if (prefs.feedGaming && shouldRefresh("Gaming")) newFeeds.add(async { engine.getGaming().firstOrNull() })
+                if (prefs.feedLive && shouldRefresh("Live")) newFeeds.add(async { engine.getLive().firstOrNull() })
+                if (prefs.feedNews && shouldRefresh("News")) newFeeds.add(async { engine.getNews().firstOrNull() })
+                if (prefs.feedMusic && shouldRefresh("Music")) newFeeds.add(async { engine.getMusic().firstOrNull() })
+                if (prefs.feedKids && shouldRefresh("Kids")) newFeeds.add(async { engine.getKidsHome().firstOrNull() })
+                if (prefs.feedSubscriptions) newFeeds.add(async { fetchSubscriptionsFeed() })
 
                 val newSections = newFeeds.awaitAll().flatMap { feed ->
                     feed?.sections?.filter { it.videos.isNotEmpty() } ?: emptyList()

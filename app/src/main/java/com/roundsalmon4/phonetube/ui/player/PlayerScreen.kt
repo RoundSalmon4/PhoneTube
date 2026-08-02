@@ -167,12 +167,6 @@ fun PlayerScreen(
                         player = player,
                         modifier = Modifier.fillMaxSize()
                     )
-                    SubtitleOverlay(
-                        player = player,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 100.dp)
-                    )
                 } else {
                     // Portrait: player at top with dynamic aspect ratio, info below
                     Column(modifier = Modifier.fillMaxSize()) {
@@ -193,12 +187,6 @@ fun PlayerScreen(
                             PlayerSurface(
                                 player = player,
                                 modifier = Modifier.fillMaxSize()
-                            )
-                            SubtitleOverlay(
-                                player = player,
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .padding(bottom = 48.dp)
                             )
                         }
 
@@ -277,6 +265,14 @@ fun PlayerScreen(
             onSubtitleClick = { viewModel.showSubtitlePicker() },
             onAudioClick = { viewModel.showAudioPicker() },
             visible = controlsVisible
+        )
+
+        // Pin captions to the bottom of the screen, above the control bar
+        SubtitleOverlay(
+            player = viewModel.playerController.exoPlayer,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 104.dp)
         )
     }
 
