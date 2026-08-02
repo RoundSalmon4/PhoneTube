@@ -167,6 +167,12 @@ fun PlayerScreen(
                         player = player,
                         modifier = Modifier.fillMaxSize()
                     )
+                    SubtitleOverlay(
+                        player = player,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 100.dp)
+                    )
                 } else {
                     // Portrait: player at top with dynamic aspect ratio, info below
                     Column(modifier = Modifier.fillMaxSize()) {
@@ -187,6 +193,12 @@ fun PlayerScreen(
                             PlayerSurface(
                                 player = player,
                                 modifier = Modifier.fillMaxSize()
+                            )
+                            SubtitleOverlay(
+                                player = player,
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 48.dp)
                             )
                         }
 
