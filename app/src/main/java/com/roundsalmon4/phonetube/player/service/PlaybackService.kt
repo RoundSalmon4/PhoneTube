@@ -88,10 +88,14 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        // Stop playback when the app is swiped away from recents
         val player = mediaSession?.player
-        if (player == null || !player.playWhenReady || player.mediaItemCount == 0) {
-            stopSelf()
+        if (player != null) {
+            player.stop()
+            player.clearMediaItems()
         }
+        playerController = null
+        stopSelf()
     }
 
     override fun onDestroy() {
