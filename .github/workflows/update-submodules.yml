@@ -25,7 +25,7 @@ jobs:
           git remote add upstream https://github.com/yuliskov/MediaServiceCore.git || true
           git fetch upstream master
           git fetch origin phonetube-patches
-          git fetch origin tag patches-1.0
+          git fetch origin tag patches-2.0
           LOCAL=$(git rev-parse origin/phonetube-patches)
           REMOTE=$(git rev-parse upstream/master)
           if [ "$LOCAL" = "$REMOTE" ]; then
@@ -36,20 +36,17 @@ jobs:
           # start from upstream/master
           git checkout -b auto/update-mediaservicecore upstream/master
           # copy our patched files from the pinned known-good tag
-          git checkout patches-1.0 -- \
+          git checkout patches-2.0 -- \
             mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java \
             youtubeapi/src/main/AndroidManifest.xml \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseApiHelper.kt \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt \
-            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/channelgroups/models/ItemGroupImpl.kt \
-            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/playlist/PlaylistServiceWrapper.java \
-            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/playlistgroups/PlaylistGroupServiceImpl.kt \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeContentService.java \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/MediaServiceData.java \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/V2/VideoInfoService.java \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/models/VideoInfo.java
           # also copy CommonHelper.kt
-          curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/patches-1.0/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
+          curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/patches-2.0/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
           # verify every patch made it into the working tree
           grep -q "getPlaylist" mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java || { echo "ERROR: ContentService patch missing"; exit 1; }
           grep -q "fun getPlaylist" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt || { echo "ERROR: BrowseService2 patch missing"; exit 1; }
