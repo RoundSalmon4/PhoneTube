@@ -30,6 +30,12 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.rx2.await
 import kotlinx.coroutines.rx2.awaitFirstOrDefault
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import java.net.HttpURLConnection
+import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -351,6 +357,47 @@ class YouTubeEngine @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "getRssFeedVideos failed", e)
             emptyList()
+        }
+    }
+
+    /**
+     * Resolves a Streamable shortcode to a direct, signed MP4 URL.
+     * Returns null when the API is unreachable, blocked, or the video is unavailable.
+     */
+    suspend fun getStreamableInfo(shortcode: String): StreamableVideo? {
+        return try {
+            withContext(Dispatchers.IO) {
+                val connection = URL("https://api.streamable.com/videos/$shortcode")
+                    .openConnection() as HttpURLConnection
+                try {
+                    connection.requestMethod = "GET"
+                    connection.connectTimeout = 15_000
+                    connection.readTimeout = 30_000
+                    connection.instanceFollowRedirects = true
+                    if (connection.responseCode != 200) {
+                        Log.e(TAG, "getStreamableInfo: HTTP ${connection.responseCode} for $shortcode")
+                        return@withContext null
+                    }
+                    val json = connection.inputStream.bufferedReader().use { it.readText() }
+                    val response = Json { ignoreUnknownKeys = true }
+                        .decodeFromString<StreamableVideoResponse>(json)
+                    val mp4Url = response.files?.mp4?.url
+                    if (response.status == 2 && !mp4Url.isNullOrBlank() && !response.title.isNullOrBlank()) {
+                        StreamableVideo(
+                            mp4Url = mp4Url,
+                            title = response.title,
+                            thumbnailUrl = response.thumbnailUrl
+                        )
+                    } else {
+                        null
+                    }
+                } finally {
+                    connection.disconnect()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getStreamableInfo failed for $shortcode", e)
+            null
         }
     }
 
@@ -705,4 +752,24 @@ class YouTubeEngine @Inject constructor(
  */
 private suspend fun <T> io.reactivex.Observable<T>.awaitOrNull(): T? =
     try { awaitFirstOrDefault(null) } catch (_: Exception) { null }
+
+data class StreamableVideo(
+    val mp4Url: String,
+    val title: String,
+    val thumbnailUrl: String?
+)
+
+@Serializable
+private data class StreamableVideoResponse(
+    val status: Int = 0,
+    val title: String? = null,
+    val files: Files? = null,
+    @SerialName("thumbnail_url") val thumbnailUrl: String? = null
+) {
+    @Serializable
+    data class Files(val mp4: FileInfo? = null)
+
+    @Serializable
+    data class FileInfo(val url: String? = null)
+}
 

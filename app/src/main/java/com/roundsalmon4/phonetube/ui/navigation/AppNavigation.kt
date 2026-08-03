@@ -85,20 +85,28 @@ fun AppNavigation(
 
     LaunchedEffect(currentDeepLink) {
         currentDeepLink?.let { uri ->
-            val link = YouTubeUrlParser.parse(uri)
-            if (link.isValid) {
-                when (link.type) {
-                    YouTubeLink.Type.VIDEO,
-                    YouTubeLink.Type.SHORT -> {
-                        navController.navigate(Route.Player(link.id))
+            val host = uri.host?.lowercase()
+            if (host == "streamable.com" || host == "www.streamable.com") {
+                val shortcode = uri.path?.trim('/')
+                if (!shortcode.isNullOrBlank()) {
+                    navController.navigate(Route.Player("streamable:$shortcode"))
+                }
+            } else {
+                val link = YouTubeUrlParser.parse(uri)
+                if (link.isValid) {
+                    when (link.type) {
+                        YouTubeLink.Type.VIDEO,
+                        YouTubeLink.Type.SHORT -> {
+                            navController.navigate(Route.Player(link.id))
+                        }
+                        YouTubeLink.Type.PLAYLIST -> {
+                            navController.navigate(Route.YouTubePlaylist(link.id, "YouTube Playlist"))
+                        }
+                        YouTubeLink.Type.CHANNEL -> {
+                            navController.navigate(Route.Channel(link.id))
+                        }
+                        else -> {}
                     }
-                    YouTubeLink.Type.PLAYLIST -> {
-                        navController.navigate(Route.YouTubePlaylist(link.id, "YouTube Playlist"))
-                    }
-                    YouTubeLink.Type.CHANNEL -> {
-                        navController.navigate(Route.Channel(link.id))
-                    }
-                    else -> {}
                 }
             }
         }

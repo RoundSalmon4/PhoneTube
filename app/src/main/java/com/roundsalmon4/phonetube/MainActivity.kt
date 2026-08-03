@@ -119,18 +119,20 @@ class MainActivity : ComponentActivity() {
 
     private fun handleIntent(intent: Intent) {
         val uri = intent.data ?: return
-        if (isYouTubeUrl(uri)) {
+        if (isSupportedUrl(uri)) {
             deepLinkUri.value = uri
         }
     }
 
-    private fun isYouTubeUrl(uri: Uri): Boolean {
+    private fun isSupportedUrl(uri: Uri): Boolean {
         val host = uri.host?.lowercase() ?: return false
         return host == "youtube.com" ||
             host == "m.youtube.com" ||
             host == "www.youtube.com" ||
             host == "music.youtube.com" ||
-            host == "youtu.be"
+            host == "youtu.be" ||
+            host == "streamable.com" ||
+            host == "www.streamable.com"
     }
 
     private fun requestNotificationPermission() {

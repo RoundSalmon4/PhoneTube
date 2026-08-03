@@ -16,6 +16,7 @@ import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.model.SponsorSegment
+import com.roundsalmon4.phonetube.core.engine.model.StreamFormat
 import com.roundsalmon4.phonetube.core.engine.model.StreamInfo
 import com.roundsalmon4.phonetube.player.AudioTrackInfo
 import com.roundsalmon4.phonetube.player.PlayerEngineController
@@ -120,6 +121,10 @@ class PlayerViewModel @Inject constructor(
     private fun loadStreamInfo() {
         _uiState.value = PlayerUiState.Loading
         viewModelScope.launch {
+            if (videoId.startsWith("streamable:")) {
+                loadStreamable()
+                return@launch
+            }
             engine.getStreamInfo(videoId)
                 .catch { e ->
                     Log.e(TAG, "Failed to load stream info", e)
@@ -141,6 +146,49 @@ class PlayerViewModel @Inject constructor(
                     }
                 }
         }
+    }
+
+    private suspend fun loadStreamable() {
+        val shortcode = videoId.removePrefix("streamable:")
+        val streamable = engine.getStreamableInfo(shortcode)
+        if (streamable == null) {
+            _uiState.value = PlayerUiState.Error(
+                "This Streamable video could not be loaded. The Streamable API may be blocked or the video is unavailable."
+            )
+            return
+        }
+        val info = StreamInfo(
+            title = streamable.title,
+            author = "Streamable",
+            channelId = "",
+            lengthSeconds = 0L,
+            isLive = false,
+            isLiveContent = false,
+            adaptiveFormats = emptyList(),
+            urlFormats = listOf(
+                StreamFormat(
+                    url = streamable.mp4Url,
+                    mimeType = "video/mp4",
+                    itag = null,
+                    height = 0,
+                    bitrate = null,
+                    fps = null,
+                    qualityLabel = null
+                )
+            ),
+            subtitles = emptyList(),
+            dashManifestUrl = null,
+            hlsManifestUrl = null,
+            isUnplayable = false,
+            playabilityReason = null
+        )
+        _uiState.value = PlayerUiState.Ready(info)
+        playerStateManager.updateVideoInfo(
+            videoId = videoId,
+            title = info.title,
+            thumbnailUrl = streamable.thumbnailUrl ?: ""
+        )
+        startPlayback(info)
     }
 
     private fun loadSponsorSegments() {
