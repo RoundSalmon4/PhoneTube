@@ -103,19 +103,22 @@ class PlayerViewModel @Inject constructor(
 
     private val historyMutex = Mutex()
     private var continuePlayingListener: Player.Listener? = null
+    private val isStreamableVideo: Boolean get() = videoId.startsWith("streamable:")
 
     init {
         playerStateManager.isPlayerScreenVisible = true
         loadStreamInfo()
-        loadSponsorSegments()
-        loadDescription()
-        startAutoSkip()
         restoreSpeedPreference()
         loadLandscapeLockPreference()
         loadOpenLinksInPreference()
         loadPlaylists()
         startPeriodicHistorySave()
-        setupContinuePlaying()
+        if (!isStreamableVideo) {
+            loadSponsorSegments()
+            loadDescription()
+            startAutoSkip()
+            setupContinuePlaying()
+        }
     }
 
     private fun loadStreamInfo() {
@@ -316,9 +319,11 @@ class PlayerViewModel @Inject constructor(
             }
         }
 
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                engine.reportWatchProgress(videoId, 0f)
+        if (!isStreamableVideo) {
+            viewModelScope.launch {
+                withContext(Dispatchers.IO) {
+                    engine.reportWatchProgress(videoId, 0f)
+                }
             }
         }
     }
@@ -529,8 +534,10 @@ class PlayerViewModel @Inject constructor(
                         ))
                         Log.d(TAG, "Saved history position for $videoId: ${positionMs}ms")
                     }
-                    withContext(Dispatchers.IO) {
-                        engine.reportWatchProgress(videoId, positionMs / 1000f)
+                    if (!isStreamableVideo) {
+                        withContext(Dispatchers.IO) {
+                            engine.reportWatchProgress(videoId, positionMs / 1000f)
+                        }
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to save history position", e)

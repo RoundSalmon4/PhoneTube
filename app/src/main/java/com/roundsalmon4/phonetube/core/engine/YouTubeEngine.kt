@@ -382,11 +382,12 @@ class YouTubeEngine @Inject constructor(
                     val response = Json { ignoreUnknownKeys = true }
                         .decodeFromString<StreamableVideoResponse>(json)
                     val mp4Url = response.files?.mp4?.url
-                    if (response.status == 2 && !mp4Url.isNullOrBlank() && !response.title.isNullOrBlank()) {
+                    if (response.status == 2 && !mp4Url.isNullOrBlank()) {
+                        val title = response.title?.takeIf { it.isNotBlank() } ?: shortcode
                         StreamableVideo(
-                            mp4Url = mp4Url,
-                            title = response.title,
-                            thumbnailUrl = response.thumbnailUrl
+                            mp4Url = normalizeStreamableUrl(mp4Url),
+                            title = title,
+                            thumbnailUrl = response.thumbnailUrl?.let { normalizeStreamableUrl(it) }
                         )
                     } else {
                         null
@@ -758,6 +759,12 @@ data class StreamableVideo(
     val title: String,
     val thumbnailUrl: String?
 )
+
+/**
+ * Streamable returns protocol-relative URLs like "//cdn-..."; ensure they carry a scheme.
+ */
+private fun normalizeStreamableUrl(url: String): String =
+    if (url.startsWith("//")) "https:$url" else url
 
 @Serializable
 private data class StreamableVideoResponse(
