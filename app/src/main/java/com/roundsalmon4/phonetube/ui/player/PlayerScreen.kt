@@ -169,12 +169,33 @@ fun PlayerScreen(
                             player = player,
                             modifier = Modifier.fillMaxSize()
                         )
+                        if (playbackState.isBuffering) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.align(Alignment.Center),
+                                color = Color.White
+                            )
+                        }
+                        PlayerControls(
+                            state = playbackState,
+                            title = state.streamInfo.title,
+                            sponsorSegments = sponsorSegments,
+                            onBackClick = onBackClick,
+                            onTogglePlayPause = { viewModel.togglePlayPause() },
+                            onSeekTo = { viewModel.seekTo(it) },
+                            onSeekBy = { viewModel.seekBy(it) },
+                            onSpeedClick = { viewModel.showSpeedPicker() },
+                            onQualityClick = { viewModel.showQualityPicker() },
+                            onSubtitleClick = { viewModel.showSubtitlePicker() },
+                            onAudioClick = { viewModel.showAudioPicker() },
+                            visible = controlsVisible,
+                            modifier = Modifier.fillMaxSize()
+                        )
                         SubtitleOverlay(
                             player = player,
                             fontSizeSp = (maxWidth.value / 30f).coerceIn(14f, 32f),
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
-                                .padding(bottom = 48.dp)
+                                .padding(bottom = if (controlsVisible) 120.dp else 16.dp)
                         )
                     }
                 } else {
@@ -198,12 +219,33 @@ fun PlayerScreen(
                                 player = player,
                                 modifier = Modifier.fillMaxSize()
                             )
+                            if (playbackState.isBuffering) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.align(Alignment.Center),
+                                    color = Color.White
+                                )
+                            }
+                            PlayerControls(
+                                state = playbackState,
+                                title = state.streamInfo.title,
+                                sponsorSegments = sponsorSegments,
+                                onBackClick = onBackClick,
+                                onTogglePlayPause = { viewModel.togglePlayPause() },
+                                onSeekTo = { viewModel.seekTo(it) },
+                                onSeekBy = { viewModel.seekBy(it) },
+                                onSpeedClick = { viewModel.showSpeedPicker() },
+                                onQualityClick = { viewModel.showQualityPicker() },
+                                onSubtitleClick = { viewModel.showSubtitlePicker() },
+                                onAudioClick = { viewModel.showAudioPicker() },
+                                visible = controlsVisible,
+                                modifier = Modifier.fillMaxSize()
+                            )
                             SubtitleOverlay(
                                 player = player,
                                 fontSizeSp = (maxWidth.value / 30f).coerceIn(14f, 32f),
                                 modifier = Modifier
                                     .align(Alignment.BottomCenter)
-                                    .padding(bottom = 16.dp)
+                                    .padding(bottom = if (controlsVisible) 120.dp else 16.dp)
                             )
                         }
 
@@ -259,30 +301,6 @@ fun PlayerScreen(
             }
         }
 
-        if (playbackState.isBuffering && uiState is PlayerUiState.Ready) {
-            CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.Center),
-                color = Color.White
-            )
-        }
-
-        PlayerControls(
-            state = playbackState,
-            title = when (val state = uiState) {
-                is PlayerUiState.Ready -> state.streamInfo.title
-                else -> ""
-            },
-            sponsorSegments = sponsorSegments,
-            onBackClick = onBackClick,
-            onTogglePlayPause = { viewModel.togglePlayPause() },
-            onSeekTo = { viewModel.seekTo(it) },
-            onSeekBy = { viewModel.seekBy(it) },
-            onSpeedClick = { viewModel.showSpeedPicker() },
-            onQualityClick = { viewModel.showQualityPicker() },
-            onSubtitleClick = { viewModel.showSubtitlePicker() },
-            onAudioClick = { viewModel.showAudioPicker() },
-            visible = controlsVisible
-        )
     }
 
     // Bottom sheets
