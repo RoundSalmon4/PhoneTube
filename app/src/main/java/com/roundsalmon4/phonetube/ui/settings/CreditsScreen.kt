@@ -48,6 +48,12 @@ private val credits = listOf(
         license = "AGPL-3.0"
     ),
     CreditEntry(
+        name = "Streamable",
+        description = "Video hosting service API for direct MP4 playback",
+        url = "https://streamable.com",
+        license = "Proprietary API"
+    ),
+    CreditEntry(
         name = "MediaServiceCore",
         description = "YouTube API engine (git submodule)",
         url = "https://github.com/yuliskov/MediaServiceCore",
@@ -63,6 +69,12 @@ private val credits = listOf(
         name = "Coil",
         description = "Image loading for Compose",
         url = "https://github.com/coil-kt/coil",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
+        name = "Jetpack Compose",
+        description = "UI toolkit for the entire interface",
+        url = "https://developer.android.com/jetpack/compose",
         license = "Apache 2.0"
     ),
     CreditEntry(
@@ -90,6 +102,18 @@ private val credits = listOf(
         license = "Apache 2.0"
     ),
     CreditEntry(
+        name = "Gson",
+        description = "JSON serialization for the YouTube API",
+        url = "https://github.com/google/gson",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
+        name = "JsonPath",
+        description = "JSON path parsing for the YouTube API",
+        url = "https://github.com/json-path/JsonPath",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
         name = "Kotlinx Serialization",
         description = "JSON serialization for export, navigation routes",
         url = "https://github.com/Kotlin/kotlinx.serialization",
@@ -114,6 +138,18 @@ private val credits = listOf(
         license = "Apache 2.0"
     ),
     CreditEntry(
+        name = "AndroidX Core",
+        description = "Core, Activity, and Lifecycle libraries",
+        url = "https://developer.android.com/jetpack/androidx",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
+        name = "AndroidX WebKit",
+        description = "WebView support for in-app link browser",
+        url = "https://developer.android.com/jetpack/androidx/releases/webkit",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
         name = "Kotlin Coroutines",
         description = "Async runtime for network calls and database operations",
         url = "https://github.com/Kotlin/kotlinx.coroutines",
@@ -129,7 +165,7 @@ private val credits = listOf(
         name = "Cronet",
         description = "Network stack via OkHttp Cronet interceptor",
         url = "https://developer.android.com/guide/topics/connectivity/cronet",
-        license = "Apache 2.0"
+        license = "BSD-3-Clause (Chromium)"
     ),
     CreditEntry(
         name = "J2V8",
