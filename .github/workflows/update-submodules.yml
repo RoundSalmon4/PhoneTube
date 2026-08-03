@@ -52,10 +52,17 @@ jobs:
           grep -q "fun getPlaylist" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt || { echo "ERROR: BrowseService2 patch missing"; exit 1; }
           grep -q "continueGroupObserve" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeContentService.java || { echo "ERROR: YouTubeContentService patch missing"; exit 1; }
           grep -q 'android:required="false"' youtubeapi/src/main/AndroidManifest.xml || { echo "ERROR: manifest usb.host fix missing"; exit 1; }
-          git add -A
-          git commit -m "chore: sync phonetube-patches with upstream + apply patches" || echo "no changes to commit"
-          # push to phonetube-patches
-          git push origin auto/update-mediaservicecore:phonetube-patches --force
+          # Skip the rebuild when the result is content-identical to the current branch,
+          # so an unchanged upstream doesn't generate a new commit SHA and a no-op PR.
+          if git diff --quiet origin/phonetube-patches -- mediaserviceinterfaces youtubeapi; then
+            echo "Rebuilt state matches phonetube-patches; no update needed"
+            git checkout -f origin/phonetube-patches
+          else
+            git add -A
+            git commit -m "chore: sync phonetube-patches with upstream + apply patches" || echo "no changes to commit"
+            # push to phonetube-patches
+            git push origin auto/update-mediaservicecore:phonetube-patches --force
+          fi
 
       - name: Update SharedModules
         run: |
