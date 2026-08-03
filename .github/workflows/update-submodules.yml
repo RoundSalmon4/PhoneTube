@@ -37,6 +37,7 @@ jobs:
           # copy our patched files over upstream versions
           git checkout origin/phonetube-patches -- \
             mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java \
+            youtubeapi/src/main/AndroidManifest.xml \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseApiHelper.kt \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/channelgroups/models/ItemGroupImpl.kt \
