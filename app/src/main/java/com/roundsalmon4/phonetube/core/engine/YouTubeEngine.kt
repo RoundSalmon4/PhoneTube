@@ -277,7 +277,7 @@ class YouTubeEngine @Inject constructor(
             var avatarUrl: String? = null
             for (videoId in allVideoIds.take(3)) {
                 try {
-                    val metadata = mediaItemService.getMetadataObserve(videoId).awaitFirstOrDefault(null)
+                    val metadata = mediaItemService.getMetadataObserve(videoId).awaitOrNull()
                     if (!metadata?.authorImageUrl.isNullOrBlank()) {
                         avatarUrl = metadata.authorImageUrl
                         break
@@ -302,7 +302,7 @@ class YouTubeEngine @Inject constructor(
 
     fun getStreamInfo(videoId: String): Flow<StreamInfo> = flow {
         try {
-            val info = mediaItemService.getFormatInfoObserve(videoId).awaitFirstOrDefault(null)
+            val info = mediaItemService.getFormatInfoObserve(videoId).awaitOrNull()
             if (info == null) {
                 throw IllegalStateException("No stream info available for $videoId")
             }
@@ -316,7 +316,7 @@ class YouTubeEngine @Inject constructor(
     }.flowOn(Dispatchers.IO)
 
     fun getMetadata(videoId: String): Flow<VideoMetadataResult> = flow {
-        val metadata = mediaItemService.getMetadataObserve(videoId).awaitFirstOrDefault(null)
+        val metadata = mediaItemService.getMetadataObserve(videoId).awaitOrNull()
         emit((metadata ?: throw IllegalStateException("No metadata available for $videoId")).toVideoMetadataResult())
     }.flowOn(Dispatchers.IO)
 
@@ -345,7 +345,7 @@ class YouTubeEngine @Inject constructor(
         return try {
             withContext(Dispatchers.IO) {
                 val group = contentService.getRssFeedObserve(*channelIds.toTypedArray())
-                    .awaitFirstOrDefault(null)
+                    .awaitOrNull()
                 group?.mediaItems?.filterNotNull()?.mapNotNull { it.toVideo() } ?: emptyList()
             }
         } catch (e: Exception) {
@@ -359,7 +359,7 @@ class YouTubeEngine @Inject constructor(
             withContext(Dispatchers.IO) {
                 val browseId = if (playlistId.startsWith("VL")) playlistId else "VL$playlistId"
                 val result = contentService.getPlaylist(browseId)
-                val firstGroup = result?.firstOrNull()
+                val firstGroup = result?.filterNotNull()?.firstOrNull()
                 val items = (firstGroup?.mediaItems ?: emptyList()).filterNotNull()
                 items.firstOrNull()?.videoId
             }
@@ -377,7 +377,7 @@ class YouTubeEngine @Inject constructor(
                 val browseResult = contentService.getPlaylist(browseId)
                 if (browseResult != null && browseResult.isNotEmpty()) {
                     val allItems = mutableListOf<MediaItem>()
-                    browseResult.forEach { group ->
+                    browseResult.filterNotNull().forEach { group ->
                         allItems.addAll((group.mediaItems ?: emptyList()).filterNotNull())
                     }
                     // Page through the playlist via continuation keys
@@ -698,4 +698,11 @@ class YouTubeEngine @Inject constructor(
         return playlists
     }
 }
+
+/**
+ * Awaits the first emission, returning null instead of throwing when the source
+ * errors (e.g. the API returned nothing and RxHelper emitted onError).
+ */
+private suspend fun <T> io.reactivex.Observable<T>.awaitOrNull(): T? =
+    try { awaitFirstOrDefault(null) } catch (_: Exception) { null }
 
