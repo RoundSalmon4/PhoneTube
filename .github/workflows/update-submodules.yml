@@ -25,6 +25,7 @@ jobs:
           git remote add upstream https://github.com/yuliskov/MediaServiceCore.git || true
           git fetch upstream master
           git fetch origin phonetube-patches
+          git fetch origin tag patches-1.0
           LOCAL=$(git rev-parse origin/phonetube-patches)
           REMOTE=$(git rev-parse upstream/master)
           if [ "$LOCAL" = "$REMOTE" ]; then
@@ -34,8 +35,8 @@ jobs:
           echo "MediaServiceCore upstream has new commits: $LOCAL -> $REMOTE"
           # start from upstream/master
           git checkout -b auto/update-mediaservicecore upstream/master
-          # copy our patched files over upstream versions
-          git checkout origin/phonetube-patches -- \
+          # copy our patched files from the pinned known-good tag
+          git checkout patches-1.0 -- \
             mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java \
             youtubeapi/src/main/AndroidManifest.xml \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseApiHelper.kt \
@@ -48,9 +49,12 @@ jobs:
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/V2/VideoInfoService.java \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/models/VideoInfo.java
           # also copy CommonHelper.kt
-          curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/phonetube-patches/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
-          # re-apply our usb.host manifest fix (upstream keeps dropping required="false")
-          sed -i 's|<uses-feature android:name="android.hardware.usb.host" />|<uses-feature android:name="android.hardware.usb.host" android:required="false" />|' youtubeapi/src/main/AndroidManifest.xml
+          curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/patches-1.0/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
+          # verify every patch made it into the working tree
+          grep -q "getPlaylist" mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java || { echo "ERROR: ContentService patch missing"; exit 1; }
+          grep -q "fun getPlaylist" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt || { echo "ERROR: BrowseService2 patch missing"; exit 1; }
+          grep -q "continueGroupObserve" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeContentService.java || { echo "ERROR: YouTubeContentService patch missing"; exit 1; }
+          grep -q 'android:required="false"' youtubeapi/src/main/AndroidManifest.xml || { echo "ERROR: manifest usb.host fix missing"; exit 1; }
           git add -A
           git commit -m "chore: sync phonetube-patches with upstream + apply patches" || echo "no changes to commit"
           # push to phonetube-patches
