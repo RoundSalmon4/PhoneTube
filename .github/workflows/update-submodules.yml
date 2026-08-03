@@ -49,6 +49,8 @@ jobs:
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/models/VideoInfo.java
           # also copy CommonHelper.kt
           curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/phonetube-patches/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
+          # re-apply our usb.host manifest fix (upstream keeps dropping required="false")
+          sed -i 's|<uses-feature android:name="android.hardware.usb.host" />|<uses-feature android:name="android.hardware.usb.host" android:required="false" />|' youtubeapi/src/main/AndroidManifest.xml
           git add -A
           git commit -m "chore: sync phonetube-patches with upstream + apply patches" || echo "no changes to commit"
           # push to phonetube-patches
