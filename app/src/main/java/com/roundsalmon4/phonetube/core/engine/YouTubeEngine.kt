@@ -465,15 +465,20 @@ class YouTubeEngine @Inject constructor(
             return null
         }
         val timestamp = getPublishedDate()
+        val productionDate = getProductionDate()
+        val durationMs = getDurationMs()
+        if (durationMs <= 0 || productionDate.isNullOrBlank()) {
+            Log.d(TAG, "toVideo missing meta: id=$videoId type=${getType()} durationMs=$durationMs prodDate='${productionDate?.take(30)}'")
+        }
         return Video(
             videoId = videoId,
             title = getTitle().orEmpty(),
             author = getAuthor().orEmpty(),
             channelId = getChannelId().orEmpty(),
             thumbnailUrl = getCardImageUrl().orEmpty(),
-            durationMs = getDurationMs(),
+            durationMs = durationMs,
             viewCount = null,
-            publishedDate = if (timestamp > 0) timestamp else parseProductionDate(getProductionDate()),
+            publishedDate = if (timestamp > 0) timestamp else parseProductionDate(productionDate),
             percentWatched = getPercentWatched()
         )
     }

@@ -260,6 +260,20 @@ private fun HistoryTab(
                         overflow = TextOverflow.Ellipsis
                     )
                 },
+                supportingContent = {
+                    val remainingMs = (entry.durationMs - entry.positionMs).coerceAtLeast(0L)
+                    val text = when {
+                        entry.durationMs <= 0 -> entry.channelName
+                        entry.positionMs <= 0 -> formatDuration(entry.durationMs)
+                        remainingMs > 0 -> "${formatDuration(remainingMs)} remaining"
+                        else -> "Watched"
+                    }
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
                 leadingContent = {
                     Box {
                         AsyncImage(
@@ -381,5 +395,17 @@ private fun SubscriptionsTab(
                 )
             }
         }
+    }
+}
+
+private fun formatDuration(durationMs: Long): String {
+    val totalSeconds = durationMs / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) {
+        String.format("%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%d:%02d", minutes, seconds)
     }
 }
