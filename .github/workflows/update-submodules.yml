@@ -25,7 +25,7 @@ jobs:
           git remote add upstream https://github.com/yuliskov/MediaServiceCore.git || true
           git fetch upstream master
           git fetch origin phonetube-patches
-          git fetch origin tag patches-2.0
+          git fetch origin tag patches-3.0
           LOCAL=$(git rev-parse origin/phonetube-patches)
           REMOTE=$(git rev-parse upstream/master)
           if [ "$LOCAL" = "$REMOTE" ]; then
@@ -36,22 +36,26 @@ jobs:
           # start from upstream/master
           git checkout -b auto/update-mediaservicecore upstream/master
           # copy our patched files from the pinned known-good tag
-          git checkout patches-2.0 -- \
+          git checkout patches-3.0 -- \
             mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java \
             youtubeapi/src/main/AndroidManifest.xml \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseApiHelper.kt \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt \
+            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/rss/RssService.kt \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeContentService.java \
+            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/data/YouTubeMediaItem.java \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/MediaServiceData.java \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/V2/VideoInfoService.java \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/models/VideoInfo.java
           # also copy CommonHelper.kt
-          curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/patches-2.0/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
+          curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/patches-3.0/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
           # verify every patch made it into the working tree
           grep -q "getPlaylist" mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java || { echo "ERROR: ContentService patch missing"; exit 1; }
           grep -q "fun getPlaylist" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt || { echo "ERROR: BrowseService2 patch missing"; exit 1; }
           grep -q "continueGroupObserve" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeContentService.java || { echo "ERROR: YouTubeContentService patch missing"; exit 1; }
           grep -q 'android:required="false"' youtubeapi/src/main/AndroidManifest.xml || { echo "ERROR: manifest usb.host fix missing"; exit 1; }
+          grep -q "setLengthText" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/data/YouTubeMediaItem.java || { echo "ERROR: YouTubeMediaItem patch missing"; exit 1; }
+          grep -q "item.lengthText = first.lengthText" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/rss/RssService.kt || { echo "ERROR: RssService patch missing"; exit 1; }
           # Skip the rebuild when the result is content-identical to the current branch,
           # so an unchanged upstream doesn't generate a new commit SHA and a no-op PR.
           if git diff --quiet origin/phonetube-patches -- mediaserviceinterfaces youtubeapi; then
