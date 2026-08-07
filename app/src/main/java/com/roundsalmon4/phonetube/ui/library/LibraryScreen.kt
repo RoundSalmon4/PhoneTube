@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -252,58 +253,60 @@ private fun HistoryTab(
                 (entry.positionMs.toFloat() / entry.durationMs).coerceIn(0f, 1f)
             } else 0f
 
-            ListItem(
-                headlineContent = {
-                    Column {
-                        Text(
-                            entry.title,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        val remainingMs = (entry.durationMs - entry.positionMs).coerceAtLeast(0L)
-                        val supporting = when {
-                            entry.durationMs > 0 && entry.positionMs <= 0 -> formatDuration(entry.durationMs)
-                            entry.durationMs > 0 && remainingMs > 0 -> "${formatDuration(remainingMs)} remaining"
-                            entry.durationMs > 0 -> "Watched"
-                            else -> entry.channelName.ifBlank { "Unknown" }
-                        }
-                        Text(
-                            text = supporting,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                },
-                leadingContent = {
-                    Box {
-                        AsyncImage(
-                            model = entry.thumbnailUrl,
-                            contentDescription = null,
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .combinedClickable(
+                        onClick = { onVideoClick(entry.videoId) },
+                        onLongClick = { longPressedEntry = entry }
+                    )
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box {
+                    AsyncImage(
+                        model = entry.thumbnailUrl,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(64.dp, 36.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                    if (progress > 0f) {
+                        LinearProgressIndicator(
+                            progress = { progress },
                             modifier = Modifier
-                                .size(64.dp, 36.dp)
-                                .clip(RoundedCornerShape(4.dp)),
-                            contentScale = ContentScale.Crop
+                                .fillMaxWidth()
+                                .height(3.dp)
+                                .align(Alignment.BottomCenter),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = Color.Black.copy(alpha = 0.5f)
                         )
-                        if (progress > 0f) {
-                            LinearProgressIndicator(
-                                progress = { progress },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(3.dp)
-                                    .align(Alignment.BottomCenter),
-                                color = MaterialTheme.colorScheme.primary,
-                                trackColor = Color.Black.copy(alpha = 0.5f)
-                            )
-                        }
                     }
-                },
-                modifier = Modifier.combinedClickable(
-                    onClick = { onVideoClick(entry.videoId) },
-                    onLongClick = { longPressedEntry = entry }
-                )
-            )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = entry.title,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    val remainingMs = (entry.durationMs - entry.positionMs).coerceAtLeast(0L)
+                    val supporting = when {
+                        entry.durationMs > 0 && entry.positionMs <= 0 -> formatDuration(entry.durationMs)
+                        entry.durationMs > 0 && remainingMs > 0 -> "${formatDuration(remainingMs)} remaining"
+                        entry.durationMs > 0 -> "Watched"
+                        else -> entry.channelName.ifBlank { "Unknown" }
+                    }
+                    Text(
+                        text = supporting,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
     }
 }
