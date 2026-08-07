@@ -260,23 +260,22 @@ private fun HistoryTab(
                         overflow = TextOverflow.Ellipsis
                     )
                 },
-                supportingContent = if (entry.durationMs > 0) {
-                    {
-                        val remainingMs = (entry.durationMs - entry.positionMs).coerceAtLeast(0L)
-                        val text = when {
-                            entry.positionMs <= 0 -> formatDuration(entry.durationMs)
-                            remainingMs > 0 -> "${formatDuration(remainingMs)} remaining"
-                            else -> "Watched"
-                        }
-                        Text(
-                            text = text,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                supportingContent = {
+                    val remainingMs = (entry.durationMs - entry.positionMs).coerceAtLeast(0L)
+                    val text = when {
+                        entry.durationMs > 0 && entry.positionMs <= 0 -> formatDuration(entry.durationMs)
+                        entry.durationMs > 0 && remainingMs > 0 -> "${formatDuration(remainingMs)} remaining"
+                        entry.durationMs > 0 -> "Watched"
+                        else -> entry.channelName.ifBlank { "Unknown" }
                     }
-                } else null,
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
                 leadingContent = {
                     Box {
                         AsyncImage(

@@ -130,7 +130,16 @@ class PlayerViewModel @Inject constructor(
                 return@launch
             }
             if (videoId.startsWith("media:")) {
-                loadDirectMedia(videoId.removePrefix("media:"))
+                val encoded = videoId.removePrefix("media:")
+                val url = try {
+                    String(
+                        android.util.Base64.decode(encoded, android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING),
+                        Charsets.UTF_8
+                    )
+                } catch (e: Exception) {
+                    encoded
+                }
+                loadDirectMedia(url)
                 return@launch
             }
             engine.getStreamInfo(videoId)
