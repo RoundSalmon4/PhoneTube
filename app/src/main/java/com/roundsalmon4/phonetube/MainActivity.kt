@@ -132,7 +132,9 @@ class MainActivity : ComponentActivity() {
             host == "music.youtube.com" ||
             host == "youtu.be" ||
             host == "streamable.com" ||
-            host == "www.streamable.com"
+            host == "www.streamable.com" ||
+            host == "redd.it" ||
+            host.endsWith(".redd.it")
     }
 
     private fun requestNotificationPermission() {

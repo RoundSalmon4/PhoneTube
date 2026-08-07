@@ -81,6 +81,20 @@
                 <data android:host="www.streamable.com" />
             </intent-filter>
 
+            <!-- Reddit media links (direct MP4s) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="packaged-media.redd.it" />
+                <data android:host="v.redd.it" />
+                <data android:host="i.redd.it" />
+                <data android:host="redd.it" />
+            </intent-filter>
+
             <!-- YouTube app scheme -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

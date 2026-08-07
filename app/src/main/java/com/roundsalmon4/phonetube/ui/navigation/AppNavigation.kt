@@ -91,6 +91,8 @@ fun AppNavigation(
                 if (!shortcode.isNullOrBlank()) {
                     navController.navigate(Route.Player("streamable:$shortcode"))
                 }
+            } else if (host == "redd.it" || host?.endsWith(".redd.it") == true) {
+                navController.navigate(Route.Player("media:${uri.toString()}"))
             } else {
                 val link = YouTubeUrlParser.parse(uri)
                 if (link.isValid) {

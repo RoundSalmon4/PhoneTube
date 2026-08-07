@@ -103,7 +103,8 @@ class PlayerViewModel @Inject constructor(
 
     private val historyMutex = Mutex()
     private var continuePlayingListener: Player.Listener? = null
-    private val isStreamableVideo: Boolean get() = videoId.startsWith("streamable:")
+    private val isExternalVideo: Boolean
+        get() = videoId.startsWith("streamable:") || videoId.startsWith("media:")
 
     init {
         playerStateManager.isPlayerScreenVisible = true
@@ -113,7 +114,7 @@ class PlayerViewModel @Inject constructor(
         loadOpenLinksInPreference()
         loadPlaylists()
         startPeriodicHistorySave()
-        if (!isStreamableVideo) {
+        if (!isExternalVideo) {
             loadSponsorSegments()
             loadDescription()
             startAutoSkip()
@@ -126,6 +127,10 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             if (videoId.startsWith("streamable:")) {
                 loadStreamable()
+                return@launch
+            }
+            if (videoId.startsWith("media:")) {
+                loadDirectMedia(videoId.removePrefix("media:"))
                 return@launch
             }
             engine.getStreamInfo(videoId)
@@ -190,6 +195,41 @@ class PlayerViewModel @Inject constructor(
             videoId = videoId,
             title = info.title,
             thumbnailUrl = streamable.thumbnailUrl ?: ""
+        )
+        startPlayback(info)
+    }
+
+    private suspend fun loadDirectMedia(url: String) {
+        val info = StreamInfo(
+            title = "Reddit video",
+            author = "",
+            channelId = "",
+            lengthSeconds = 0L,
+            isLive = false,
+            isLiveContent = false,
+            adaptiveFormats = emptyList(),
+            urlFormats = listOf(
+                StreamFormat(
+                    url = url,
+                    mimeType = "video/mp4",
+                    itag = null,
+                    height = 0,
+                    bitrate = null,
+                    fps = null,
+                    qualityLabel = null
+                )
+            ),
+            subtitles = emptyList(),
+            dashManifestUrl = null,
+            hlsManifestUrl = null,
+            isUnplayable = false,
+            playabilityReason = null
+        )
+        _uiState.value = PlayerUiState.Ready(info)
+        playerStateManager.updateVideoInfo(
+            videoId = videoId,
+            title = info.title,
+            thumbnailUrl = ""
         )
         startPlayback(info)
     }
@@ -319,7 +359,7 @@ class PlayerViewModel @Inject constructor(
             }
         }
 
-        if (!isStreamableVideo) {
+        if (!isExternalVideo) {
             viewModelScope.launch {
                 withContext(Dispatchers.IO) {
                     engine.reportWatchProgress(videoId, 0f)
@@ -534,7 +574,7 @@ class PlayerViewModel @Inject constructor(
                         ))
                         Log.d(TAG, "Saved history position for $videoId: ${positionMs}ms")
                     }
-                    if (!isStreamableVideo) {
+                    if (!isExternalVideo) {
                         withContext(Dispatchers.IO) {
                             engine.reportWatchProgress(videoId, positionMs / 1000f)
                         }
@@ -599,3 +639,4 @@ sealed interface PlayerUiState {
 
 private const val SKIP_CHECK_INTERVAL_MS = 500L
 private const val POSITION_SAVE_INTERVAL_MS = 10_000L
+
