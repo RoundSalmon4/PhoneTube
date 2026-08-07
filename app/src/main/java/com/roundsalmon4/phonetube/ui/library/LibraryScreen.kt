@@ -254,27 +254,27 @@ private fun HistoryTab(
 
             ListItem(
                 headlineContent = {
-                    Text(
-                        entry.title,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                },
-                supportingContent = {
-                    val remainingMs = (entry.durationMs - entry.positionMs).coerceAtLeast(0L)
-                    val text = when {
-                        entry.durationMs > 0 && entry.positionMs <= 0 -> formatDuration(entry.durationMs)
-                        entry.durationMs > 0 && remainingMs > 0 -> "${formatDuration(remainingMs)} remaining"
-                        entry.durationMs > 0 -> "Watched"
-                        else -> entry.channelName.ifBlank { "Unknown" }
+                    Column {
+                        Text(
+                            entry.title,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        val remainingMs = (entry.durationMs - entry.positionMs).coerceAtLeast(0L)
+                        val supporting = when {
+                            entry.durationMs > 0 && entry.positionMs <= 0 -> formatDuration(entry.durationMs)
+                            entry.durationMs > 0 && remainingMs > 0 -> "${formatDuration(remainingMs)} remaining"
+                            entry.durationMs > 0 -> "Watched"
+                            else -> entry.channelName.ifBlank { "Unknown" }
+                        }
+                        Text(
+                            text = supporting,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
-                    Text(
-                        text = text,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
                 },
                 leadingContent = {
                     Box {
