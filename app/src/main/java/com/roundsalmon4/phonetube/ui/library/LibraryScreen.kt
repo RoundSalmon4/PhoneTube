@@ -254,62 +254,63 @@ private fun HistoryTab(
                 (entry.positionMs.toFloat() / entry.durationMs).coerceIn(0f, 1f)
             } else 0f
 
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .combinedClickable(
                         onClick = { onVideoClick(entry.videoId) },
                         onLongClick = { longPressedEntry = entry }
                     )
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Box {
-                    AsyncImage(
-                        model = entry.thumbnailUrl,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(64.dp, 36.dp)
-                            .clip(RoundedCornerShape(4.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                    if (progress > 0f) {
-                        LinearProgressIndicator(
-                            progress = { progress },
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box {
+                        AsyncImage(
+                            model = entry.thumbnailUrl,
+                            contentDescription = null,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(3.dp)
-                                .align(Alignment.BottomCenter),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = Color.Black.copy(alpha = 0.5f)
+                                .size(64.dp, 36.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            contentScale = ContentScale.Crop
                         )
+                        if (progress > 0f) {
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(3.dp)
+                                    .align(Alignment.BottomCenter),
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = Color.Black.copy(alpha = 0.5f)
+                            )
+                        }
                     }
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
+                    Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = entry.title,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    val remainingMs = (entry.durationMs - entry.positionMs).coerceAtLeast(0L)
-                    val supporting = when {
-                        entry.durationMs > 0 && entry.positionMs <= 0 -> formatDuration(entry.durationMs)
-                        entry.durationMs > 0 && remainingMs > 0 -> "${formatDuration(remainingMs)} remaining"
-                        entry.durationMs > 0 -> "Watched"
-                        else -> entry.channelName.ifBlank { "Unknown" }
-                    }
-                    Text(
-                        text = supporting,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
                 }
+                val remainingMs = (entry.durationMs - entry.positionMs).coerceAtLeast(0L)
+                val supporting = when {
+                    entry.durationMs > 0 && entry.positionMs <= 0 -> formatDuration(entry.durationMs)
+                    entry.durationMs > 0 && remainingMs > 0 -> "${formatDuration(remainingMs)} remaining"
+                    entry.durationMs > 0 -> "Watched"
+                    else -> entry.channelName.ifBlank { "Unknown" }
+                }
+                Text(
+                    text = supporting,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = 76.dp)
+                )
             }
         }
     }
