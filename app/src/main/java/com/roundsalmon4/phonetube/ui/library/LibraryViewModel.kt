@@ -50,6 +50,7 @@ class LibraryViewModel @Inject constructor(
         subscriptionDao.getAll(),
         _showCreatePlaylistDialog
     ) { tab, history, playlists, subscriptions, showDialog ->
+        Log.d(TAG, "library state: tab=$tab history=${history.size} firstDuration=${history.firstOrNull()?.durationMs} firstPos=${history.firstOrNull()?.positionMs}")
         LibraryUiState(
             activeTab = tab,
             history = history,
