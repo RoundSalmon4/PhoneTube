@@ -688,8 +688,9 @@ class YouTubeEngine @Inject constructor(
                 if (item.type != MediaItem.TYPE_CHANNEL && !item.videoId.isNullOrBlank()) {
                     val video = item.toVideo()
                     if (video != null) {
-                        // YouTube Shorts are flagged by the API, or are short-duration videos
-                        if (item.isShorts || item.durationMs in 1..180_000) {
+                        // YouTube Shorts are flagged by the API (reel/shorts-lockup renderers,
+                        // equivalent to a /shorts/ URL), or are short-duration videos under 60s.
+                        if (item.isShorts || item.durationMs in 1..60_000) {
                             shorts.add(video)
                         } else {
                             videos.add(video)
