@@ -86,6 +86,7 @@ class SettingsViewModel @Inject constructor(
                 pipEnabled = prefs.pipEnabled,
                 openLinksIn = prefs.openLinksIn,
                 playlistSearchLimit = prefs.playlistSearchLimit,
+                shortsSearchLimit = prefs.shortsSearchLimit,
                 feedOrder = prefs.feedOrder,
                 continuePlaying = prefs.continuePlaying,
                 duplicatePlaylistWarning = prefs.duplicatePlaylistWarning
@@ -160,6 +161,7 @@ class SettingsViewModel @Inject constructor(
                     playerPreferences.setPiPEnabled(p.pipEnabled)
                     playerPreferences.setOpenLinksIn(p.openLinksIn)
                     playerPreferences.setPlaylistSearchLimit(p.playlistSearchLimit)
+                    playerPreferences.setShortsSearchLimit(p.shortsSearchLimit)
                     playerPreferences.setFeedOrder(p.feedOrder)
                     playerPreferences.setContinuePlaying(p.continuePlaying)
                     playerPreferences.setDuplicatePlaylistWarning(p.duplicatePlaylistWarning)
@@ -271,6 +273,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setPlaylistSearchLimit(limit: Int) = viewModelScope.launch {
         playerPreferences.setPlaylistSearchLimit(limit)
+    }
+
+    fun setShortsSearchLimit(limit: Int) = viewModelScope.launch {
+        playerPreferences.setShortsSearchLimit(limit)
     }
 
     fun setPiPEnabled(enabled: Boolean) = viewModelScope.launch {

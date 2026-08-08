@@ -247,6 +247,31 @@ fun SearchScreen(
                                 onLongClick = { longPressedVideo = video }
                             )
                         }
+                        if (state.shorts.isNotEmpty()) {
+                            item {
+                                Text(
+                                    "Shorts",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                            items(state.shorts, key = { "short-${it.videoId}" }) { video ->
+                                VideoCard(
+                                    video = video,
+                                    onClick = { onVideoClick(video.videoId) },
+                                    onChannelClick = { channelId ->
+                                        if (channelId.isNotBlank()) {
+                                            onChannelClick(channelId)
+                                        } else if (video.videoId.isNotBlank()) {
+                                            viewModel.fetchChannelIdForVideo(video.videoId) { id ->
+                                                if (id.isNotBlank()) onChannelClick(id)
+                                            }
+                                        }
+                                    },
+                                    onLongClick = { longPressedVideo = video }
+                                )
+                            }
+                        }
                         if (state.playlists.isNotEmpty()) {
                             item {
                                 Text(
@@ -322,6 +347,7 @@ private fun FilterChips(filter: SearchFilter, onFilterChange: (SearchFilter) -> 
             val label = when (entry) {
                 SearchFilter.ALL -> "All"
                 SearchFilter.VIDEOS -> "Videos"
+                SearchFilter.SHORTS -> "Shorts"
                 SearchFilter.CHANNELS -> "Channels"
                 SearchFilter.PLAYLISTS -> "Playlists"
             }

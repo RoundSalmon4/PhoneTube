@@ -73,6 +73,7 @@ class SearchViewModel @Inject constructor(
     private var allVideos: List<Video> = emptyList()
     private var allChannels: List<SearchChannel> = emptyList()
     private var allPlaylists: List<SearchPlaylist> = emptyList()
+    private var allShorts: List<Video> = emptyList()
     private var suggestionJob: Job? = null
 
     init {
@@ -189,7 +190,7 @@ class SearchViewModel @Inject constructor(
 
     fun onFilterChange(newFilter: SearchFilter) {
         _filter.value = newFilter
-        if (allVideos.isNotEmpty() || allChannels.isNotEmpty()) {
+        if (allVideos.isNotEmpty() || allChannels.isNotEmpty() || allShorts.isNotEmpty()) {
             applyFilter()
         } else if (_query.value.isNotBlank()) {
             search(_query.value.trim())
@@ -201,24 +202,29 @@ class SearchViewModel @Inject constructor(
             val prefs = playerPreferences.uiState.first()
             val filteredVideos = when (_filter.value) {
                 SearchFilter.ALL, SearchFilter.VIDEOS -> allVideos.take(prefs.videoSearchLimit)
-                SearchFilter.CHANNELS, SearchFilter.PLAYLISTS -> emptyList()
+                SearchFilter.SHORTS, SearchFilter.CHANNELS, SearchFilter.PLAYLISTS -> emptyList()
             }
             val filteredChannels = when (_filter.value) {
                 SearchFilter.ALL, SearchFilter.CHANNELS -> allChannels.take(prefs.channelSearchLimit)
-                SearchFilter.VIDEOS, SearchFilter.PLAYLISTS -> emptyList()
+                SearchFilter.VIDEOS, SearchFilter.SHORTS, SearchFilter.PLAYLISTS -> emptyList()
             }
             val filteredPlaylists = when (_filter.value) {
                 SearchFilter.ALL, SearchFilter.PLAYLISTS -> allPlaylists.take(prefs.playlistSearchLimit)
                 else -> emptyList()
             }
+            val filteredShorts = when (_filter.value) {
+                SearchFilter.ALL, SearchFilter.SHORTS -> allShorts.take(prefs.shortsSearchLimit)
+                else -> emptyList()
+            }
 
-            if (filteredVideos.isEmpty() && filteredChannels.isEmpty() && filteredPlaylists.isEmpty()) {
+            if (filteredVideos.isEmpty() && filteredChannels.isEmpty() && filteredPlaylists.isEmpty() && filteredShorts.isEmpty()) {
                 _uiState.value = SearchUiState.Empty
             } else {
                 _uiState.value = SearchUiState.Results(
                     videos = filteredVideos,
                     channels = filteredChannels,
-                    playlists = filteredPlaylists
+                    playlists = filteredPlaylists,
+                    shorts = filteredShorts
                 )
             }
         }
@@ -340,6 +346,7 @@ class SearchViewModel @Inject constructor(
                     allVideos = result.sections.flatMap { it.videos }.distinctBy { it.videoId }
                     allChannels = result.channels
                     allPlaylists = result.playlists
+                    allShorts = result.shorts
                     applyFilter()
                 }
         }
@@ -354,7 +361,8 @@ sealed interface SearchUiState {
     data class Results(
         val videos: List<Video>,
         val channels: List<SearchChannel>,
-        val playlists: List<SearchPlaylist> = emptyList()
+        val playlists: List<SearchPlaylist> = emptyList(),
+        val shorts: List<Video> = emptyList()
     ) : SearchUiState
 }
 
