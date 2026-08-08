@@ -1,5 +1,6 @@
 package com.roundsalmon4.phonetube.ui.library
 
+import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -179,6 +180,8 @@ private fun HistoryTab(
     onChannelClick: ((String) -> Unit)? = null,
     onClearAll: () -> Unit
 ) {
+    Log.d("HistoryUI", "HistoryTab composing: entries=${history.size}")
+    Log.d("HistoryUI", "theme colors: surface=${MaterialTheme.colorScheme.surface} onSurface=${MaterialTheme.colorScheme.onSurface} onSurfaceVariant=${MaterialTheme.colorScheme.onSurfaceVariant} primary=${MaterialTheme.colorScheme.primary}")
     var longPressedEntry by remember { mutableStateOf<WatchHistoryEntry?>(null) }
 
     longPressedEntry?.let { entry ->
@@ -254,6 +257,15 @@ private fun HistoryTab(
                 (entry.positionMs.toFloat() / entry.durationMs).coerceIn(0f, 1f)
             } else 0f
 
+            val remainingMs = (entry.durationMs - entry.positionMs).coerceAtLeast(0L)
+            val supporting = when {
+                entry.durationMs > 0 && entry.positionMs <= 0 -> formatDuration(entry.durationMs)
+                entry.durationMs > 0 && remainingMs > 0 -> "${formatDuration(remainingMs)} remaining"
+                entry.durationMs > 0 -> "Watched"
+                else -> entry.channelName.ifBlank { "Unknown" }
+            }
+            Log.d("HistoryUI", "item rendering: id=${entry.videoId} title='${entry.title.take(40)}' duration=${entry.durationMs} pos=${entry.positionMs} remainingMs=$remainingMs supporting='$supporting'")
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -294,13 +306,6 @@ private fun HistoryTab(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
                     )
-                }
-                val remainingMs = (entry.durationMs - entry.positionMs).coerceAtLeast(0L)
-                val supporting = when {
-                    entry.durationMs > 0 && entry.positionMs <= 0 -> formatDuration(entry.durationMs)
-                    entry.durationMs > 0 && remainingMs > 0 -> "${formatDuration(remainingMs)} remaining"
-                    entry.durationMs > 0 -> "Watched"
-                    else -> entry.channelName.ifBlank { "Unknown" }
                 }
                 Text(
                     text = supporting,
