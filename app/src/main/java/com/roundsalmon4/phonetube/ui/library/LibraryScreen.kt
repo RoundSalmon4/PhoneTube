@@ -258,12 +258,15 @@ private fun HistoryTab(
             } else 0f
 
             val remainingMs = (entry.durationMs - entry.positionMs).coerceAtLeast(0L)
-            val supporting = when {
+            val remainingText = when {
                 entry.durationMs > 0 && entry.positionMs <= 0 -> formatDuration(entry.durationMs)
                 entry.durationMs > 0 && remainingMs > 0 -> "${formatDuration(remainingMs)} remaining"
                 entry.durationMs > 0 -> "Watched"
-                else -> entry.channelName.ifBlank { "Unknown" }
+                else -> null
             }
+            val supporting = listOfNotNull(remainingText, entry.channelName.ifBlank { null })
+                .joinToString(" • ")
+                .ifBlank { "Unknown" }
             Log.d("HistoryUI", "item rendering: id=${entry.videoId} title='${entry.title.take(40)}' duration=${entry.durationMs} pos=${entry.positionMs} remainingMs=$remainingMs supporting='$supporting'")
 
             Column(

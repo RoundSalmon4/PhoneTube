@@ -216,17 +216,23 @@ class YouTubeEngine @Inject constructor(
             }
 
             val (videos, shorts) = groups.toSearchVideos()
-            val playlists = groups.toSearchPlaylists()
+            val playlistsFromSearch = groups.toSearchPlaylists()
             val channelsFromSearch = groups.toSearchChannels()
 
-            Log.d(TAG, "search('$query'): ${videos.size} videos, ${shorts.size} shorts, ${playlists.size} playlists, ${channelsFromSearch.size} channels from search")
+            Log.d(TAG, "search('$query'): ${videos.size} videos, ${shorts.size} shorts, ${playlistsFromSearch.size} playlists, ${channelsFromSearch.size} channels from search")
 
             val channelGroups = try {
                 contentService.getSearchObserve(query, SearchOptions.TYPE_CHANNEL).awaitFirstOrDefault(emptyList())
             } catch (_: Exception) { emptyList() }
             val channelsFromFilter = channelGroups.toSearchChannels()
 
+            val playlistGroups = try {
+                contentService.getSearchObserve(query, SearchOptions.TYPE_PLAYLIST).awaitFirstOrDefault(emptyList())
+            } catch (_: Exception) { emptyList() }
+            val playlistsFromFilter = playlistGroups.toSearchPlaylists()
+
             val channels = (channelsFromSearch + channelsFromFilter).distinctBy { it.channelId }
+            val playlists = (playlistsFromSearch + playlistsFromFilter).distinctBy { it.playlistId }
 
             val sections = if (videos.isNotEmpty()) {
                 listOf(SearchSection(title = "", videos = videos.distinctBy { it.videoId }))
@@ -682,7 +688,8 @@ class YouTubeEngine @Inject constructor(
                 if (item.type != MediaItem.TYPE_CHANNEL && !item.videoId.isNullOrBlank()) {
                     val video = item.toVideo()
                     if (video != null) {
-                        if (item.isShorts) {
+                        // YouTube Shorts are flagged by the API, or are short-duration videos
+                        if (item.isShorts || item.durationMs in 1..180_000) {
                             shorts.add(video)
                         } else {
                             videos.add(video)
