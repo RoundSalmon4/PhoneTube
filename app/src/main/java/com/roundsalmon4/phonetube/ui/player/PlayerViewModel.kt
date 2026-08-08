@@ -413,14 +413,21 @@ class PlayerViewModel @Inject constructor(
                     if (existing == null) {
                         var title = info.title
                         var channelName = info.author
-                        // The stream info sometimes lacks the title (e.g. HLS); fill it from metadata.
+                        Log.d(TAG, "recordToHistory: videoId=$videoId streamTitle='$title' streamAuthor='$channelName'")
+                        // The stream info sometimes lacks the title/author (e.g. HLS); fill from metadata.
                         if (title.isBlank() || channelName.isBlank()) {
                             try {
-                                val meta = engine.getMetadata(videoId).firstOrNull()?.video
-                                if (title.isBlank()) title = meta?.title.orEmpty()
-                                if (channelName.isBlank()) channelName = meta?.author.orEmpty()
-                            } catch (_: Exception) { }
+                                val meta = engine.getMetadata(videoId).firstOrNull()
+                                Log.d(TAG, "recordToHistory: metadata result=${meta != null}")
+                                if (meta != null) {
+                                    if (title.isBlank()) title = meta.video.title.orEmpty()
+                                    if (channelName.isBlank()) channelName = meta.video.author.orEmpty()
+                                }
+                            } catch (e: Exception) {
+                                Log.d(TAG, "recordToHistory: metadata fallback failed: ${e.message?.take(80)}")
+                            }
                         }
+                        Log.d(TAG, "recordToHistory: final title='$title' channel='$channelName'")
                         val entry = WatchHistoryEntry(
                             videoId = videoId,
                             title = title,
