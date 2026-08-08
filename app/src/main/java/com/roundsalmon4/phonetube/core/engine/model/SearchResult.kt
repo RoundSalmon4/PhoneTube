@@ -3,8 +3,7 @@ package com.roundsalmon4.phonetube.core.engine.model
 data class SearchResult(
     val sections: List<SearchSection>,
     val channels: List<SearchChannel>,
-    val playlists: List<SearchPlaylist> = emptyList(),
-    val shorts: List<Video> = emptyList()
+    val playlists: List<SearchPlaylist> = emptyList()
 )
 
 data class SearchSection(
@@ -27,5 +26,8 @@ data class SearchPlaylist(
 )
 
 enum class SearchFilter {
-    ALL, VIDEOS, SHORTS, CHANNELS, PLAYLISTS
+    ALL,
+    VIDEOS,
+    CHANNELS,
+    PLAYLISTS
 }

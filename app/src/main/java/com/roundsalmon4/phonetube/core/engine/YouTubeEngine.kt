@@ -215,11 +215,11 @@ class YouTubeEngine @Inject constructor(
                 }
             }
 
-            val (videos, shorts) = groups.toSearchVideos()
+            val videos = groups.toSearchVideos()
             val playlistsFromSearch = groups.toSearchPlaylists()
             val channelsFromSearch = groups.toSearchChannels()
 
-            Log.d(TAG, "search('$query'): ${videos.size} videos, ${shorts.size} shorts, ${playlistsFromSearch.size} playlists, ${channelsFromSearch.size} channels from search")
+            Log.d(TAG, "search('$query'): ${videos.size} videos, ${playlistsFromSearch.size} playlists, ${channelsFromSearch.size} channels from search")
 
             val channelGroups = try {
                 contentService.getSearchObserve(query, SearchOptions.TYPE_CHANNEL).awaitFirstOrDefault(emptyList())
@@ -238,13 +238,12 @@ class YouTubeEngine @Inject constructor(
                 listOf(SearchSection(title = "", videos = videos.distinctBy { it.videoId }))
             } else emptyList()
 
-            Log.d(TAG, "search('$query'): final ${videos.size} videos, ${shorts.size} shorts, ${channels.size} channels")
+            Log.d(TAG, "search('$query'): final ${videos.size} videos, ${channels.size} channels")
 
             emit(SearchResult(
                 sections = sections,
                 channels = channels,
-                playlists = playlists,
-                shorts = shorts.distinctBy { it.videoId }
+                playlists = playlists
             ))
         } catch (e: Exception) {
             Log.e(TAG, "search('$query') failed", e)
@@ -678,9 +677,8 @@ class YouTubeEngine @Inject constructor(
         return HomeFeed(sections = sections)
     }
 
-    private fun List<MediaGroup>.toSearchVideos(): Pair<List<Video>, List<Video>> {
+    private fun List<MediaGroup>.toSearchVideos(): List<Video> {
         val videos = mutableListOf<Video>()
-        val shorts = mutableListOf<Video>()
         var debugCount = 0
         var debugSkipped = 0
         for (group in this) {
@@ -688,13 +686,7 @@ class YouTubeEngine @Inject constructor(
                 if (item.type != MediaItem.TYPE_CHANNEL && !item.videoId.isNullOrBlank()) {
                     val video = item.toVideo()
                     if (video != null) {
-                        // YouTube Shorts are flagged by the API (reel/shorts-lockup renderers,
-                        // equivalent to a /shorts/ URL), or are short-duration videos under 60s.
-                        if (item.isShorts || item.durationMs in 1..60_000) {
-                            shorts.add(video)
-                        } else {
-                            videos.add(video)
-                        }
+                        videos.add(video)
                         debugCount++
                     }
                 } else {
@@ -702,8 +694,8 @@ class YouTubeEngine @Inject constructor(
                 }
             }
         }
-        Log.d(TAG, "toSearchVideos: $debugCount videos found ($debugCount total incl shorts), $debugSkipped skipped (type_channel=${MediaItem.TYPE_CHANNEL})")
-        return Pair(videos, shorts)
+        Log.d(TAG, "toSearchVideos: $debugCount videos found, $debugSkipped skipped (type_channel=${MediaItem.TYPE_CHANNEL})")
+        return videos
     }
 
     private fun List<MediaGroup>.toSearchChannels(): List<SearchChannel> {

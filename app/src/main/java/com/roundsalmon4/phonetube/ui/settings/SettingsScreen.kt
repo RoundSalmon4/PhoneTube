@@ -582,35 +582,6 @@ private fun SearchSection(uiState: PreferencesUiState, viewModel: SettingsViewMo
             }
         }
 
-        var shortsLimitExpanded by remember { mutableStateOf(false) }
-        val shortsLimits = listOf(5, 10, 20, 30, 50)
-        val currentShortsLimit = uiState.shortsSearchLimit
-
-        ExposedDropdownMenuBox(
-            expanded = shortsLimitExpanded,
-            onExpandedChange = { shortsLimitExpanded = it }
-        ) {
-            OutlinedTextField(
-                value = "$currentShortsLimit results",
-                onValueChange = {},
-                readOnly = true,
-                label = { Text("Shorts Results Limit") },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).menuAnchor(MenuAnchorType.PrimaryNotEditable),
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = shortsLimitExpanded) }
-            )
-            ExposedDropdownMenu(expanded = shortsLimitExpanded, onDismissRequest = { shortsLimitExpanded = false }) {
-                shortsLimits.forEach { limit ->
-                    DropdownMenuItem(
-                        text = { Text("$limit results") },
-                        onClick = {
-                            viewModel.setShortsSearchLimit(limit)
-                            shortsLimitExpanded = false
-                        }
-                    )
-                }
-            }
-        }
-
         SwitchItem(
             name = "Duplicate Playlist Warning",
             description = "Ask before saving a playlist that is already in your library",

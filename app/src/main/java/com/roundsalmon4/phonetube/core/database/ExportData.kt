@@ -40,7 +40,6 @@ data class PreferencesExport(
     val pipEnabled: Boolean = true,
     val openLinksIn: String = "browser",
     val playlistSearchLimit: Int = 10,
-    val shortsSearchLimit: Int = 20,
     val feedOrder: List<String> = listOf(
         "home", "what_to_watch", "subscriptions", "trending",
         "sports", "gaming", "live", "news", "music", "kids"
