@@ -82,12 +82,13 @@ fun PlayerScreen(
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val landscapeLock by viewModel.landscapeLock.collectAsStateWithLifecycle()
 
-    // Lock landscape orientation if enabled
-    LaunchedEffect(landscapeLock) {
-        activity?.requestedOrientation = if (landscapeLock) {
-            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-        } else {
-            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+    // Portrait videos (e.g. Shorts) should stay in portrait; otherwise respect the landscape lock.
+    val isPortraitVideo = playbackState.videoHeight > playbackState.videoWidth
+    LaunchedEffect(landscapeLock, isPortraitVideo) {
+        activity?.requestedOrientation = when {
+            isPortraitVideo -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            landscapeLock -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
 

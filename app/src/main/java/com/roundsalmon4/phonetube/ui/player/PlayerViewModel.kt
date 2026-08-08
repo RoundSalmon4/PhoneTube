@@ -411,10 +411,20 @@ class PlayerViewModel @Inject constructor(
                 try {
                     val existing = historyDao.getById(videoId)
                     if (existing == null) {
+                        var title = info.title
+                        var channelName = info.author
+                        // The stream info sometimes lacks the title (e.g. HLS); fill it from metadata.
+                        if (title.isBlank() || channelName.isBlank()) {
+                            try {
+                                val meta = engine.getMetadata(videoId).firstOrNull()?.video
+                                if (title.isBlank()) title = meta?.title.orEmpty()
+                                if (channelName.isBlank()) channelName = meta?.author.orEmpty()
+                            } catch (_: Exception) { }
+                        }
                         val entry = WatchHistoryEntry(
                             videoId = videoId,
-                            title = info.title,
-                            channelName = info.author,
+                            title = title,
+                            channelName = channelName,
                             channelId = info.channelId,
                             thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
                             durationMs = info.lengthSeconds * 1000,
