@@ -54,8 +54,8 @@ jobs:
           grep -q "fun getPlaylist" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt || { echo "ERROR: BrowseService2 patch missing"; exit 1; }
           grep -q "continueGroupObserve" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeContentService.java || { echo "ERROR: YouTubeContentService patch missing"; exit 1; }
           grep -q 'android:required="false"' youtubeapi/src/main/AndroidManifest.xml || { echo "ERROR: manifest usb.host fix missing"; exit 1; }
-          grep -q "setLengthText" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/data/YouTubeMediaItem.java || { echo "ERROR: YouTubeMediaItem patch missing"; exit 1; }
-          grep -q "item.lengthText = first.lengthText" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/rss/RssService.kt || { echo "ERROR: RssService patch missing"; exit 1; }
+          grep -q "setDurationMs" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/data/YouTubeMediaItem.java || { echo "ERROR: YouTubeMediaItem patch missing"; exit 1; }
+          grep -q "setDurationMs(first.getDurationMs())" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/rss/RssService.kt || { echo "ERROR: RssService patch missing"; exit 1; }
           # Skip the rebuild when the result is content-identical to the current branch,
           # so an unchanged upstream doesn't generate a new commit SHA and a no-op PR.
           if git diff --quiet origin/phonetube-patches -- mediaserviceinterfaces youtubeapi; then
