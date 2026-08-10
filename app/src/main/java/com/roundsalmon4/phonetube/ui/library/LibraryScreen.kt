@@ -60,6 +60,7 @@ import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.database.entity.LocalSubscription
 import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
 import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
+import com.roundsalmon4.phonetube.ui.components.formatDuration
 import coil3.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -413,17 +414,5 @@ private fun SubscriptionsTab(
                 )
             }
         }
-    }
-}
-
-private fun formatDuration(durationMs: Long): String {
-    val totalSeconds = durationMs / 1000
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return if (hours > 0) {
-        String.format("%d:%02d:%02d", hours, minutes, seconds)
-    } else {
-        String.format("%d:%02d", minutes, seconds)
     }
 }

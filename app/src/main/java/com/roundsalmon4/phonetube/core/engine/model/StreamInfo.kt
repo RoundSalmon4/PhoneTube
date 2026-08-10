@@ -19,7 +19,6 @@ data class StreamInfo(
 data class StreamFormat(
     val url: String?,
     val mimeType: String?,
-    val itag: String?,
     val height: Int,
     val bitrate: String?,
     val fps: String?,
@@ -30,6 +29,5 @@ data class SubtitleTrack(
     val baseUrl: String,
     val languageCode: String,
     val name: String,
-    val mimeType: String,
-    val isTranslatable: Boolean
+    val mimeType: String
 )

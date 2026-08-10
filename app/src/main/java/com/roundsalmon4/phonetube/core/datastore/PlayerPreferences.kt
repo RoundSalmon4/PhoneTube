@@ -60,17 +60,7 @@ data class PreferencesUiState(
     val landscapeLock: Boolean = false,
     val showMiniPlayer: Boolean = true,
     val sponsorBlockEnabled: Boolean = true,
-    val sponsorBlockCategories: Map<String, String> = mapOf(
-        "sponsor" to "skip",
-        "intro" to "skip",
-        "outro" to "skip",
-        "interaction" to "skip",
-        "selfpromo" to "skip",
-        "music_offtopic" to "skip",
-        "preview" to "skip",
-        "poi_highlight" to "skip",
-        "filler" to "skip"
-    ),
+    val sponsorBlockCategories: Map<String, String> = PlayerPreferences.DEFAULT_SPONSOR_CATEGORIES,
     val feedHome: Boolean = true,
     val feedTrending: Boolean = true,
     val feedWhatToWatch: Boolean = true,
@@ -91,10 +81,7 @@ data class PreferencesUiState(
     val playlistSearchLimit: Int = 10,
     val pipEnabled: Boolean = true,
     val openLinksIn: String = "browser", // "browser" or "webview"
-    val feedOrder: List<String> = listOf(
-        "home", "what_to_watch", "subscriptions", "trending",
-        "sports", "gaming", "live", "news", "music", "kids"
-    ),
+    val feedOrder: List<String> = PlayerPreferences.DEFAULT_FEED_ORDER,
     val continuePlaying: Boolean = false,
     val duplicatePlaylistWarning: Boolean = true
 )
@@ -140,17 +127,7 @@ class PlayerPreferences @Inject constructor(
     }
 
     private fun parseCategories(raw: Set<String>?): Map<String, String> {
-        val defaults = mapOf(
-            "sponsor" to "skip",
-            "intro" to "skip",
-            "outro" to "skip",
-            "interaction" to "skip",
-            "selfpromo" to "skip",
-            "music_offtopic" to "skip",
-            "preview" to "skip",
-            "poi_highlight" to "skip",
-            "filler" to "skip"
-        )
+        val defaults = PlayerPreferences.DEFAULT_SPONSOR_CATEGORIES
         if (raw.isNullOrEmpty()) return defaults
         return defaults.keys.associateWith { category ->
             raw.firstOrNull { it.startsWith("$category=") }?.substringAfter("=") ?: "skip"
@@ -161,10 +138,7 @@ class PlayerPreferences @Inject constructor(
         categories.map { "${it.key}=${it.value}" }.toSet()
 
     private fun parseFeedOrder(raw: String?): List<String> {
-        if (raw.isNullOrBlank()) return listOf(
-            "home", "what_to_watch", "subscriptions", "trending",
-            "sports", "gaming", "live", "news", "music", "kids"
-        )
+        if (raw.isNullOrBlank()) return PlayerPreferences.DEFAULT_FEED_ORDER
         return raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
     }
 
@@ -268,5 +242,28 @@ class PlayerPreferences @Inject constructor(
 
     suspend fun setDuplicatePlaylistWarning(enabled: Boolean) {
         context.playerDataStore.edit { it[Keys.DUPLICATE_PLAYLIST_WARNING] = enabled }
+    }
+
+    companion object {
+        val PLAYBACK_SPEEDS = listOf(
+            0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f
+        )
+
+        val DEFAULT_SPONSOR_CATEGORIES = mapOf(
+            "sponsor" to "skip",
+            "intro" to "skip",
+            "outro" to "skip",
+            "interaction" to "skip",
+            "selfpromo" to "skip",
+            "music_offtopic" to "skip",
+            "preview" to "skip",
+            "poi_highlight" to "skip",
+            "filler" to "skip"
+        )
+
+        val DEFAULT_FEED_ORDER = listOf(
+            "home", "what_to_watch", "subscriptions", "trending",
+            "sports", "gaming", "live", "news", "music", "kids"
+        )
     }
 }

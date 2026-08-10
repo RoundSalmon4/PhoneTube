@@ -248,20 +248,6 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    fun getPlaylistFirstVideoId(playlist: SearchPlaylist, onResult: (String) -> Unit) {
-        // Use firstVideoId from search results if available (faster than API call)
-        if (!playlist.firstVideoId.isNullOrBlank()) {
-            onResult(playlist.firstVideoId)
-            return
-        }
-        viewModelScope.launch {
-            try {
-                val videoId = engine.getPlaylistFirstVideoId(playlist.playlistId)
-                if (videoId != null) onResult(videoId)
-            } catch (_: Exception) { }
-        }
-    }
-
     fun savePlaylistAsLocal(playlist: SearchPlaylist) {
         Log.d(TAG, "savePlaylistAsLocal: saving playlist '${playlist.title}' (${playlist.playlistId})")
         if (_saveMessage.value != null) return

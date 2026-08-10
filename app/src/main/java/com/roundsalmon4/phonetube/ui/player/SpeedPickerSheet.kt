@@ -24,10 +24,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 
-private val SPEED_OPTIONS = listOf(
-    0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f
-)
+private val SPEED_OPTIONS = PlayerPreferences.PLAYBACK_SPEEDS
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

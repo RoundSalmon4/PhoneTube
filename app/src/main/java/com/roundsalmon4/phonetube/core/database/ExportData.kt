@@ -1,5 +1,6 @@
 package com.roundsalmon4.phonetube.core.database
 
+import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -40,10 +41,7 @@ data class PreferencesExport(
     val pipEnabled: Boolean = true,
     val openLinksIn: String = "browser",
     val playlistSearchLimit: Int = 10,
-    val feedOrder: List<String> = listOf(
-        "home", "what_to_watch", "subscriptions", "trending",
-        "sports", "gaming", "live", "news", "music", "kids"
-    ),
+    val feedOrder: List<String> = PlayerPreferences.DEFAULT_FEED_ORDER,
     val continuePlaying: Boolean = false,
     val duplicatePlaylistWarning: Boolean = true
 )

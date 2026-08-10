@@ -7,7 +7,6 @@ data class SearchResult(
 )
 
 data class SearchSection(
-    val title: String,
     val videos: List<Video>
 )
 

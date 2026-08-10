@@ -9,5 +9,3 @@ val DarkSurfaceVariant = Color(0xFF272727)
 val LightBackground = Color(0xFFFFFBFE)
 val LightSurface = Color(0xFFF5F5F5)
 val LightSurfaceVariant = Color(0xFFE7E0EC)
-
-val YouTubeRed = Color(0xFFFF0000)
