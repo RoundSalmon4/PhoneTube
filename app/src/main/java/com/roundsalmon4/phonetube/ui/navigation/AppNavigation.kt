@@ -194,9 +194,9 @@ fun AppNavigation(
                         onChannelClick = { channelId ->
                             navController.navigate(Route.Channel(channelId))
                         },
-                        onVideoPlayNext = { nextVideoId ->
+                        onVideoPlayNext = { nextVideoId, nextQueue ->
                             navController.popBackStack()
-                            navController.navigate(Route.Player(nextVideoId))
+                            navController.navigate(Route.Player(nextVideoId, nextQueue))
                         }
                     )
                 }
@@ -252,7 +252,12 @@ fun AppNavigation(
                         onVideoClick = { videoId ->
                             navController.navigate(Route.Player(videoId))
                         },
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = { navController.popBackStack() },
+                        onPlayAllClick = { videoIds ->
+                            if (videoIds.isNotEmpty()) {
+                                navController.navigate(Route.Player(videoIds.first(), videoIds.drop(1)))
+                            }
+                        }
                     )
                 }
 
@@ -267,7 +272,12 @@ fun AppNavigation(
                         onChannelClick = { channelId ->
                             navController.navigate(Route.Channel(channelId))
                         },
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = { navController.popBackStack() },
+                        onPlayAllClick = { videoIds ->
+                            if (videoIds.isNotEmpty()) {
+                                navController.navigate(Route.Player(videoIds.first(), videoIds.drop(1)))
+                            }
+                        }
                     )
                 }
 

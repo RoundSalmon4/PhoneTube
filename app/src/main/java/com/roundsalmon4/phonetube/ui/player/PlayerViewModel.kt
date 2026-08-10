@@ -59,6 +59,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     private val videoId: String = savedStateHandle["videoId"]!!
+    private val queue: List<String> = savedStateHandle["queue"] ?: emptyList()
 
     private val _uiState = MutableStateFlow<PlayerUiState>(PlayerUiState.Loading)
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
@@ -87,6 +88,15 @@ class PlayerViewModel @Inject constructor(
     private val _description = MutableStateFlow<String?>(null)
     val description: StateFlow<String?> = _description.asStateFlow()
 
+    private val _viewCount = MutableStateFlow<String?>(null)
+    val viewCount: StateFlow<String?> = _viewCount.asStateFlow()
+
+    private val _likeCount = MutableStateFlow<String?>(null)
+    val likeCount: StateFlow<String?> = _likeCount.asStateFlow()
+
+    private val _subscriberCount = MutableStateFlow<String?>(null)
+    val subscriberCount: StateFlow<String?> = _subscriberCount.asStateFlow()
+
     private val _openLinksIn = MutableStateFlow("browser")
     val openLinksIn: StateFlow<String> = _openLinksIn.asStateFlow()
 
@@ -96,8 +106,8 @@ class PlayerViewModel @Inject constructor(
     private val _playlists = MutableStateFlow<List<LocalPlaylist>>(emptyList())
     val playlists: StateFlow<List<LocalPlaylist>> = _playlists.asStateFlow()
 
-    private val _navigateToVideo = MutableStateFlow<String?>(null)
-    val navigateToVideo: StateFlow<String?> = _navigateToVideo.asStateFlow()
+    private val _navigateToVideo = MutableStateFlow<NextVideoToPlay?>(null)
+    val navigateToVideo: StateFlow<NextVideoToPlay?> = _navigateToVideo.asStateFlow()
 
     val playbackState: StateFlow<PlayerPlaybackSnapshot> = playerController.playbackState
 
@@ -186,7 +196,6 @@ class PlayerViewModel @Inject constructor(
                 StreamFormat(
                     url = streamable.mp4Url,
                     mimeType = "video/mp4",
-                    itag = null,
                     height = 0,
                     bitrate = null,
                     fps = null,
@@ -221,7 +230,6 @@ class PlayerViewModel @Inject constructor(
                 StreamFormat(
                     url = url,
                     mimeType = "video/mp4",
-                    itag = null,
                     height = 0,
                     bitrate = null,
                     fps = null,
@@ -263,6 +271,9 @@ class PlayerViewModel @Inject constructor(
                     .catch { /* ignore */ }
                     .collect { metadata ->
                         _description.value = metadata.description
+                        _viewCount.value = metadata.viewCount
+                        _likeCount.value = metadata.likeCount
+                        _subscriberCount.value = metadata.subscriberCount
                     }
             } catch (_: Exception) { }
         }
@@ -314,8 +325,8 @@ class PlayerViewModel @Inject constructor(
                 val videoGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
                 if (videoGroups.isEmpty()) return@launch
 
-                // Find the best matching format
-                val formats = info.urlFormats
+                // Find the best matching format from the DASH adaptive list (what's actually played)
+                val formats = info.adaptiveFormats
                 val bestMatch = formats.minByOrNull {
                     kotlin.math.abs(it.height - targetHeight)
                 }
@@ -622,12 +633,6 @@ class PlayerViewModel @Inject constructor(
                     if (!isLive) {
                         saveCurrentPosition()
                     }
-                    playerStateManager.updatePlaybackState(
-                        isPlaying = playerController.exoPlayer.isPlaying,
-                        currentPosition = positionMs,
-                        duration = playerController.exoPlayer.duration,
-                        bufferedPosition = playerController.exoPlayer.bufferedPosition
-                    )
                 }
             }
         }
@@ -638,6 +643,12 @@ class PlayerViewModel @Inject constructor(
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) {
                     viewModelScope.launch {
+                        // Advance through an explicit queue (e.g. Play All) first
+                        if (queue.isNotEmpty()) {
+                            val nextId = queue.first()
+                            _navigateToVideo.value = NextVideoToPlay(nextId, queue.drop(1))
+                            return@launch
+                        }
                         val prefs = playerPreferences.uiState.first()
                         if (!prefs.continuePlaying) return@launch
                         try {
@@ -645,7 +656,7 @@ class PlayerViewModel @Inject constructor(
                             val next = meta?.suggestions?.firstOrNull()
                             if (next != null) {
                                 Log.d(TAG, "Continue playing: loading next video ${next.videoId}")
-                                _navigateToVideo.value = next.videoId
+                                _navigateToVideo.value = NextVideoToPlay(next.videoId, emptyList())
                             }
                         } catch (_: Exception) { }
                     }
@@ -662,6 +673,11 @@ sealed interface PlayerUiState {
     data class Error(val message: String) : PlayerUiState
     data class Ready(val streamInfo: StreamInfo) : PlayerUiState
 }
+
+private data class NextVideoToPlay(
+    val videoId: String,
+    val queue: List<String>
+)
 
 private const val SKIP_CHECK_INTERVAL_MS = 500L
 private const val POSITION_SAVE_INTERVAL_MS = 10_000L

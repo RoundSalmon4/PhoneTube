@@ -55,7 +55,7 @@ fun PlayerScreen(
     videoId: String,
     onBackClick: () -> Unit,
     onChannelClick: ((String) -> Unit)? = null,
-    onVideoPlayNext: ((String) -> Unit)? = null,
+    onVideoPlayNext: ((String, List<String>) -> Unit)? = null,
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -67,6 +67,9 @@ fun PlayerScreen(
     val showAudioPicker by viewModel.showAudioPicker.collectAsStateWithLifecycle()
     val toastMessage by viewModel.toastMessage.collectAsStateWithLifecycle()
     val description by viewModel.description.collectAsStateWithLifecycle()
+    val viewCount by viewModel.viewCount.collectAsStateWithLifecycle()
+    val likeCount by viewModel.likeCount.collectAsStateWithLifecycle()
+    val subscriberCount by viewModel.subscriberCount.collectAsStateWithLifecycle()
     val openLinksIn by viewModel.openLinksIn.collectAsStateWithLifecycle()
     val showAddToPlaylist by viewModel.showAddToPlaylist.collectAsStateWithLifecycle()
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
@@ -125,9 +128,9 @@ fun PlayerScreen(
     }
 
     LaunchedEffect(navigateToVideo) {
-        navigateToVideo?.let { nextId ->
+        navigateToVideo?.let { next ->
             viewModel.clearNavigateToVideo()
-            onVideoPlayNext?.invoke(nextId)
+            onVideoPlayNext?.invoke(next.videoId, next.queue)
         }
     }
 
@@ -188,6 +191,9 @@ fun PlayerScreen(
                             onQualityClick = { viewModel.showQualityPicker() },
                             onSubtitleClick = { viewModel.showSubtitlePicker() },
                             onAudioClick = { viewModel.showAudioPicker() },
+                            onAddToPlaylistClick = { viewModel.showAddToPlaylist() },
+                            onChannelClick = state.streamInfo.channelId.takeIf { it.isNotBlank() }
+                                ?.let { channelId -> onChannelClick?.let { { it(channelId) } } },
                             visible = controlsVisible,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -269,6 +275,19 @@ fun PlayerScreen(
                                 color = Color.White.copy(alpha = 0.7f),
                                 modifier = Modifier.padding(top = 4.dp)
                             )
+                            val stats = listOfNotNull(
+                                viewCount?.takeIf { it.isNotBlank() },
+                                likeCount?.takeIf { it.isNotBlank() },
+                                subscriberCount?.takeIf { it.isNotBlank() }
+                            )
+                            if (stats.isNotEmpty()) {
+                                Text(
+                                    text = stats.joinToString(" • "),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
                             description?.let { desc ->
                                 DescriptionSection(
                                     description = desc,

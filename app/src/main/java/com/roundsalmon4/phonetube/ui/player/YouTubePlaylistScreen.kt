@@ -48,6 +48,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.roundsalmon4.phonetube.core.engine.model.Video
+import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -57,6 +58,7 @@ fun YouTubePlaylistScreen(
     onVideoClick: (String) -> Unit,
     onChannelClick: ((String) -> Unit)? = null,
     onBackClick: () -> Unit,
+    onPlayAllClick: ((List<String>) -> Unit)? = null,
     viewModel: YouTubePlaylistViewModel = hiltViewModel()
 ) {
     val videos by viewModel.videos.collectAsStateWithLifecycle()
@@ -66,12 +68,18 @@ fun YouTubePlaylistScreen(
     val showDuplicateDialog by viewModel.showDuplicateDialog.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var longPressedVideo by remember { mutableStateOf<Video?>(null) }
+    val playlists by viewModel.playlists.collectAsStateWithLifecycle()
+    val addToPlaylistVideo by viewModel.addToPlaylistVideo.collectAsStateWithLifecycle()
 
     longPressedVideo?.let { video ->
         ModalBottomSheet(onDismissRequest = { longPressedVideo = null }) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(video.title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
                 Spacer(Modifier.height(12.dp))
+                Text("Add to playlist", modifier = Modifier.fillMaxWidth().clickable {
+                    longPressedVideo = null
+                    viewModel.showAddToPlaylistDialog(video)
+                }.padding(vertical = 12.dp))
                 if (onChannelClick != null && video.channelId.isNotBlank()) {
                     Text("Go to channel", modifier = Modifier.fillMaxWidth().clickable {
                         longPressedVideo = null; onChannelClick(video.channelId)
@@ -79,6 +87,16 @@ fun YouTubePlaylistScreen(
                 }
             }
         }
+    }
+
+    addToPlaylistVideo?.let { video ->
+        AddToPlaylistDialog(
+            videoTitle = video.title,
+            playlists = playlists,
+            onDismiss = { viewModel.dismissAddToPlaylistDialog() },
+            onAddToPlaylist = { viewModel.addToPlaylist(it) },
+            onCreatePlaylist = { viewModel.createPlaylistAndAdd(it) }
+        )
     }
 
     LaunchedEffect(saveMessage) {
@@ -108,7 +126,7 @@ fun YouTubePlaylistScreen(
         },
         floatingActionButton = {
             if (videos != null && videos!!.isNotEmpty()) {
-                FloatingActionButton(onClick = { onVideoClick(videos!!.first().videoId) }) {
+                FloatingActionButton(onClick = { onPlayAllClick?.invoke(videos!!.map { it.videoId }) }) {
                     Icon(Icons.Default.PlayArrow, contentDescription = "Play all")
                 }
             }

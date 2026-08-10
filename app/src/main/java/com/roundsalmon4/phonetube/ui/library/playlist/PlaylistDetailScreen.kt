@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -59,6 +58,7 @@ import kotlin.math.roundToInt
 fun PlaylistDetailScreen(
     onVideoClick: (String) -> Unit,
     onBackClick: () -> Unit,
+    onPlayAllClick: ((List<String>) -> Unit)? = null,
     viewModel: PlaylistDetailViewModel = hiltViewModel()
 ) {
     val playlistName by viewModel.playlistName.collectAsStateWithLifecycle()
@@ -67,7 +67,6 @@ fun PlaylistDetailScreen(
     var draggedIndex by remember { mutableIntStateOf(-1) }
     var draggedOffset by remember { mutableFloatStateOf(0f) }
     val itemHeightPx = with(density) { 72.dp.toPx() } // approximate item height
-    val itemHeightDp = 72.dp
 
     Scaffold(
         topBar = {
@@ -82,7 +81,7 @@ fun PlaylistDetailScreen(
         },
         floatingActionButton = {
             if (videos.isNotEmpty()) {
-                FloatingActionButton(onClick = { onVideoClick(videos.first().videoId) }) {
+                FloatingActionButton(onClick = { onPlayAllClick?.invoke(videos.map { it.videoId }) }) {
                     Icon(Icons.Default.PlayArrow, contentDescription = "Play all")
                 }
             }
