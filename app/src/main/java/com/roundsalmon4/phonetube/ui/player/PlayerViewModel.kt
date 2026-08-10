@@ -674,7 +674,7 @@ sealed interface PlayerUiState {
     data class Ready(val streamInfo: StreamInfo) : PlayerUiState
 }
 
-private data class NextVideoToPlay(
+data class NextVideoToPlay(
     val videoId: String,
     val queue: List<String>
 )
