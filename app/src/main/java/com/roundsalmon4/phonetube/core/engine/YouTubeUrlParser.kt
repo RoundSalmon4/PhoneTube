@@ -14,9 +14,18 @@ data class YouTubeLink(
 object YouTubeUrlParser {
 
     fun parse(uri: Uri): YouTubeLink {
+        val scheme = uri.scheme?.lowercase()
+
+        // vnd.youtube:VIDEO_ID or vnd.youtube.launch:VIDEO_ID (opaque URIs with no host)
+        if (scheme == "vnd.youtube" || scheme == "vnd.youtube.launch") {
+            val videoId = uri.schemeSpecificPart?.substringBefore('?')?.trim()
+            if (!videoId.isNullOrEmpty()) {
+                return YouTubeLink(YouTubeLink.Type.VIDEO, videoId)
+            }
+        }
+
         val host = uri.host?.lowercase() ?: return YouTubeLink(YouTubeLink.Type.UNKNOWN, "")
         val path = uri.path ?: ""
-        val query = uri.query
 
         // youtu.be/VIDEO_ID (short links)
         if (host == "youtu.be") {
@@ -51,6 +60,21 @@ object YouTubeUrlParser {
                 }
             }
 
+            // /attribution_link?a=...&v=VIDEO_ID (YouTube share redirects)
+            if (pathLower.startsWith("/attribution_link")) {
+                val videoId = uri.getQueryParameter("v")
+                if (!videoId.isNullOrEmpty()) {
+                    return YouTubeLink(YouTubeLink.Type.VIDEO, videoId)
+                }
+                val uParam = uri.getQueryParameter("u")
+                if (!uParam.isNullOrEmpty()) {
+                    val decoded = Uri.decode(uParam)
+                    Uri.parse(decoded).getQueryParameter("v")?.takeIf { it.isNotEmpty() }?.let {
+                        return YouTubeLink(YouTubeLink.Type.VIDEO, it)
+                    }
+                }
+            }
+
             // /shorts/VIDEO_ID
             if (pathLower.startsWith("/shorts/")) {
                 val videoId = path.removePrefix("/shorts/").trimEnd('/')
@@ -72,6 +96,14 @@ object YouTubeUrlParser {
                 val channelId = path.removePrefix("/channel/").trimEnd('/')
                 if (channelId.isNotEmpty()) {
                     return YouTubeLink(YouTubeLink.Type.CHANNEL, channelId)
+                }
+            }
+
+            // /user/CHANNEL_HANDLE
+            if (pathLower.startsWith("/user/")) {
+                val handle = path.removePrefix("/user/").trimEnd('/')
+                if (handle.isNotEmpty()) {
+                    return YouTubeLink(YouTubeLink.Type.CHANNEL, handle)
                 }
             }
 

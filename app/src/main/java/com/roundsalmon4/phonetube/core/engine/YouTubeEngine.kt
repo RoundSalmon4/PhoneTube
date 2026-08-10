@@ -235,7 +235,7 @@ class YouTubeEngine @Inject constructor(
             val playlists = (playlistsFromSearch + playlistsFromFilter).distinctBy { it.playlistId }
 
             val sections = if (videos.isNotEmpty()) {
-                listOf(SearchSection(title = "", videos = videos.distinctBy { it.videoId }))
+                listOf(SearchSection(videos = videos.distinctBy { it.videoId }))
             } else emptyList()
 
             Log.d(TAG, "search('$query'): final ${videos.size} videos, ${channels.size} channels")
@@ -287,13 +287,17 @@ class YouTubeEngine @Inject constructor(
             }
             val allVideoIds = sections.flatMap { it.videos }.map { it.videoId }.filter { it.isNotBlank() }
             var avatarUrl: String? = null
+            var subscriberCount: String? = null
             for (videoId in allVideoIds.take(3)) {
                 try {
                     val metadata = mediaItemService.getMetadataObserve(videoId).awaitOrNull()
                     if (!metadata?.authorImageUrl.isNullOrBlank()) {
                         avatarUrl = metadata.authorImageUrl
-                        break
                     }
+                    if (subscriberCount.isNullOrBlank() && !metadata?.getSubscriberCount().isNullOrBlank()) {
+                        subscriberCount = metadata.getSubscriberCount()
+                    }
+                    if (avatarUrl != null && subscriberCount != null) break
                 } catch (_: Exception) { }
             }
             val channelName = sections.firstOrNull()?.videos?.firstOrNull()?.author?.takeIf { it.isNotBlank() }
@@ -301,8 +305,7 @@ class YouTubeEngine @Inject constructor(
                 ChannelInfo(
                     name = channelName ?: it.title.orEmpty(),
                     avatarUrl = avatarUrl,
-                    subscriberCount = null,
-                    description = null
+                    subscriberCount = subscriberCount
                 )
             }
             emit(ChannelResult(channelInfo, sections))
@@ -347,6 +350,14 @@ class YouTubeEngine @Inject constructor(
             mediaItemService.updateHistoryPosition(videoId, positionSec)
         } catch (e: Exception) {
             Log.e(TAG, "reportWatchProgress failed for $videoId: ${e.javaClass.simpleName}: ${e.message}", e)
+        }
+    }
+
+    fun clearWatchHistory() {
+        try {
+            contentService.clearHistory()
+        } catch (e: Exception) {
+            Log.e(TAG, "clearWatchHistory failed: ${e.javaClass.simpleName}: ${e.message}", e)
         }
     }
 
@@ -404,21 +415,6 @@ class YouTubeEngine @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getStreamableInfo failed for $shortcode", e)
-            null
-        }
-    }
-
-    suspend fun getPlaylistFirstVideoId(playlistId: String): String? {
-        return try {
-            withContext(Dispatchers.IO) {
-                val browseId = if (playlistId.startsWith("VL")) playlistId else "VL$playlistId"
-                val result = contentService.getPlaylist(browseId)
-                val firstGroup = result?.filterNotNull()?.firstOrNull()
-                val items = (firstGroup?.mediaItems ?: emptyList()).filterNotNull()
-                items.firstOrNull()?.videoId
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "getPlaylistFirstVideoId failed for $playlistId", e)
             null
         }
     }
@@ -553,7 +549,6 @@ class YouTubeEngine @Inject constructor(
         StreamFormat(
             url = getUrl(),
             mimeType = getMimeType(),
-            itag = getITag(),
             height = getHeight(),
             bitrate = getBitrate(),
             fps = getFps(),
@@ -565,8 +560,7 @@ class YouTubeEngine @Inject constructor(
             baseUrl = getBaseUrl().orEmpty(),
             languageCode = getLanguageCode().orEmpty(),
             name = getName().orEmpty(),
-            mimeType = getMimeType().orEmpty(),
-            isTranslatable = isTranslatable
+            mimeType = getMimeType().orEmpty()
         )
 
     private fun MediaItemMetadata.toVideoMetadataResult(): VideoMetadataResult = VideoMetadataResult(

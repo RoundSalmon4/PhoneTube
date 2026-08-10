@@ -4,7 +4,6 @@ import android.Manifest
 import android.app.PictureInPictureParams
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -110,13 +109,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
-        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
-        if (!isInPictureInPictureMode) {
-            // User returned from PiP to full screen — player continues normally
-        }
-    }
-
     private fun handleIntent(intent: Intent) {
         val uri = intent.data ?: return
         if (isSupportedUrl(uri)) {
@@ -125,6 +117,8 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun isSupportedUrl(uri: Uri): Boolean {
+        val scheme = uri.scheme?.lowercase()
+        if (scheme == "vnd.youtube" || scheme == "vnd.youtube.launch") return true
         val host = uri.host?.lowercase() ?: return false
         return host == "youtube.com" ||
             host == "m.youtube.com" ||
