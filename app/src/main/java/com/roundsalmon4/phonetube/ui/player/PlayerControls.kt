@@ -63,6 +63,8 @@ fun PlayerControls(
     onQualityClick: () -> Unit,
     onSubtitleClick: () -> Unit,
     onAudioClick: () -> Unit,
+    onAddToPlaylistClick: (() -> Unit)? = null,
+    onChannelClick: (() -> Unit)? = null,
     visible: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -101,6 +103,35 @@ fun PlayerControls(
                             .weight(1f)
                             .padding(horizontal = 8.dp)
                     )
+                    // Landscape-only actions (portrait shows these in the info column)
+                    if (onAddToPlaylistClick != null) {
+                        Text(
+                            text = "Add",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { onAddToPlaylistClick() }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                    if (onChannelClick != null) {
+                        Text(
+                            text = "Channel",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { onChannelClick() }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
                     // Speed indicator
                     Text(
                         text = formatSpeed(state.playbackSpeed),
