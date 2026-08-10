@@ -231,7 +231,9 @@ class YouTubeEngine @Inject constructor(
             } catch (_: Exception) { emptyList() }
             val playlistsFromFilter = playlistGroups.toSearchPlaylists()
 
-            val channels = (channelsFromSearch + channelsFromFilter).distinctBy { it.channelId }
+            val channels = (channelsFromSearch + channelsFromFilter)
+                .distinctBy { it.channelId }
+                .sortedWith(compareByDescending { channelSearchScore(it.name, query) })
             val playlists = (playlistsFromSearch + playlistsFromFilter).distinctBy { it.playlistId }
 
             val sections = if (videos.isNotEmpty()) {
@@ -469,9 +471,6 @@ class YouTubeEngine @Inject constructor(
         val timestamp = getPublishedDate()
         val productionDate = getProductionDate()
         val durationMs = getDurationMs()
-        if (durationMs <= 0 || productionDate.isNullOrBlank()) {
-            Log.d(TAG, "toVideo missing meta: id=$videoId type=${getType()} durationMs=$durationMs prodDate='${productionDate?.take(30)}'")
-        }
         return Video(
             videoId = videoId,
             title = getTitle().orEmpty(),
@@ -690,6 +689,27 @@ class YouTubeEngine @Inject constructor(
         }
         Log.d(TAG, "toSearchVideos: $debugCount videos found, $debugSkipped skipped (type_channel=${MediaItem.TYPE_CHANNEL})")
         return videos
+    }
+
+    /**
+     * Ranks channels against the query so name matches float to the top while
+     * the API's relevance order is kept for everything else. Also handles
+     * initials/acronym matches (e.g. "ltt" -> "Linus Tech Tips").
+     */
+    private fun channelSearchScore(name: String, query: String): Int {
+        val n = name.trim().lowercase()
+        val q = query.trim().lowercase()
+        if (q.isEmpty()) return 0
+        if (n == q) return 5
+        if (n.startsWith(q)) return 4
+        if (n.contains(q)) return 3
+        if (q.split(Regex("\\s+")).any { n.contains(it) }) return 2
+        val initials = n.split(Regex("[^a-z0-9]+"))
+            .filter { it.isNotEmpty() }
+            .map { it.first() }
+            .joinToString("")
+        if (initials.contains(q)) return 1
+        return 0
     }
 
     private fun List<MediaGroup>.toSearchChannels(): List<SearchChannel> {

@@ -12,13 +12,14 @@ import com.roundsalmon4.phonetube.core.database.entity.LocalSubscription
 import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -53,7 +54,6 @@ class LibraryViewModel @Inject constructor(
         subscriptionDao.getAll(),
         _showCreatePlaylistDialog
     ) { tab, history, playlists, subscriptions, showDialog ->
-        Log.d(TAG, "library state: tab=$tab history=${history.size} firstDuration=${history.firstOrNull()?.durationMs} firstPos=${history.firstOrNull()?.positionMs}")
         LibraryUiState(
             activeTab = tab,
             history = history,
@@ -66,6 +66,36 @@ class LibraryViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = LibraryUiState()
     )
+
+    init {
+        enrichBlankHistoryEntries()
+    }
+
+    /**
+     * Older history entries were sometimes saved with blank titles/channel names.
+     * Backfill them from metadata so the history tab has something to render.
+     */
+    private fun enrichBlankHistoryEntries() {
+        viewModelScope.launch {
+            try {
+                val entries = historyDao.getAll().first()
+                for (entry in entries.filter { it.title.isBlank() || it.channelName.isBlank() }) {
+                    try {
+                        val meta = engine.getMetadata(entry.videoId).firstOrNull() ?: continue
+                        val updated = entry.copy(
+                            title = entry.title.ifBlank { meta.video.title.orEmpty() },
+                            channelName = entry.channelName.ifBlank { meta.video.author.orEmpty() },
+                            channelId = entry.channelId.ifBlank { meta.video.channelId },
+                            thumbnailUrl = entry.thumbnailUrl.ifBlank {
+                                "https://i.ytimg.com/vi/${entry.videoId}/hqdefault.jpg"
+                            }
+                        )
+                        if (updated != entry) historyDao.upsert(updated)
+                    } catch (_: Exception) { }
+                }
+            } catch (_: Exception) { }
+        }
+    }
 
     fun switchTab(tab: LibraryTab) {
         _activeTab.value = tab

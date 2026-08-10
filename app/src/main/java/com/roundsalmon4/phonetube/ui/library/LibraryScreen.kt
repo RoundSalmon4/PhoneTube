@@ -1,6 +1,5 @@
 package com.roundsalmon4.phonetube.ui.library
 
-import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -181,8 +180,6 @@ private fun HistoryTab(
     onChannelClick: ((String) -> Unit)? = null,
     onClearAll: () -> Unit
 ) {
-    Log.d("HistoryUI", "HistoryTab composing: entries=${history.size}")
-    Log.d("HistoryUI", "theme colors: surface=${MaterialTheme.colorScheme.surface} onSurface=${MaterialTheme.colorScheme.onSurface} onSurfaceVariant=${MaterialTheme.colorScheme.onSurfaceVariant} primary=${MaterialTheme.colorScheme.primary}")
     var longPressedEntry by remember { mutableStateOf<WatchHistoryEntry?>(null) }
 
     longPressedEntry?.let { entry ->
@@ -268,7 +265,6 @@ private fun HistoryTab(
             val supporting = listOfNotNull(remainingText, entry.channelName.ifBlank { null })
                 .joinToString(" • ")
                 .ifBlank { "Unknown" }
-            Log.d("HistoryUI", "item rendering: id=${entry.videoId} title='${entry.title.take(40)}' duration=${entry.durationMs} pos=${entry.positionMs} remainingMs=$remainingMs supporting='$supporting'")
 
             Column(
                 modifier = Modifier
