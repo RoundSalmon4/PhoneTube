@@ -95,7 +95,13 @@ fun HomeScreen(
                         .fillMaxWidth()
                         .clickable {
                             longPressVideo = null
-                            onChannelClick(video.channelId)
+                            if (video.channelId.isNotBlank()) {
+                                onChannelClick(video.channelId)
+                            } else if (video.videoId.isNotBlank()) {
+                                viewModel.fetchChannelIdForVideo(video.videoId) { id ->
+                                    if (id.isNotBlank()) onChannelClick(id)
+                                }
+                            }
                         }
                         .padding(vertical = 12.dp)
                 )

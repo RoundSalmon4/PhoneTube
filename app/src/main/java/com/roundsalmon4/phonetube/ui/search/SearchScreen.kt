@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -64,7 +66,7 @@ import com.roundsalmon4.phonetube.ui.components.VideoCard
 fun SearchScreen(
     onVideoClick: (String) -> Unit,
     onChannelClick: (String) -> Unit,
-    onPlaylistClick: ((playlistId: String, playlistTitle: String) -> Unit)? = null,
+    onPlaylistClick: (playlistId: String, playlistTitle: String) -> Unit,
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val query by viewModel.query.collectAsStateWithLifecycle()
@@ -76,7 +78,7 @@ fun SearchScreen(
     val subscribedChannels by viewModel.subscribedChannels.collectAsStateWithLifecycle()
     val savedPlaylistIds by viewModel.savedPlaylistIds.collectAsStateWithLifecycle()
     val pendingSavePlaylist by viewModel.pendingSavePlaylist.collectAsStateWithLifecycle()
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val saveMessage by viewModel.saveMessage.collectAsStateWithLifecycle()
     val focusRequester = remember { FocusRequester() }
@@ -221,7 +223,15 @@ fun SearchScreen(
 
             is SearchUiState.Error -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(state.message, color = MaterialTheme.colorScheme.error)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(state.message, color = MaterialTheme.colorScheme.error)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Tap to retry",
+                            modifier = Modifier.clickable { viewModel.onSearch() },
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
 
@@ -278,13 +288,7 @@ fun SearchScreen(
                                         }
                                     },
                                     modifier = Modifier.clickable {
-                                        if (onPlaylistClick != null) {
-                                            onPlaylistClick(playlist.playlistId, playlist.title)
-                                        } else {
-                                            viewModel.getPlaylistFirstVideoId(playlist) { videoId ->
-                                                onVideoClick(videoId)
-                                            }
-                                        }
+                                        onPlaylistClick(playlist.playlistId, playlist.title)
                                     }
                                 )
                             }

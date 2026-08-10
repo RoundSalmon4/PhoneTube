@@ -70,6 +70,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.ui.components.WebViewDialog
 import com.roundsalmon4.phonetube.ui.components.openLink
@@ -205,7 +206,7 @@ private fun PlayerSection(uiState: PreferencesUiState, viewModel: SettingsViewMo
         SettingsCategory("Player")
 
         var speedExpanded by remember { mutableStateOf(false) }
-        val speeds = listOf("0.25x", "0.5x", "0.75x", "1.0x", "1.25x", "1.5x", "1.75x", "2.0x", "2.5x", "3.0x")
+        val speeds = PlayerPreferences.PLAYBACK_SPEEDS.map { "${it}x" }
         val currentSpeed = "${uiState.playbackSpeed}x"
 
         ExposedDropdownMenuBox(
@@ -895,7 +896,7 @@ private fun AboutSection(
 
         ListItem(
             modifier = Modifier.clickable {
-                openLink("https://github.com/RoundSalmon4/SmartTube", openLinksIn, context, onWebView)
+                openLink("https://github.com/RoundSalmon4/PhoneTube", openLinksIn, context, onWebView)
             },
             headlineContent = { Text("Source Code", fontWeight = FontWeight.SemiBold) },
             supportingContent = { Text("View the project on GitHub") },

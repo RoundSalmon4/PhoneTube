@@ -10,8 +10,10 @@ import com.roundsalmon4.phonetube.core.database.SubscriptionDao
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.database.entity.LocalSubscription
 import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
+import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -35,7 +37,8 @@ data class LibraryUiState(
 class LibraryViewModel @Inject constructor(
     private val historyDao: HistoryDao,
     private val playlistDao: PlaylistDao,
-    private val subscriptionDao: SubscriptionDao
+    private val subscriptionDao: SubscriptionDao,
+    private val engine: YouTubeEngine
 ) : ViewModel() {
 
     private val _activeTab = MutableStateFlow(LibraryTab.HISTORY)
@@ -103,6 +106,9 @@ class LibraryViewModel @Inject constructor(
     fun clearHistory() {
         viewModelScope.launch {
             historyDao.clearAll()
+            kotlinx.coroutines.withContext(Dispatchers.IO) {
+                engine.clearWatchHistory()
+            }
         }
     }
 

@@ -13,6 +13,7 @@ import com.roundsalmon4.phonetube.core.database.SubscriptionDao
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
+import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,7 +30,8 @@ class SettingsViewModel @Inject constructor(
     private val playerPreferences: PlayerPreferences,
     private val historyDao: HistoryDao,
     private val playlistDao: PlaylistDao,
-    private val subscriptionDao: SubscriptionDao
+    private val subscriptionDao: SubscriptionDao,
+    private val engine: YouTubeEngine
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PreferencesUiState())
@@ -301,6 +303,9 @@ class SettingsViewModel @Inject constructor(
 
     fun clearHistory() = viewModelScope.launch {
         historyDao.clearAll()
+        withContext(Dispatchers.IO) {
+            engine.clearWatchHistory()
+        }
         _showClearHistoryDialog.value = false
     }
 

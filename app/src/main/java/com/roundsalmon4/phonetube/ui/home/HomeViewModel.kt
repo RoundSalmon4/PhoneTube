@@ -26,6 +26,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
@@ -215,14 +216,9 @@ class HomeViewModel @Inject constructor(
                         } else null
                     }.filter { isFeedEnabled(it.source, prefs) }
                     // Reorder sections to match user's feed order
-                    val sourceToKey = mapOf(
-                        "Home" to "home", "What to Watch" to "what_to_watch", "Subscriptions" to "subscriptions",
-                        "Trending" to "trending", "Music" to "music", "Sports" to "sports",
-                        "Live" to "live", "News" to "news", "Gaming" to "gaming", "Kids" to "kids"
-                    )
                     val sectionMap = sections.associateBy { it.source }
                     val reordered = prefs.feedOrder.mapNotNull { key ->
-                        sourceToKey.entries.firstOrNull { it.value == key }?.key?.let { source ->
+                        SOURCE_TO_FEED_KEY.entries.firstOrNull { it.value == key }?.key?.let { source ->
                             sectionMap[source]
                         }
                     }
@@ -357,6 +353,15 @@ class HomeViewModel @Inject constructor(
 
     fun dismissAddToPlaylistDialog() {
         _addToPlaylistVideo.value = null
+    }
+
+    fun fetchChannelIdForVideo(videoId: String, onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            engine.getMetadata(videoId)
+                .catch { /* ignore */ }
+                .firstOrNull()
+                ?.let { onResult(it.video.channelId) }
+        }
     }
 
     fun addToPlaylist(playlist: LocalPlaylist) {

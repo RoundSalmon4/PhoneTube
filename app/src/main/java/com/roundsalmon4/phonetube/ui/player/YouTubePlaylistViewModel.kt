@@ -5,8 +5,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
+import com.roundsalmon4.phonetube.core.database.PlaylistSaver
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.database.entity.PlaylistVideo
+import com.roundsalmon4.phonetube.core.database.toPlaylistVideoInfo
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.model.Video
@@ -46,12 +48,55 @@ class YouTubePlaylistViewModel @Inject constructor(
     private val _showDuplicateDialog = MutableStateFlow(false)
     val showDuplicateDialog: StateFlow<Boolean> = _showDuplicateDialog.asStateFlow()
 
+    private val _playlists = MutableStateFlow<List<LocalPlaylist>>(emptyList())
+    val playlists: StateFlow<List<LocalPlaylist>> = _playlists.asStateFlow()
+
+    private val _addToPlaylistVideo = MutableStateFlow<Video?>(null)
+    val addToPlaylistVideo: StateFlow<Video?> = _addToPlaylistVideo.asStateFlow()
+
     init {
         load()
         observeSaved()
+        loadPlaylists()
     }
 
     fun clearSaveMessage() { _saveMessage.value = null }
+
+    private fun loadPlaylists() {
+        viewModelScope.launch {
+            playlistDao.getAllPlaylists().collect { _playlists.value = it }
+        }
+    }
+
+    fun showAddToPlaylistDialog(video: Video) {
+        _addToPlaylistVideo.value = video
+    }
+
+    fun dismissAddToPlaylistDialog() {
+        _addToPlaylistVideo.value = null
+    }
+
+    fun addToPlaylist(playlist: LocalPlaylist) {
+        val video = _addToPlaylistVideo.value ?: return
+        viewModelScope.launch {
+            if (PlaylistSaver.addToPlaylist(playlistDao, video.toPlaylistVideoInfo(), playlist)) {
+                _addToPlaylistVideo.value = null
+            } else {
+                Log.e(TAG, "addToPlaylist failed")
+            }
+        }
+    }
+
+    fun createPlaylistAndAdd(name: String) {
+        val video = _addToPlaylistVideo.value ?: return
+        viewModelScope.launch {
+            if (PlaylistSaver.createAndAdd(playlistDao, video.toPlaylistVideoInfo(), name)) {
+                _addToPlaylistVideo.value = null
+            } else {
+                Log.e(TAG, "createPlaylistAndAdd failed")
+            }
+        }
+    }
 
     private fun observeSaved() {
         viewModelScope.launch {
