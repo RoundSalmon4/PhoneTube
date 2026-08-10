@@ -37,9 +37,7 @@ class PlayerEngineController(context: Context) {
 
     private val dataSourceFactory = DefaultDataSource.Factory(context)
 
-    private val trackSelector = DefaultTrackSelector(context).apply {
-        setParameters(buildUponParameters().setMaxVideoSizeSd())
-    }
+    private val trackSelector = DefaultTrackSelector(context)
 
     private val loadControl = DefaultLoadControl.Builder()
         .setBufferDurationsMs(15_000, 60_000, 2_500, 5_000)
@@ -96,20 +94,18 @@ class PlayerEngineController(context: Context) {
         manifestUrl: String,
         subtitles: List<SubtitleTrack> = emptyList(),
         title: String? = null,
-        artist: String? = null,
-        artworkUrl: String? = null
+        artist: String? = null
     ) {
-        play(buildMediaItem(manifestUrl, "application/dash+xml", title, artist, artworkUrl), subtitles)
+        play(buildMediaItem(manifestUrl, "application/dash+xml", title, artist), subtitles)
     }
 
     fun playHls(
         manifestUrl: String,
         subtitles: List<SubtitleTrack> = emptyList(),
         title: String? = null,
-        artist: String? = null,
-        artworkUrl: String? = null
+        artist: String? = null
     ) {
-        play(buildMediaItem(manifestUrl, "application/x-mpegURL", title, artist, artworkUrl), subtitles)
+        play(buildMediaItem(manifestUrl, "application/x-mpegURL", title, artist), subtitles)
     }
 
     fun playUrl(
@@ -117,26 +113,23 @@ class PlayerEngineController(context: Context) {
         mimeType: String?,
         subtitles: List<SubtitleTrack> = emptyList(),
         title: String? = null,
-        artist: String? = null,
-        artworkUrl: String? = null
+        artist: String? = null
     ) {
-        play(buildMediaItem(url, mimeType, title, artist, artworkUrl), subtitles)
+        play(buildMediaItem(url, mimeType, title, artist), subtitles)
     }
 
     private fun buildMediaItem(
         uri: String,
         mimeType: String?,
         title: String?,
-        artist: String?,
-        artworkUrl: String?
+        artist: String?
     ): MediaItem {
         val builder = MediaItem.Builder().setUri(uri)
         mimeType?.let { builder.setMimeType(it) }
-        if (!title.isNullOrBlank() || artworkUrl != null) {
+        if (!title.isNullOrBlank() || !artist.isNullOrBlank()) {
             val metadataBuilder = MediaMetadata.Builder()
             title?.let { metadataBuilder.setTitle(it) }
             artist?.let { metadataBuilder.setArtist(it) }
-            artworkUrl?.let { metadataBuilder.setArtworkUri(Uri.parse(it)) }
             builder.setMediaMetadata(metadataBuilder.build())
         }
         return builder.build()
@@ -267,20 +260,29 @@ class PlayerEngineController(context: Context) {
         val videoGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
         if (videoGroups.isEmpty()) return
 
+        // Match by height only, preferring the best (highest) frame rate at that height.
+        var bestGroup: Tracks.Group? = null
+        var bestIndex = -1
+        var bestFps = -1
         for (group in videoGroups) {
             for (i in 0 until group.length) {
                 val format = group.getTrackFormat(i)
-                val matchesHeight = format.height == height
-                val matchesFps = if (fps > 0) format.frameRate.toInt() == fps else true
-                if (matchesHeight && matchesFps) {
-                    val override = TrackSelectionOverride(group.mediaTrackGroup, listOf(i))
-                    trackSelector.setParameters(
-                        trackSelector.buildUponParameters().addOverride(override)
-                    )
-                    updateSnapshot()
-                    return
+                if (format.height == height) {
+                    val trackFps = format.frameRate.toInt()
+                    if (trackFps > bestFps) {
+                        bestIndex = i
+                        bestFps = trackFps
+                        bestGroup = group
+                    }
                 }
             }
+        }
+        if (bestGroup != null && bestIndex >= 0) {
+            val override = TrackSelectionOverride(bestGroup.mediaTrackGroup, listOf(bestIndex))
+            trackSelector.setParameters(
+                trackSelector.buildUponParameters().addOverride(override)
+            )
+            updateSnapshot()
         }
     }
 
