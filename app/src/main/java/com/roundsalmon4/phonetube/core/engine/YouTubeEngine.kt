@@ -231,9 +231,13 @@ class YouTubeEngine @Inject constructor(
             } catch (_: Exception) { emptyList() }
             val playlistsFromFilter = playlistGroups.toSearchPlaylists()
 
-            val channels = (channelsFromSearch + channelsFromFilter)
+            // The dedicated channel search can return odd results for short or
+            // acronym queries (e.g. "ltt"). Surface the channel behind the top
+            // video result so the obvious channel is present at the top.
+            val topVideoChannel = resolveTopVideoChannel(videos)
+
+            val channels = (listOfNotNull(topVideoChannel) + channelsFromSearch + channelsFromFilter)
                 .distinctBy { it.channelId }
-                .sortedWith(compareByDescending { channelSearchScore(it.name, query) })
             val playlists = (playlistsFromSearch + playlistsFromFilter).distinctBy { it.playlistId }
 
             val sections = if (videos.isNotEmpty()) {
@@ -692,24 +696,25 @@ class YouTubeEngine @Inject constructor(
     }
 
     /**
-     * Ranks channels against the query so name matches float to the top while
-     * the API's relevance order is kept for everything else. Also handles
-     * initials/acronym matches (e.g. "ltt" -> "Linus Tech Tips").
+     * Resolves the channel that authored the top search video. Short/acronym
+     * queries (e.g. "ltt") are often better answered by the channel behind the
+     * first video result than by the dedicated channel search, so we surface it
+     * as the top channel suggestion.
      */
-    private fun channelSearchScore(name: String, query: String): Int {
-        val n = name.trim().lowercase()
-        val q = query.trim().lowercase()
-        if (q.isEmpty()) return 0
-        if (n == q) return 5
-        if (n.startsWith(q)) return 4
-        if (n.contains(q)) return 3
-        if (q.split(Regex("\\s+")).any { n.contains(it) }) return 2
-        val initials = n.split(Regex("[^a-z0-9]+"))
-            .filter { it.isNotEmpty() }
-            .map { it.first() }
-            .joinToString("")
-        if (initials.contains(q)) return 1
-        return 0
+    private suspend fun resolveTopVideoChannel(videos: List<Video>): SearchChannel? {
+        val video = videos.firstOrNull { it.author.isNotBlank() } ?: return null
+        return try {
+            val meta = mediaItemService.getMetadataObserve(video.videoId).awaitOrNull() ?: return null
+            val channelId = meta.getChannelId()
+            if (channelId.isNullOrBlank()) return null
+            SearchChannel(
+                channelId = channelId,
+                name = meta.getAuthor().takeIf { it.isNotBlank() } ?: video.author,
+                thumbnailUrl = meta.getAuthorImageUrl()?.ifBlank { null }
+            )
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun List<MediaGroup>.toSearchChannels(): List<SearchChannel> {
