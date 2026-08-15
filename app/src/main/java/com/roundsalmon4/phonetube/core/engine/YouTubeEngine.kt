@@ -326,7 +326,7 @@ class YouTubeEngine @Inject constructor(
             val info = mediaItemService.getFormatInfoObserve(videoId).awaitOrNull()
             if (info == null) {
                 throw IllegalStateException(
-                    "Could not get playback data. YouTube is likely blocking anonymous playback — try retrying or signing in."
+                    "Could not get playback data. YouTube may be blocking playback on this network — try again or switch networks."
                 )
             }
             var streamInfo = info.toStreamInfo()

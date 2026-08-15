@@ -348,7 +348,7 @@ class PlayerViewModel @Inject constructor(
         when {
             info.isUnplayable -> {
                 Log.w(TAG, "Video is unplayable: ${info.playabilityReason}")
-                _uiState.value = PlayerUiState.Error(info.playabilityReason ?: "Video is unavailable")
+                _uiState.value = PlayerUiState.Error(friendlyPlaybackError(info.playabilityReason))
             }
             isLive && info.hlsManifestUrl != null -> {
                 playerController.playHls(info.hlsManifestUrl, info.subtitles, info.title, info.author)
@@ -678,6 +678,21 @@ data class NextVideoToPlay(
     val videoId: String,
     val queue: List<String>
 )
+
+/**
+ * Turns YouTube's raw playability reason into something actionable for an app
+ * with no sign-in flow. YouTube's "confirm you're not a bot" verification is
+ * network/visitor based, so we avoid implying that logging in is an option.
+ */
+private fun friendlyPlaybackError(raw: String?): String {
+    if (raw.isNullOrBlank()) return "Video is unavailable"
+    val lower = raw.lowercase()
+    return if (lower.contains("sign in") || lower.contains("not a bot") || lower.contains("verify")) {
+        "YouTube is blocking playback on this network right now. Try again later or switch networks."
+    } else {
+        raw
+    }
+}
 
 private const val SKIP_CHECK_INTERVAL_MS = 500L
 private const val POSITION_SAVE_INTERVAL_MS = 10_000L
