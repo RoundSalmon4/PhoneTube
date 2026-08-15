@@ -5,7 +5,7 @@ ksp = "2.2.21-2.0.5"
 
 # AndroidX
 core-ktx = "1.15.0"
-appcompat = "1.7.1"
+appcompat = "1.8.0"
 annotation = "1.10.0"
 activity-compose = "1.9.3"
 lifecycle = "2.8.7"
@@ -13,7 +13,7 @@ navigation = "2.8.5"
 room = "2.6.1"
 datastore = "1.2.1"
 media = "1.8.0"
-webkit = "1.16.0"
+webkit = "1.17.0"
 
 # Compose
 compose-bom = "2024.12.01"
