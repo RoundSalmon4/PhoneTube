@@ -5,7 +5,6 @@ ksp = "2.2.21-2.0.5"
 
 # AndroidX
 core-ktx = "1.15.0"
-appcompat = "1.7.1"
 annotation = "1.10.0"
 activity-compose = "1.9.3"
 lifecycle = "2.8.7"
@@ -13,7 +12,6 @@ navigation = "2.8.5"
 room = "2.6.1"
 datastore = "1.2.1"
 media = "1.8.0"
-webkit = "1.16.0"
 
 # Compose
 compose-bom = "2024.12.01"
@@ -91,7 +89,6 @@ multidex = "2.0.1"
 [libraries]
 # AndroidX Core
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 annotation = { group = "androidx.annotation", name = "annotation", version.ref = "annotation" }
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity-compose" }
 multidex = { group = "androidx.multidex", name = "multidex", version.ref = "multidex" }
@@ -114,9 +111,6 @@ datastore-preferences = { group = "androidx.datastore", name = "datastore-prefer
 
 # Media
 media = { group = "androidx.media", name = "media", version.ref = "media" }
-
-# WebKit
-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
 
 # Compose BOM
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "compose-bom" }
