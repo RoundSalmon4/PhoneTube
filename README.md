@@ -24,7 +24,7 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 | Local Subscriptions | Subscribe to channels locally. Latest videos appear on the home feed. Subscribe directly from search results |
 | Watch History | Your watch history is saved locally with resume position, playback speed, and progress indicators |
 | Channel Pages | Browse channel videos and playlists with subscriber count display, save them locally, and subscribe |
-| Deep Linking | Open YouTube video, playlist (into the playlist viewer), channel, and shorts links, plus Reddit media and Streamable links, directly in PhoneTube. Supports `vnd.youtube:` URI scheme |
+| Deep Linking | Open YouTube video, playlist (into the playlist viewer), channel, and shorts links, plus Streamable links, directly in PhoneTube. Supports `vnd.youtube:` URI scheme |
 | Streamable Video | Open `streamable.com` links and play them in the in-app player |
 | Video Card Dates | Video cards show when the video was published across home feeds, search, and channel pages |
 | Speed Control | Adjust playback speed from 0.25x to 3.0x, persisted across videos |

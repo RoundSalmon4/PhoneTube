@@ -139,19 +139,6 @@ class PlayerViewModel @Inject constructor(
                 loadStreamable()
                 return@launch
             }
-            if (videoId.startsWith("media:")) {
-                val encoded = videoId.removePrefix("media:")
-                val url = try {
-                    String(
-                        android.util.Base64.decode(encoded, android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING),
-                        Charsets.UTF_8
-                    )
-                } catch (e: Exception) {
-                    encoded
-                }
-                loadDirectMedia(url)
-                return@launch
-            }
             engine.getStreamInfo(videoId)
                 .catch { e ->
                     Log.e(TAG, "Failed to load stream info", e)
@@ -213,40 +200,6 @@ class PlayerViewModel @Inject constructor(
             videoId = videoId,
             title = info.title,
             thumbnailUrl = streamable.thumbnailUrl ?: ""
-        )
-        startPlayback(info)
-    }
-
-    private suspend fun loadDirectMedia(url: String) {
-        val info = StreamInfo(
-            title = "Reddit video",
-            author = "",
-            channelId = "",
-            lengthSeconds = 0L,
-            isLive = false,
-            isLiveContent = false,
-            adaptiveFormats = emptyList(),
-            urlFormats = listOf(
-                StreamFormat(
-                    url = url,
-                    mimeType = "video/mp4",
-                    height = 0,
-                    bitrate = null,
-                    fps = null,
-                    qualityLabel = null
-                )
-            ),
-            subtitles = emptyList(),
-            dashManifestUrl = null,
-            hlsManifestUrl = null,
-            isUnplayable = false,
-            playabilityReason = null
-        )
-        _uiState.value = PlayerUiState.Ready(info)
-        playerStateManager.updateVideoInfo(
-            videoId = videoId,
-            title = info.title,
-            thumbnailUrl = ""
         )
         startPlayback(info)
     }
