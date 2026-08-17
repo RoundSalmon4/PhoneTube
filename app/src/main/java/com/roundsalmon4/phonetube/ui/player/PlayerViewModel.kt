@@ -688,7 +688,7 @@ private fun friendlyPlaybackError(raw: String?): String {
     if (raw.isNullOrBlank()) return "Video is unavailable"
     val lower = raw.lowercase()
     return if (lower.contains("sign in") || lower.contains("not a bot") || lower.contains("verify")) {
-        "YouTube is blocking playback on this network right now. Try again later or switch networks."
+        "YouTube is blocking playback on this network — try switching your VPN region."
     } else {
         raw
     }

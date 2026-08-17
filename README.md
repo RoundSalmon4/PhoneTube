@@ -10,7 +10,7 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 |---------|-------------|
 | Home Feed | Browse YouTube recommendations, subscriptions, trending, music, sports, live, news, gaming, and kids content |
 | Search | Search YouTube with autocomplete suggestions and configurable result limits. Long press video to add to playlist or go to channel. Channel results include subscribe button |
-| Video Playback | Play videos with DASH and HLS streaming, quality picker, subtitle support, and audio track selection |
+| Video Playback | Play videos with DASH and HLS streaming, quality picker, subtitle support, and audio track selection. View count, like count, and subscriber count are shown below the title |
 | Background Play | Continue listening with a persistent notification (with media controls) and mini player controls. Playback stops when the app is swiped away from recents |
 | Picture-in-Picture | Floating video window when leaving the player during playback (Android 8+) |
 | Mini Player | Persistent playback bar with play/pause, rewind, forward, close, and progress bar |
@@ -18,13 +18,13 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 | Description | Expand/collapse video description with clickable timestamps and URL links |
 | SponsorBlock | Skip sponsor segments and other interruptions automatically with per-category skip/toast/none controls |
 | Local Playlists | Create and manage playlists without a Google account, add from home feed, player screen, or watch history. Drag-to-reorder videos within a playlist |
-| YouTube Playlist Viewer | Browse YouTube playlists from search, channel pages, or playlist links, with Play All and save-to-library. Loads the full playlist, not just the first page |
+| YouTube Playlist Viewer | Browse YouTube playlists from search, channel pages, or playlist links, with Play All and save-to-library. Play All queues the full playlist and advances through it automatically |
 | Saved Playlist Indicator | Playlists already in your library show a "Saved" state. Save again for a duplicate with a configurable confirmation prompt |
 | Import/Export | Backup and restore settings, playlists, and subscriptions to/from JSON files |
 | Local Subscriptions | Subscribe to channels locally. Latest videos appear on the home feed. Subscribe directly from search results |
 | Watch History | Your watch history is saved locally with resume position, playback speed, and progress indicators |
-| Channel Pages | Browse channel videos and playlists, save them locally, and subscribe |
-| Deep Linking | Open YouTube video, playlist (into the playlist viewer), channel, and shorts links, plus Streamable video links, directly in PhoneTube |
+| Channel Pages | Browse channel videos and playlists with subscriber count display, save them locally, and subscribe |
+| Deep Linking | Open YouTube video, playlist (into the playlist viewer), channel, and shorts links, plus Reddit media and Streamable links, directly in PhoneTube. Supports `vnd.youtube:` URI scheme |
 | Streamable Video | Open `streamable.com` links and play them in the in-app player |
 | Video Card Dates | Video cards show when the video was published across home feeds, search, and channel pages |
 | Speed Control | Adjust playback speed from 0.25x to 3.0x, persisted across videos |
