@@ -91,6 +91,12 @@ fun AppNavigation(
                 if (!shortcode.isNullOrBlank()) {
                     navController.navigate(Route.Player("streamable:$shortcode"))
                 }
+            } else if (host == "v.redd.it" || host == "packaged-media.redd.it") {
+                val encoded = android.util.Base64.encodeToString(
+                    uri.toString().toByteArray(Charsets.UTF_8),
+                    android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING
+                )
+                navController.navigate(Route.Player("media:$encoded"))
             } else {
                 val link = YouTubeUrlParser.parse(uri)
                 if (link.isValid) {

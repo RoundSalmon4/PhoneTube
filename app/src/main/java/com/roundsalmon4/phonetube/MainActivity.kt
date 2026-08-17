@@ -126,7 +126,9 @@ class MainActivity : ComponentActivity() {
             host == "music.youtube.com" ||
             host == "youtu.be" ||
             host == "streamable.com" ||
-            host == "www.streamable.com"
+            host == "www.streamable.com" ||
+            host == "v.redd.it" ||
+            host == "packaged-media.redd.it"
     }
 
     private fun requestNotificationPermission() {
