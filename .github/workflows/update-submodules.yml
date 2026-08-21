@@ -25,7 +25,7 @@ jobs:
           git remote add upstream https://github.com/yuliskov/MediaServiceCore.git || true
           git fetch upstream master
           git fetch origin phonetube-patches
-          git fetch origin tag patches-3.0
+          git fetch origin patches
           LOCAL=$(git rev-parse origin/phonetube-patches)
           REMOTE=$(git rev-parse upstream/master)
           if [ "$LOCAL" = "$REMOTE" ]; then
@@ -35,8 +35,11 @@ jobs:
           echo "MediaServiceCore upstream has new commits: $LOCAL -> $REMOTE"
           # start from upstream/master
           git checkout -b auto/update-mediaservicecore upstream/master
-          # copy our patched files from the pinned known-good tag
-          git checkout patches-3.0 -- \
+          # copy our patched files from the `patches` branch
+          # To add/remove pinned files: edit the list below, then update the
+          # patches branch by rebuilding phonetube-patches and pushing:
+          #   git push origin phonetube-patches:patches
+          git checkout origin/patches -- \
             mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java \
             youtubeapi/src/main/AndroidManifest.xml \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseApiHelper.kt \
@@ -48,7 +51,7 @@ jobs:
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/V2/VideoInfoService.java \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/models/VideoInfo.java
           # also copy CommonHelper.kt
-          curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/patches-3.0/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
+          curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/patches/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
           # verify every patch made it into the working tree
           grep -q "getPlaylist" mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java || { echo "ERROR: ContentService patch missing"; exit 1; }
           grep -q "fun getPlaylist" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt || { echo "ERROR: BrowseService2 patch missing"; exit 1; }
@@ -64,8 +67,9 @@ jobs:
           else
             git add -A
             git commit -m "chore: sync phonetube-patches with upstream + apply patches" || echo "no changes to commit"
-            # push to phonetube-patches
+            # push to phonetube-patches AND update the patches branch to stay current
             git push origin auto/update-mediaservicecore:phonetube-patches --force
+            git push origin HEAD:patches --force
           fi
 
       - name: Update SharedModules
