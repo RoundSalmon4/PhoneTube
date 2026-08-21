@@ -39,7 +39,8 @@ jobs:
           # To add/remove pinned files: edit the list below, then update the
           # patches branch by rebuilding phonetube-patches and pushing:
           #   git push origin phonetube-patches:patches
-          git checkout origin/patches -- \
+          PATCHES_REF=$(git rev-parse origin/patches 2>/dev/null || git rev-parse FETCH_HEAD)
+          git checkout $PATCHES_REF -- \
             mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java \
             youtubeapi/src/main/AndroidManifest.xml \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseApiHelper.kt \
