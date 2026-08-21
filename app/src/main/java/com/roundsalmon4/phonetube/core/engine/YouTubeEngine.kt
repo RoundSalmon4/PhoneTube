@@ -283,8 +283,7 @@ class YouTubeEngine @Inject constructor(
                         playlistId = pid,
                         title = item.title.orEmpty(),
                         channelName = item.author.orEmpty(),
-                        thumbnailUrl = item.cardImageUrl?.ifBlank { null },
-                        firstVideoId = item.videoId?.takeIf { it.isNotBlank() }
+                        thumbnailUrl = item.cardImageUrl?.ifBlank { null }
                     )
                 }
                 if (videos.isNotEmpty() || playlists.isNotEmpty()) {
@@ -760,15 +759,8 @@ class YouTubeEngine @Inject constructor(
                             title = item.title.orEmpty(),
                             channelName = item.author.orEmpty(),
                             thumbnailUrl = item.cardImageUrl?.ifBlank { null }
-                                ?: item.backgroundImageUrl?.ifBlank { null },
-                            firstVideoId = item.videoId?.takeIf { it.isNotBlank() }
+                                ?: item.backgroundImageUrl?.ifBlank { null }
                         )
-                    } else {
-                        val entry = playlistMap[effectivePid]!!
-                        val videoId = item.videoId?.takeIf { it.isNotBlank() }
-                        if (videoId != null && entry.firstVideoId.isNullOrBlank()) {
-                            playlistMap[effectivePid] = entry.copy(firstVideoId = videoId)
-                        }
                     }
                 }
             }

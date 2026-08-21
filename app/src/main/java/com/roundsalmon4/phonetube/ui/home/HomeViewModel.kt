@@ -327,7 +327,7 @@ class HomeViewModel @Inject constructor(
                             channelId = video.channelId,
                             thumbnailUrl = video.thumbnailUrl,
                             durationMs = video.durationMs,
-                            viewCount = video.viewCount ?: "",
+                            viewCount = "",
                             position = videoIndex,
                             percentWatched = video.percentWatched,
                             publishedDate = video.publishedDate
@@ -394,7 +394,7 @@ private fun CachedFeedVideo.toVideo() = Video(
     channelId = channelId,
     thumbnailUrl = thumbnailUrl,
     durationMs = durationMs,
-    viewCount = viewCount.ifBlank { null },
+    viewCount = null,
     publishedDate = publishedDate,
     percentWatched = percentWatched
 )

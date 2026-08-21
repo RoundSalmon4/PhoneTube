@@ -397,8 +397,9 @@ class PlayerViewModel @Inject constructor(
 
     private fun loadLandscapeLockPreference() {
         viewModelScope.launch {
-            val enabled = playerPreferences.uiState.first().landscapeLock
-            _landscapeLock.value = enabled
+            playerPreferences.uiState.collect { prefs ->
+                _landscapeLock.value = prefs.landscapeLock
+            }
         }
     }
 
