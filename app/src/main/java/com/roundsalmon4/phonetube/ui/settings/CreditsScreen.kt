@@ -44,7 +44,7 @@ private val credits = listOf(
     CreditEntry(
         name = "SponsorBlock",
         description = "Sponsor segment detection API",
-        url = "https://github.com/ajay-ay/sponsorblock",
+        url = "https://github.com/ajayyy/SponsorBlock",
         license = "AGPL-3.0"
     ),
     CreditEntry(
@@ -172,6 +172,42 @@ private val credits = listOf(
         description = "JavaScript runtime for PoToken generation and nsig solver",
         url = "https://github.com/eclipsesource/J2V8",
         license = "EPL-1.0"
+    ),
+    CreditEntry(
+        name = "NanoJSON",
+        description = "Lightweight JSON parser for MediaServiceCore",
+        url = "https://github.com/grack/nanojson",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
+        name = "DiskLruCache",
+        description = "Disk-based LRU cache",
+        url = "https://github.com/JakeWharton/DiskLruCache",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
+        name = "NetCipher",
+        description = "Enhanced network security for Android",
+        url = "https://github.com/guardianproject/NetCipher",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
+        name = "commons-io",
+        description = "General I/O utilities",
+        url = "https://github.com/apache/commons-io",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
+        name = "DNSJava",
+        description = "DNS lookup library",
+        url = "https://github.com/dnsjava/dnsjava",
+        license = "LGPL-2.0"
+    ),
+    CreditEntry(
+        name = "Florianingerl Regex",
+        description = "Backported regex features for Android",
+        url = "https://github.com/florianingerl/com.florianingerl.util.regex",
+        license = "MIT"
     )
 )
 
