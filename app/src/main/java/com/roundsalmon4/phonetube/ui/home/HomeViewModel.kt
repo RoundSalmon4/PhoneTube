@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.database.FeedCacheDao
+import com.roundsalmon4.phonetube.core.database.HistoryDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
 import com.roundsalmon4.phonetube.core.database.PlaylistSaver
 import com.roundsalmon4.phonetube.core.database.PlaylistVideoInfo
@@ -14,7 +15,9 @@ import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.core.database.entity.CachedFeedSection
 import com.roundsalmon4.phonetube.core.database.entity.CachedFeedVideo
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
+import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
+import com.roundsalmon4.phonetube.core.engine.model.HomeFeed
 import com.roundsalmon4.phonetube.core.engine.model.HomeSection
 import com.roundsalmon4.phonetube.core.engine.model.Video
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -41,7 +44,8 @@ class HomeViewModel @Inject constructor(
     private val playlistDao: PlaylistDao,
     private val feedCacheDao: FeedCacheDao,
     private val subscriptionDao: SubscriptionDao,
-    private val playerPreferences: PlayerPreferences
+    private val playerPreferences: PlayerPreferences,
+    private val historyDao: HistoryDao
 ) : ViewModel() {
 
     companion object {
@@ -288,8 +292,17 @@ class HomeViewModel @Inject constructor(
                 if (nonEmpty.isNotEmpty()) {
                     _uiState.value = HomeUiState.Success(nonEmpty)
                     withContext(NonCancellable) { writeToCache(nonEmpty) }
-                } else if (_uiState.value is HomeUiState.Loading) {
-                    _uiState.value = HomeUiState.Empty
+                } else {
+                    // When the API returns nothing (e.g. no watch history to seed
+                    // recommendations yet), populate from local watch history so the
+                    // user gets immediate content.
+                    val historyFeed = buildHistoryFallback()
+                    if (historyFeed != null && historyFeed.sections.isNotEmpty()) {
+                        _uiState.value = HomeUiState.Success(historyFeed.sections)
+                        withContext(NonCancellable) { writeToCache(historyFeed.sections) }
+                    } else if (_uiState.value is HomeUiState.Loading) {
+                        _uiState.value = HomeUiState.Empty
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "loadHome failed", e)
@@ -338,6 +351,41 @@ class HomeViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to write feed cache", e)
             }
+        }
+    }
+
+    /**
+     * When the YouTube API returns an empty home feed (no watch history to
+     * seed recommendations), fall back to a section built from the local
+     * watch-history table so the user has immediate content.
+     */
+    private suspend fun buildHistoryFallback(): com.roundsalmon4.phonetube.core.engine.model.HomeFeed? {
+        return try {
+            val entries: List<WatchHistoryEntry> = historyDao.getAll().first()
+                .filter { it.title.isNotBlank() }
+                .take(20)
+            if (entries.isEmpty()) return null
+            HomeFeed(sections = listOf(
+                HomeSection(
+                    title = "Watch History",
+                    videos = entries.map { entry: WatchHistoryEntry ->
+                        Video(
+                            videoId = entry.videoId,
+                            title = entry.title,
+                            author = entry.channelName,
+                            channelId = entry.channelId,
+                            thumbnailUrl = entry.thumbnailUrl,
+                            durationMs = entry.durationMs,
+                            viewCount = null,
+                            publishedDate = entry.timestamp,
+                            percentWatched = if (entry.durationMs > 0) ((entry.positionMs * 100f) / entry.durationMs).toInt().coerceIn(0, 100) else 0
+                        )
+                    },
+                    source = "Watch History"
+                )
+            ))
+        } catch (_: Exception) {
+            null
         }
     }
 
