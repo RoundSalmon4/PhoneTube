@@ -100,6 +100,9 @@ class PlayerViewModel @Inject constructor(
     private val _openLinksIn = MutableStateFlow("browser")
     val openLinksIn: StateFlow<String> = _openLinksIn.asStateFlow()
 
+    private val _screenProtection = MutableStateFlow(false)
+    val screenProtection: StateFlow<Boolean> = _screenProtection.asStateFlow()
+
     private val _showAddToPlaylist = MutableStateFlow(false)
     val showAddToPlaylist: StateFlow<Boolean> = _showAddToPlaylist.asStateFlow()
 
@@ -122,6 +125,7 @@ class PlayerViewModel @Inject constructor(
         restoreSpeedPreference()
         loadLandscapeLockPreference()
         loadOpenLinksInPreference()
+        loadScreenProtectionPreference()
         loadPlaylists()
         startPeriodicHistorySave()
         if (!isExternalVideo) {
@@ -411,6 +415,14 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    private fun loadScreenProtectionPreference() {
+        viewModelScope.launch {
+            playerPreferences.uiState.collect { prefs ->
+                _screenProtection.value = prefs.screenProtection
+            }
+        }
+    }
+
     private fun loadPlaylists() {
         viewModelScope.launch {
             playlistDao.getAllPlaylists().collect { _playlists.value = it }
@@ -419,6 +431,10 @@ class PlayerViewModel @Inject constructor(
 
     private fun recordToHistory(info: StreamInfo) {
         viewModelScope.launch {
+            // Skip history recording when incognito mode is enabled
+            val incognito = playerPreferences.uiState.first().incognitoMode
+            if (incognito) return@launch
+
             historyMutex.withLock {
                 try {
                     val existing = historyDao.getById(videoId)

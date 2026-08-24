@@ -292,6 +292,29 @@ private fun PlayerSection(uiState: PreferencesUiState, viewModel: SettingsViewMo
             )
         }
 
+        SwitchItem(
+            name = "Screen Protection",
+            description = "Prevent screenshots and screen recording during playback",
+            checked = uiState.screenProtection,
+            onCheckedChange = { viewModel.setScreenProtection(it) }
+        )
+
+        SwitchItem(
+            name = "Incognito Mode",
+            description = "Don't save watched videos to history",
+            checked = uiState.incognitoMode,
+            onCheckedChange = { viewModel.setIncognitoMode(it) }
+        )
+
+        val clearVisitorOnExit by viewModel.clearVisitorOnExit.collectAsState()
+
+        SwitchItem(
+            name = "No Persistent Visitor",
+            description = "Clear YouTube visitor data on each app launch",
+            checked = clearVisitorOnExit,
+            onCheckedChange = { viewModel.setClearVisitorOnExit(it) }
+        )
+
         var linkModeExpanded by remember { mutableStateOf(false) }
         val linkModes = listOf("browser" to "Browser", "webview" to "WebView")
         val currentLinkMode = linkModes.firstOrNull { it.first == uiState.openLinksIn }?.second ?: "Browser"
@@ -877,6 +900,15 @@ private fun DataSection(
             modifier = Modifier.clickable { viewModel.showClearPlaylistsDialog() },
             headlineContent = { Text("Clear Playlists", fontWeight = FontWeight.SemiBold) },
             supportingContent = { Text("Delete all playlists and their videos") }
+        )
+
+        ListItem(
+            modifier = Modifier.clickable {
+                context.cacheDir.listFiles()?.filter { it.isDirectory }?.forEach { it.deleteRecursively() }
+                Toast.makeText(context, "Cached images cleared", Toast.LENGTH_SHORT).show()
+            },
+            headlineContent = { Text("Clear Cached Images", fontWeight = FontWeight.SemiBold) },
+            supportingContent = { Text("Delete downloaded thumbnails and images") }
         )
     }
 }

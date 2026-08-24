@@ -27,6 +27,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    @dagger.hilt.android.qualifiers.ApplicationContext private val context: android.content.Context,
     private val playerPreferences: PlayerPreferences,
     private val historyDao: HistoryDao,
     private val playlistDao: PlaylistDao,
@@ -293,6 +294,26 @@ class SettingsViewModel @Inject constructor(
 
     fun setDuplicatePlaylistWarning(enabled: Boolean) = viewModelScope.launch {
         playerPreferences.setDuplicatePlaylistWarning(enabled)
+    }
+
+    fun setScreenProtection(enabled: Boolean) = viewModelScope.launch {
+        playerPreferences.setScreenProtection(enabled)
+    }
+
+    fun setIncognitoMode(enabled: Boolean) = viewModelScope.launch {
+        playerPreferences.setIncognitoMode(enabled)
+    }
+
+    private val _clearVisitorOnExit = kotlinx.coroutines.flow.MutableStateFlow(
+        context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
+            .getBoolean("clear_visitor_on_exit", false)
+    )
+    val clearVisitorOnExit: kotlinx.coroutines.flow.StateFlow<Boolean> = _clearVisitorOnExit.asStateFlow()
+
+    fun setClearVisitorOnExit(enabled: Boolean) {
+        context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
+            .edit().putBoolean("clear_visitor_on_exit", enabled).apply()
+        _clearVisitorOnExit.value = enabled
     }
 
     fun showClearHistoryDialog() { _showClearHistoryDialog.value = true }

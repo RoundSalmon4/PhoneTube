@@ -51,6 +51,8 @@ private object Keys {
     val FEED_ORDER = stringPreferencesKey("feed_order")
     val CONTINUE_PLAYING = booleanPreferencesKey("continue_playing")
     val DUPLICATE_PLAYLIST_WARNING = booleanPreferencesKey("duplicate_playlist_warning")
+    val SCREEN_PROTECTION = booleanPreferencesKey("screen_protection")
+    val INCOGNITO_MODE = booleanPreferencesKey("incognito_mode")
 }
 
 data class PreferencesUiState(
@@ -83,7 +85,9 @@ data class PreferencesUiState(
     val openLinksIn: String = "browser", // "browser" or "webview"
     val feedOrder: List<String> = PlayerPreferences.DEFAULT_FEED_ORDER,
     val continuePlaying: Boolean = false,
-    val duplicatePlaylistWarning: Boolean = true
+    val duplicatePlaylistWarning: Boolean = true,
+    val screenProtection: Boolean = false,
+    val incognitoMode: Boolean = false
 )
 
 @Singleton
@@ -122,7 +126,9 @@ class PlayerPreferences @Inject constructor(
             openLinksIn = prefs[Keys.OPEN_LINKS_IN] ?: "browser",
             feedOrder = parseFeedOrder(prefs[Keys.FEED_ORDER]),
             continuePlaying = prefs[Keys.CONTINUE_PLAYING] ?: false,
-            duplicatePlaylistWarning = prefs[Keys.DUPLICATE_PLAYLIST_WARNING] ?: true
+            duplicatePlaylistWarning = prefs[Keys.DUPLICATE_PLAYLIST_WARNING] ?: true,
+            screenProtection = prefs[Keys.SCREEN_PROTECTION] ?: false,
+            incognitoMode = prefs[Keys.INCOGNITO_MODE] ?: false
         )
     }
 
@@ -242,6 +248,14 @@ class PlayerPreferences @Inject constructor(
 
     suspend fun setDuplicatePlaylistWarning(enabled: Boolean) {
         context.playerDataStore.edit { it[Keys.DUPLICATE_PLAYLIST_WARNING] = enabled }
+    }
+
+    suspend fun setScreenProtection(enabled: Boolean) {
+        context.playerDataStore.edit { it[Keys.SCREEN_PROTECTION] = enabled }
+    }
+
+    suspend fun setIncognitoMode(enabled: Boolean) {
+        context.playerDataStore.edit { it[Keys.INCOGNITO_MODE] = enabled }
     }
 
     companion object {

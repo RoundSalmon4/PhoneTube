@@ -84,6 +84,7 @@ fun PlayerScreen(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val landscapeLock by viewModel.landscapeLock.collectAsStateWithLifecycle()
+    val screenProtection by viewModel.screenProtection.collectAsStateWithLifecycle()
 
     // Portrait videos (e.g. Shorts) should stay in portrait; otherwise respect the landscape lock.
     val isPortraitVideo = playbackState.videoHeight > playbackState.videoWidth
@@ -96,6 +97,17 @@ fun PlayerScreen(
     }
 
     // Hide system bars while player is visible, restore on exit
+    // Apply FLAG_SECURE when screen protection is enabled
+    LaunchedEffect(screenProtection) {
+        activity?.window?.let { win ->
+            if (screenProtection) {
+                win.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+            } else {
+                win.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        }
+    }
+
     DisposableEffect(Unit) {
         val controller = activity?.let {
             WindowCompat.getInsetsController(it.window, it.window.decorView)
