@@ -35,8 +35,9 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 | Feed Order | Drag-to-reorder feed sections in settings |
 | Feed Cache | Feed data is cached with watch progress for instant loading on return |
 | Open Links | Choose between in-app WebView or system browser for opening links |
-| Customization | Choose theme colors, enable AMOLED dark mode, or use your wallpaper colors on Android 12+. Picture-in-Picture and landscape lock toggles |
-| Settings | Configure playback defaults, SponsorBlock categories, search limits, feed order, link opening mode, duplicate playlist warning, and data import/export |
+| Customization | Choose theme colors, enable AMOLED dark mode, or use your wallpaper colors on Android 12+. Picture-in-Picture, landscape lock, screen protection, and incognito mode toggles |
+| Privacy | Screen protection blocks screenshots and screen recording. Incognito mode skips watch history. No Persistent Visitor mode clears YouTube visitor data on each launch. Clear Cached Images button |
+| Settings | Configure playback defaults, SponsorBlock categories, search limits, feed order, link opening mode, duplicate playlist warning, data import/export, and privacy options |
 
 ## Installation
 
