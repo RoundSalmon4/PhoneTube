@@ -100,7 +100,10 @@ class SettingsViewModel @Inject constructor(
                 playlistSearchLimit = prefs.playlistSearchLimit,
                 feedOrder = prefs.feedOrder,
                 continuePlaying = prefs.continuePlaying,
-                duplicatePlaylistWarning = prefs.duplicatePlaylistWarning
+                duplicatePlaylistWarning = prefs.duplicatePlaylistWarning,
+                screenProtection = prefs.screenProtection,
+                incognitoMode = prefs.incognitoMode,
+                feedInvidious = prefs.feedInvidious
             ),
             playlists = playlists.map { playlist ->
                 val videos = playlistDao.getPlaylistVideosSync(playlist.id)
@@ -175,6 +178,9 @@ class SettingsViewModel @Inject constructor(
                     playerPreferences.setFeedOrder(p.feedOrder)
                     playerPreferences.setContinuePlaying(p.continuePlaying)
                     playerPreferences.setDuplicatePlaylistWarning(p.duplicatePlaylistWarning)
+                    playerPreferences.setScreenProtection(p.screenProtection)
+                    playerPreferences.setIncognitoMode(p.incognitoMode)
+                    playerPreferences.setFeedInvidious(p.feedInvidious)
                 }
 
                 if (data.subscriptions != null) {
@@ -323,6 +329,10 @@ class SettingsViewModel @Inject constructor(
         context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
             .edit().putBoolean("clear_visitor_on_exit", enabled).apply()
         _clearVisitorOnExit.value = enabled
+    }
+
+    fun setFeedInvidious(enabled: Boolean) = viewModelScope.launch {
+        playerPreferences.setFeedInvidious(enabled)
     }
 
     fun addInvidiousInstance(host: String, name: String) = viewModelScope.launch {

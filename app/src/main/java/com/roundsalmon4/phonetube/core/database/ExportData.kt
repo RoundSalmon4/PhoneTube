@@ -31,6 +31,7 @@ data class PreferencesExport(
     val feedGaming: Boolean = true,
     val feedKids: Boolean = true,
     val feedSubscriptions: Boolean = true,
+    val feedInvidious: Boolean = false,
     val themeMode: String = "SYSTEM",
     val useAmoledTheme: Boolean = false,
     val primaryColor: Int = 0xFFFF0000.toInt(),
@@ -43,7 +44,9 @@ data class PreferencesExport(
     val playlistSearchLimit: Int = 10,
     val feedOrder: List<String> = PlayerPreferences.DEFAULT_FEED_ORDER,
     val continuePlaying: Boolean = false,
-    val duplicatePlaylistWarning: Boolean = true
+    val duplicatePlaylistWarning: Boolean = true,
+    val screenProtection: Boolean = false,
+    val incognitoMode: Boolean = false
 )
 
 @Serializable

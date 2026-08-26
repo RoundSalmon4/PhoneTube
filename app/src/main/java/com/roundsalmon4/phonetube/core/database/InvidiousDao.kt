@@ -15,6 +15,9 @@ interface InvidiousDao {
     @Query("SELECT * FROM invidious_instances WHERE enabled = 1")
     fun getEnabled(): Flow<List<InvidiousInstance>>
 
+    @Query("SELECT * FROM invidious_instances WHERE enabled = 1")
+    suspend fun getEnabledSync(): List<InvidiousInstance>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(instance: InvidiousInstance)
 

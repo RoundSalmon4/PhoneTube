@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.database.FeedCacheDao
 import com.roundsalmon4.phonetube.core.database.HistoryDao
+import com.roundsalmon4.phonetube.core.database.InvidiousDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
 import com.roundsalmon4.phonetube.core.database.PlaylistSaver
 import com.roundsalmon4.phonetube.core.database.PlaylistVideoInfo
@@ -33,6 +34,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -45,7 +47,8 @@ class HomeViewModel @Inject constructor(
     private val feedCacheDao: FeedCacheDao,
     private val subscriptionDao: SubscriptionDao,
     private val playerPreferences: PlayerPreferences,
-    private val historyDao: HistoryDao
+    private val historyDao: HistoryDao,
+    private val invidiousDao: InvidiousDao
 ) : ViewModel() {
 
     companion object {
@@ -63,7 +66,8 @@ class HomeViewModel @Inject constructor(
             "News" to "news",
             "Gaming" to "gaming",
             "Kids" to "kids",
-            "Subscriptions" to "subscriptions"
+            "Subscriptions" to "subscriptions",
+            "Invidious" to "invidious"
         )
 
         private fun isFeedEnabled(source: String, prefs: PreferencesUiState): Boolean {
@@ -78,6 +82,7 @@ class HomeViewModel @Inject constructor(
                 "gaming" -> prefs.feedGaming
                 "kids" -> prefs.feedKids
                 "subscriptions" -> prefs.feedSubscriptions
+                "invidious" -> prefs.feedInvidious
                 else -> true
             }
         }
@@ -153,6 +158,7 @@ class HomeViewModel @Inject constructor(
                 if (prefs.feedMusic && shouldRefresh("Music")) newFeeds.add(async { engine.getMusic().firstOrNull() })
                 if (prefs.feedKids && shouldRefresh("Kids")) newFeeds.add(async { engine.getKidsHome().firstOrNull() })
                 if (prefs.feedSubscriptions) newFeeds.add(async { fetchSubscriptionsFeed() })
+                if (prefs.feedInvidious) newFeeds.add(async { fetchInvidiousFeed() })
 
                 val newSections = newFeeds.awaitAll().flatMap { feed ->
                     feed?.sections?.filter { it.videos.isNotEmpty() } ?: emptyList()
@@ -200,6 +206,47 @@ class HomeViewModel @Inject constructor(
             )
         } catch (e: Exception) {
             Log.e(TAG, "fetchSubscriptionsFeed failed", e)
+            null
+        }
+    }
+
+    private suspend fun fetchInvidiousFeed(): com.roundsalmon4.phonetube.core.engine.model.HomeFeed? {
+        return try {
+            val instances = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                invidiousDao.getEnabledSync()
+            }
+            if (instances.isEmpty()) return null
+            val instance = instances.first()
+            val json = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                java.net.URL("https://${instance.host}/api/v1/trending").readText()
+            }
+            val array = org.json.JSONArray(json)
+            val videos = (0 until array.length()).mapNotNull { i ->
+                val obj = array.getJSONObject(i)
+                val vidId = obj.optString("videoId", "")
+                if (vidId.isBlank()) null
+                else com.roundsalmon4.phonetube.core.engine.model.Video(
+                    videoId = vidId,
+                    title = obj.optString("title", ""),
+                    author = obj.optString("author", ""),
+                    channelId = obj.optString("authorId", ""),
+                    thumbnailUrl = "https://${instance.host}${obj.optString("thumbnailPath", "")}",
+                    durationMs = (obj.optLong("lengthSeconds", 0L)) * 1000,
+                    publishedDate = 0L,
+                    viewCount = null,
+                    percentWatched = 0
+                )
+            }.take(20)
+            if (videos.isNullOrEmpty()) null
+            else com.roundsalmon4.phonetube.core.engine.model.HomeFeed(
+                sections = listOf(com.roundsalmon4.phonetube.core.engine.model.HomeSection(
+                    title = "Invidious",
+                    videos = videos,
+                    source = "Invidious"
+                ))
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchInvidiousFeed failed", e)
             null
         }
     }
@@ -258,6 +305,7 @@ class HomeViewModel @Inject constructor(
                 val gamingSections = if (prefs.feedGaming) async { engine.getGaming().firstOrNull() } else null
                 val kidsSections = if (prefs.feedKids) async { engine.getKidsHome().firstOrNull() } else null
                 val subscriptionsSection = if (prefs.feedSubscriptions) async { fetchSubscriptionsFeed() } else null
+                val invidiousSection = if (prefs.feedInvidious) async { fetchInvidiousFeed() } else null
 
                 val homeFeed = homeSections?.await()
                 val trendingFeed = trendingSections?.await()
@@ -269,11 +317,13 @@ class HomeViewModel @Inject constructor(
                 val gamingFeed = gamingSections?.await()
                 val kidsFeed = kidsSections?.await()
                 val subscriptionsFeed = subscriptionsSection?.await()
+                val invidiousFeed = invidiousSection?.await()
 
                 val feedSourceMap = mapOf(
                     "home" to homeFeed,
                     "what_to_watch" to whatToWatchFeed,
                     "subscriptions" to subscriptionsFeed,
+                    "invidious" to invidiousFeed,
                     "trending" to trendingFeed,
                     "music" to musicFeed,
                     "sports" to sportsFeed,

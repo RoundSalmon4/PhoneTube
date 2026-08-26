@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -27,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.BrightnessAuto
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
@@ -427,10 +430,13 @@ private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewMod
         "live" to "Live",
         "news" to "News",
         "gaming" to "Gaming",
-        "kids" to "Kids"
+        "kids" to "Kids",
+        "invidious" to "Invidious"
     )
 
-    val orderedFeeds = uiState.feedOrder.filter { it in feedLabels }
+    val orderedFeeds = feedLabels.keys.toList().let { all ->
+        uiState.feedOrder.filter { it in all } + all.filter { it !in uiState.feedOrder }
+    }
     var draggedIndex by remember { mutableIntStateOf(-1) }
     var draggedOffset by remember { mutableFloatStateOf(0f) }
     val density = LocalDensity.current
@@ -453,6 +459,7 @@ private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewMod
                 "gaming" -> uiState.feedGaming
                 "kids" -> uiState.feedKids
                 "subscriptions" -> uiState.feedSubscriptions
+                "invidious" -> uiState.feedInvidious
                 else -> true
             }
             val isDragged = index == draggedIndex
@@ -919,15 +926,65 @@ private fun DataSection(
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
         SettingsCategory("Invidious Instances")
 
+        // Track which instances we've checked connectivity for
+        val checkedHosts = remember { mutableStateOf(setOf<String>()) }
+        val reachableHosts = remember { mutableStateOf(setOf<String>()) }
+
         instances.forEach { instance ->
+            // Launch connectivity check once per host on a background thread
+            LaunchedEffect(instance.host) {
+                if (instance.host !in checkedHosts.value) {
+                    checkedHosts.value = checkedHosts.value + instance.host
+                    try {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            val url = java.net.URL("https://${instance.host}")
+                            val conn = url.openConnection() as java.net.HttpURLConnection
+                            conn.requestMethod = "HEAD"
+                            conn.connectTimeout = 5000
+                            conn.readTimeout = 5000
+                            val code = conn.responseCode
+                            conn.disconnect()
+                            if (code in 200..399) {
+                                reachableHosts.value = reachableHosts.value + instance.host
+                            }
+                        }
+                    } catch (_: Exception) { }
+                }
+            }
+
             ListItem(
-                headlineContent = { Text(instance.name, fontWeight = FontWeight.SemiBold) },
+                headlineContent = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier.size(8.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (instance.host in reachableHosts.value) Color(0xFF4CAF50)
+                                    else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                                )
+                        )
+                        Spacer(modifier = Modifier.padding(start = 8.dp))
+                        Text(instance.name, fontWeight = FontWeight.SemiBold)
+                    }
+                },
                 supportingContent = { Text(instance.host) },
                 trailingContent = {
-                    androidx.compose.material3.Switch(
-                        checked = instance.enabled,
-                        onCheckedChange = { viewModel.setInvidiousEnabled(instance.host, it) }
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.material3.Switch(
+                            checked = instance.enabled,
+                            onCheckedChange = { viewModel.setInvidiousEnabled(instance.host, it) },
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Remove",
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clickable { viewModel.removeInvidiousInstance(instance.host) }
+                                .padding(start = 4.dp)
+                        )
+                    }
                 }
             )
         }
@@ -940,22 +997,35 @@ private fun DataSection(
     }
 
     if (showAddInvidiousDialog) {
+        var addError by remember { mutableStateOf("") }
+
         AlertDialog(
-            onDismissRequest = { showAddInvidiousDialog = false; invidiousInput = "" },
+            onDismissRequest = { showAddInvidiousDialog = false; invidiousInput = ""; addError = "" },
             title = { Text("Add Invidious Instance") },
             text = {
-                OutlinedTextField(
-                    value = invidiousInput,
-                    onValueChange = { invidiousInput = it },
-                    label = { Text("Instance URL (e.g. neat.tube)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column {
+                    OutlinedTextField(
+                        value = invidiousInput,
+                        onValueChange = { invidiousInput = it; addError = "" },
+                        label = { Text("Instance URL (e.g. neat.tube)") },
+                        singleLine = true,
+                        isError = addError.isNotEmpty(),
+                        supportingText = if (addError.isNotEmpty()) {{ Text(addError) }} else null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
-                    if (invidiousInput.isNotBlank()) {
-                        viewModel.addInvidiousInstance(invidiousInput, invidiousInput)
+                    val trimmed = invidiousInput.trim().removePrefix("https://").removePrefix("http://").trimEnd('/')
+                    if (trimmed.isBlank()) {
+                        addError = "Please enter a URL"
+                    } else if (!trimmed.contains(".") || trimmed.startsWith(".") || trimmed.contains(" ")) {
+                        addError = "Enter a valid domain like neat.tube"
+                    } else if (instances.any { it.host == trimmed }) {
+                        addError = "Instance already added"
+                    } else {
+                        viewModel.addInvidiousInstance(trimmed, trimmed)
                         invidiousInput = ""
                         showAddInvidiousDialog = false
                     }
@@ -964,7 +1034,7 @@ private fun DataSection(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAddInvidiousDialog = false; invidiousInput = "" }) {
+                TextButton(onClick = { showAddInvidiousDialog = false; invidiousInput = ""; addError = "" }) {
                     Text("Cancel")
                 }
             }

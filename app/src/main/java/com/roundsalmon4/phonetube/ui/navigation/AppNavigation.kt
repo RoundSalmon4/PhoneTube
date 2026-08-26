@@ -99,11 +99,13 @@ fun AppNavigation(
                 navController.navigate(Route.Player("media:$encoded"))
             } else {
                 val link = YouTubeUrlParser.parse(uri)
+                val isInvidious = host != null && YouTubeUrlParser.isInvidiousHost(host!!)
+                val source = if (isInvidious) host else null
                 if (link.isValid) {
                     when (link.type) {
                         YouTubeLink.Type.VIDEO,
                         YouTubeLink.Type.SHORT -> {
-                            navController.navigate(Route.Player(link.id))
+                            navController.navigate(Route.Player(link.id, source = source))
                         }
                         YouTubeLink.Type.PLAYLIST -> {
                             navController.navigate(Route.YouTubePlaylist(link.id, "YouTube Playlist"))
@@ -197,7 +199,8 @@ fun AppNavigation(
                         onVideoPlayNext = { nextVideoId, nextQueue ->
                             navController.popBackStack()
                             navController.navigate(Route.Player(nextVideoId, nextQueue))
-                        }
+                        },
+                        source = route.source
                     )
                 }
 

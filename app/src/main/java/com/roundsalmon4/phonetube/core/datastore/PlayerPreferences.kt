@@ -53,6 +53,7 @@ private object Keys {
     val DUPLICATE_PLAYLIST_WARNING = booleanPreferencesKey("duplicate_playlist_warning")
     val SCREEN_PROTECTION = booleanPreferencesKey("screen_protection")
     val INCOGNITO_MODE = booleanPreferencesKey("incognito_mode")
+    val FEED_INVIDIOUS = booleanPreferencesKey("feed_invidious")
 }
 
 data class PreferencesUiState(
@@ -87,7 +88,8 @@ data class PreferencesUiState(
     val continuePlaying: Boolean = false,
     val duplicatePlaylistWarning: Boolean = true,
     val screenProtection: Boolean = false,
-    val incognitoMode: Boolean = false
+    val incognitoMode: Boolean = false,
+    val feedInvidious: Boolean = false
 )
 
 @Singleton
@@ -128,7 +130,8 @@ class PlayerPreferences @Inject constructor(
             continuePlaying = prefs[Keys.CONTINUE_PLAYING] ?: false,
             duplicatePlaylistWarning = prefs[Keys.DUPLICATE_PLAYLIST_WARNING] ?: true,
             screenProtection = prefs[Keys.SCREEN_PROTECTION] ?: false,
-            incognitoMode = prefs[Keys.INCOGNITO_MODE] ?: false
+            incognitoMode = prefs[Keys.INCOGNITO_MODE] ?: false,
+            feedInvidious = prefs[Keys.FEED_INVIDIOUS] ?: false
         )
     }
 
@@ -258,6 +261,10 @@ class PlayerPreferences @Inject constructor(
         context.playerDataStore.edit { it[Keys.INCOGNITO_MODE] = enabled }
     }
 
+    suspend fun setFeedInvidious(enabled: Boolean) {
+        context.playerDataStore.edit { it[Keys.FEED_INVIDIOUS] = enabled }
+    }
+
     companion object {
         val PLAYBACK_SPEEDS = listOf(
             0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f
@@ -277,7 +284,7 @@ class PlayerPreferences @Inject constructor(
 
         val DEFAULT_FEED_ORDER = listOf(
             "home", "what_to_watch", "subscriptions", "trending",
-            "sports", "gaming", "live", "news", "music", "kids"
+            "invidious", "sports", "gaming", "live", "news", "music", "kids"
         )
     }
 }

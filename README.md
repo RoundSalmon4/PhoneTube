@@ -26,6 +26,7 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 | Channel Pages | Browse channel videos and playlists with subscriber count display, save them locally, and subscribe |
 | Deep Linking | Open YouTube video, playlist (into the playlist viewer), channel, and shorts links, plus Reddit video (v.redd.it) and Streamable links, directly in PhoneTube. Supports `vnd.youtube:` URI scheme |
 | Streamable Video | Open `streamable.com` links and play them in the in-app player |
+| Invidious Support | Add Invidious/alternative front-end instances in Settings. Videos from configured instances open directly in the player with a source indicator |
 | Video Card Dates | Video cards show when the video was published across home feeds, search, and channel pages |
 | Speed Control | Adjust playback speed from 0.25x to 3.0x, persisted across videos |
 | Quality Picker | Choose video quality from available formats with current resolution shown |
