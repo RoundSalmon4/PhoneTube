@@ -13,6 +13,8 @@ import com.roundsalmon4.phonetube.core.database.SubscriptionDao
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
+import com.roundsalmon4.phonetube.core.database.InvidiousDao
+import com.roundsalmon4.phonetube.core.database.entity.InvidiousInstance
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -32,11 +34,15 @@ class SettingsViewModel @Inject constructor(
     private val historyDao: HistoryDao,
     private val playlistDao: PlaylistDao,
     private val subscriptionDao: SubscriptionDao,
-    private val engine: YouTubeEngine
+    private val engine: YouTubeEngine,
+    private val invidiousDao: InvidiousDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PreferencesUiState())
     val uiState: StateFlow<PreferencesUiState> = _uiState.asStateFlow()
+
+    private val invidiousInstances = MutableStateFlow<List<InvidiousInstance>>(emptyList())
+    val invidiousInstancesState: StateFlow<List<InvidiousInstance>> = invidiousInstances.asStateFlow()
 
     private val _showClearHistoryDialog = MutableStateFlow(false)
     val showClearHistoryDialog: StateFlow<Boolean> = _showClearHistoryDialog.asStateFlow()
@@ -50,6 +56,9 @@ class SettingsViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             playerPreferences.uiState.collect { _uiState.value = it }
+        }
+        viewModelScope.launch {
+            invidiousDao.getAll().collect { invidiousInstances.value = it }
         }
     }
 
@@ -314,6 +323,30 @@ class SettingsViewModel @Inject constructor(
         context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
             .edit().putBoolean("clear_visitor_on_exit", enabled).apply()
         _clearVisitorOnExit.value = enabled
+    }
+
+    fun addInvidiousInstance(host: String, name: String) = viewModelScope.launch {
+        val normalized = host.trim().removePrefix("https://").removePrefix("http://").trimEnd('/')
+        if (normalized.isNotBlank()) {
+            invidiousDao.insert(InvidiousInstance(host = normalized, name = name.ifBlank { normalized }))
+            syncInvidiousHostsPref()
+        }
+    }
+
+    fun removeInvidiousInstance(host: String) = viewModelScope.launch {
+        invidiousDao.delete(host)
+        syncInvidiousHostsPref()
+    }
+
+    fun setInvidiousEnabled(host: String, enabled: Boolean) = viewModelScope.launch {
+        invidiousDao.setEnabled(host, enabled)
+        syncInvidiousHostsPref()
+    }
+
+    private fun syncInvidiousHostsPref() {
+        val hosts = invidiousInstances.value.filter { it.enabled }.map { it.host }.joinToString(",")
+        context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
+            .edit().putString("invidious_hosts", hosts).apply()
     }
 
     fun showClearHistoryDialog() { _showClearHistoryDialog.value = true }

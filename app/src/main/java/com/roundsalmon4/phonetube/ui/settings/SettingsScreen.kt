@@ -834,6 +834,11 @@ private fun DataSection(
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
+    // Invidious instance state
+    val instances by viewModel.invidiousInstancesState.collectAsState()
+    var showAddInvidiousDialog by remember { mutableStateOf(false) }
+    var invidiousInput by remember { mutableStateOf("") }
+
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
@@ -909,6 +914,60 @@ private fun DataSection(
             },
             headlineContent = { Text("Clear Cached Images", fontWeight = FontWeight.SemiBold) },
             supportingContent = { Text("Delete downloaded thumbnails and images") }
+        )
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        SettingsCategory("Invidious Instances")
+
+        instances.forEach { instance ->
+            ListItem(
+                headlineContent = { Text(instance.name, fontWeight = FontWeight.SemiBold) },
+                supportingContent = { Text(instance.host) },
+                trailingContent = {
+                    androidx.compose.material3.Switch(
+                        checked = instance.enabled,
+                        onCheckedChange = { viewModel.setInvidiousEnabled(instance.host, it) }
+                    )
+                }
+            )
+        }
+
+        ListItem(
+            modifier = Modifier.clickable { showAddInvidiousDialog = true },
+            headlineContent = { Text("Add Instance", fontWeight = FontWeight.SemiBold) },
+            supportingContent = { Text("Add an Invidious or compatible instance URL") }
+        )
+    }
+
+    if (showAddInvidiousDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddInvidiousDialog = false; invidiousInput = "" },
+            title = { Text("Add Invidious Instance") },
+            text = {
+                OutlinedTextField(
+                    value = invidiousInput,
+                    onValueChange = { invidiousInput = it },
+                    label = { Text("Instance URL (e.g. neat.tube)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (invidiousInput.isNotBlank()) {
+                        viewModel.addInvidiousInstance(invidiousInput, invidiousInput)
+                        invidiousInput = ""
+                        showAddInvidiousDialog = false
+                    }
+                }) {
+                    Text("Add")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddInvidiousDialog = false; invidiousInput = "" }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 }

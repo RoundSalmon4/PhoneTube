@@ -13,6 +13,16 @@ data class YouTubeLink(
 
 object YouTubeUrlParser {
 
+    /** Set of Invidious instance hosts that should be parsed like YouTube. */
+    private val invidiousHosts = mutableSetOf<String>()
+
+    fun configureInvidiousHosts(hosts: Set<String>) {
+        invidiousHosts.clear()
+        invidiousHosts.addAll(hosts)
+    }
+
+    fun isInvidiousHost(host: String): Boolean = host in invidiousHosts
+
     fun parse(uri: Uri): YouTubeLink {
         val scheme = uri.scheme?.lowercase()
 
@@ -26,6 +36,7 @@ object YouTubeUrlParser {
 
         val host = uri.host?.lowercase() ?: return YouTubeLink(YouTubeLink.Type.UNKNOWN, "")
         val path = uri.path ?: ""
+        val isYouTubeLike = host.contains("youtube.com") || host == "youtu.be" || isInvidiousHost(host)
 
         // youtu.be/VIDEO_ID (short links)
         if (host == "youtu.be") {
@@ -35,8 +46,8 @@ object YouTubeUrlParser {
             }
         }
 
-        // youtube.com paths
-        if (host.contains("youtube.com")) {
+        // youtube.com or Invidious-compatible hosts
+        if (isYouTubeLike) {
             val pathLower = path.lowercase()
 
             // /watch?v=VIDEO_ID
