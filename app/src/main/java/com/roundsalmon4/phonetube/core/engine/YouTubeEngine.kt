@@ -398,6 +398,222 @@ class YouTubeEngine @Inject constructor(
         }
     }.flowOn(Dispatchers.IO)
 
+    /**
+     * Fetches a PeerTube video's stream info directly from its instance API.
+     * Returns a StreamInfo carrying the HLS master playlist URL (or a direct
+     * file URL when no HLS is available). Does NOT go through the YouTube
+     * engine, so PeerTube videos play independently of YouTube.
+     */
+    suspend fun getPeerTubeStreamInfo(host: String, videoUuid: String): StreamInfo? {
+        return try {
+            withContext(Dispatchers.IO) {
+                val connection = URL("https://$host/api/v1/videos/$videoUuid")
+                    .openConnection() as HttpURLConnection
+                try {
+                    connection.requestMethod = "GET"
+                    connection.connectTimeout = 10_000
+                    connection.readTimeout = 15_000
+                    connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                    connection.setRequestProperty("Accept", "application/json")
+                    val status = connection.responseCode
+                    Log.d(TAG, "getPeerTubeStreamInfo($host/$videoUuid): HTTP $status")
+                    if (status !in 200..399) {
+                        Log.w(TAG, "getPeerTubeStreamInfo: HTTP error $status from $host")
+                        return@withContext null
+                    }
+                    val json = connection.inputStream.bufferedReader().use { it.readText() }
+                    val root = org.json.JSONObject(json)
+                    val title = root.optString("name", "")
+                    val author = root.optJSONObject("channel")?.optString("displayName", "")
+                        ?: root.optJSONObject("account")?.optString("displayName", "").orEmpty()
+                    val channelId = root.optJSONObject("channel")?.optString("name", "")
+                        ?: root.optJSONObject("account")?.optString("name", "").orEmpty()
+                    val durationSec = root.optLong("duration", 0L)
+                    val isLive = root.optBoolean("isLive", false)
+
+                    var hlsUrl: String? = null
+                    val playlists = root.optJSONArray("streamingPlaylists")
+                    for (i in 0 until (playlists?.length() ?: 0)) {
+                        val pl = playlists.getJSONObject(i)
+                        val url = pl.optString("playlistUrl", "")
+                        if (url.isNotBlank()) {
+                            hlsUrl = url
+                            break
+                        }
+                    }
+
+                    // Fallback: direct file URL(s)
+                    val urlFormats = mutableListOf<StreamFormat>()
+                    if (hlsUrl == null) {
+                        val files = root.optJSONArray("files")
+                        for (i in 0 until (files?.length() ?: 0)) {
+                            val f = files.getJSONObject(i)
+                            val u = f.optString("fileUrl", "")
+                            if (u.isNotBlank()) {
+                                urlFormats.add(
+                                    StreamFormat(
+                                        url = u,
+                                        mimeType = "video/mp4",
+                                        height = f.optInt("resolution_*", 0).takeIf { it > 0 } ?: 0,
+                                        bitrate = null,
+                                        fps = null,
+                                        qualityLabel = null
+                                    )
+                                )
+                            }
+                        }
+                    }
+
+                    Log.d(TAG, "getPeerTubeStreamInfo: '$title' hls=${hlsUrl != null} files=${urlFormats.size} isLive=$isLive")
+                    StreamInfo(
+                        title = title,
+                        author = author,
+                        channelId = channelId,
+                        lengthSeconds = durationSec,
+                        isLive = isLive,
+                        isLiveContent = false,
+                        adaptiveFormats = emptyList(),
+                        urlFormats = urlFormats,
+                        subtitles = emptyList(),
+                        dashManifestUrl = null,
+                        hlsManifestUrl = hlsUrl,
+                        isUnplayable = false,
+                        playabilityReason = null
+                    )
+                } finally {
+                    connection.disconnect()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getPeerTubeStreamInfo($host/$videoUuid) failed", e)
+            null
+        }
+    }
+
+    /**
+     * Fetches a PeerTube channel's info and its videos from the instance API.
+     * `channelName` is the channel's short name (e.g. "bewegend_wild").
+     * Videos are tagged with their serving host so they route to PeerTube
+     * playback and channel pages.
+     */
+    suspend fun getPeerTubeChannel(host: String, channelName: String): ChannelResult {
+        val base = "https://$host/api/v1/video-channels/${java.net.URLEncoder.encode(channelName, "UTF-8")}"
+        val channelInfo = fetchPeerTubeChannelDetail(host, channelName, base)
+        val videos = fetchPeerTubeChannelVideos(host, channelName, base)
+        Log.d(TAG, "getPeerTubeChannel($host/$channelName): channel=${channelInfo?.name} videos=${videos.size}")
+        val sections = if (videos.isNotEmpty()) {
+            listOf(ChannelSection(title = "Latest", videos = videos))
+        } else {
+            emptyList()
+        }
+        return ChannelResult(channelInfo, sections)
+    }
+
+    private suspend fun fetchPeerTubeChannelDetail(
+        host: String,
+        channelName: String,
+        base: String
+    ): ChannelInfo? = withContext(Dispatchers.IO) {
+        try {
+            val connection = URL(base).openConnection() as HttpURLConnection
+            try {
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 10_000
+                connection.readTimeout = 15_000
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                connection.setRequestProperty("Accept", "application/json")
+                val status = connection.responseCode
+                Log.d(TAG, "fetchPeerTubeChannelDetail($host/$channelName): HTTP $status")
+                if (status !in 200..399) {
+                    Log.w(TAG, "fetchPeerTubeChannelDetail: HTTP error $status")
+                    return@withContext null
+                }
+                val root = org.json.JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                val name = root.optString("displayName", "").ifBlank { channelName }
+                val avatars = root.optJSONArray("avatars")
+                val avatar = if (avatars != null && avatars.length() > 0) {
+                    val path = avatars.getJSONObject(0).optString("path", "")
+                    path.ifBlank { null }?.let { "https://$host$it" }
+                } else null
+                ChannelInfo(name = name, avatarUrl = avatar, subscriberCount = null)
+            } finally {
+                connection.disconnect()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchPeerTubeChannelDetail($host/$channelName) failed", e)
+            null
+        }
+    }
+
+    /**
+     * Public entry point for the PeerTube subscription feed. Fetches the
+     * latest videos for a PeerTube channel, tagged with the serving host so
+     * they route to PeerTube playback.
+     */
+    suspend fun getPeerTubeChannelFeed(host: String, channelName: String): List<Video> {
+        val base = "https://$host/api/v1/video-channels/${java.net.URLEncoder.encode(channelName, "UTF-8")}"
+        Log.d(TAG, "getPeerTubeChannelFeed($host/$channelName)")
+        return fetchPeerTubeChannelVideos(host, channelName, base)
+    }
+
+    private suspend fun fetchPeerTubeChannelVideos(
+        host: String,
+        channelName: String,
+        base: String
+    ): List<Video> = withContext(Dispatchers.IO) {
+        try {
+            val connection = URL("$base/videos?count=20").openConnection() as HttpURLConnection
+            try {
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 10_000
+                connection.readTimeout = 15_000
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                connection.setRequestProperty("Accept", "application/json")
+                val status = connection.responseCode
+                Log.d(TAG, "fetchPeerTubeChannelVideos($host/$channelName): HTTP $status")
+                if (status !in 200..399) {
+                    Log.w(TAG, "fetchPeerTubeChannelVideos: HTTP error $status")
+                    return@withContext emptyList()
+                }
+                val root = org.json.JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                val data = root.optJSONArray("data") ?: org.json.JSONArray()
+                val videos = (0 until data.length()).mapNotNull { i ->
+                    data.getJSONObject(i).toPeerTubeVideo(host)
+                }
+                Log.d(TAG, "fetchPeerTubeChannelVideos: ${videos.size} videos")
+                videos
+            } finally {
+                connection.disconnect()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchPeerTubeChannelVideos($host/$channelName) failed", e)
+            emptyList()
+        }
+    }
+
+    private fun org.json.JSONObject.toPeerTubeVideo(host: String): Video? {
+        val videoId = optString("uuid", "")
+        if (videoId.isBlank()) return null
+        val channel = optJSONObject("channel")
+        val account = optJSONObject("account")
+        val author = channel?.optString("displayName", "")?.takeIf { it.isNotBlank() }
+            ?: account?.optString("displayName", "").orEmpty()
+        val channelId = channel?.optString("name", "")?.takeIf { it.isNotBlank() }
+            ?: account?.optString("name", "").orEmpty()
+        return Video(
+            videoId = videoId,
+            title = optString("name", ""),
+            author = author,
+            channelId = channelId,
+            thumbnailUrl = "https://$host${optString("thumbnailPath", "")}",
+            durationMs = optLong("duration", 0L) * 1000,
+            viewCount = optLong("views", 0L).toString(),
+            publishedDate = 0L,
+            percentWatched = 0,
+            source = host
+        )
+    }
+
     fun getMetadata(videoId: String): Flow<VideoMetadataResult> = flow {
         val metadata = mediaItemService.getMetadataObserve(videoId).awaitOrNull()
         emit((metadata ?: throw IllegalStateException("No metadata available for $videoId")).toVideoMetadataResult())

@@ -1,0 +1,30 @@
+feat: add PeerTube playback, channel pages, and subscriptions
+
+Previously PeerTube videos were routed into the YouTube engine and failed
+with "Could not get playback data". PeerTube now plays, browses, and
+subscribes independently of YouTube.
+
+Playback:
+- Video.playableId() encodes PeerTube videos as "peertube:{host}:{uuid}"
+- PlayerViewModel detects the prefix and calls the new PeerTube loader
+- YouTubeEngine.getPeerTubeStreamInfo() fetches the video API and returns a
+  StreamInfo carrying the HLS master playlist (or direct file) URL
+- Home/search/channel video clicks now use playableId() so PeerTube videos
+  route to the PeerTube loader
+
+Channels:
+- Video.channelPlayableId() encodes PeerTube channels as "peertube:{host}:{name}"
+- ChannelViewModel detects the prefix and calls getPeerTubeChannel()
+- YouTubeEngine.getPeerTubeChannel() fetches channel detail + videos from
+  the instance API, tagging videos with their serving host
+- Channel screen channel clicks route to the PeerTube channel loader
+
+Subscriptions:
+- ChannelViewModel toggleSubscription persists the prefixed PeerTube channel id
+- HomeViewModel fetchSubscriptionsFeed now separates YouTube (RSS) and PeerTube
+  subscriptions, fetching PeerTube channels via getPeerTubeChannelFeed()
+- Library subscription channel clicks route to the PeerTube channel loader
+
+Base64/prefix routing reuses the existing streamable:/media: external-video
+pattern. All PeerTube API calls use User-Agent + Accept headers, explicit
+timeouts, and full logging.

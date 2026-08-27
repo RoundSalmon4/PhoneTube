@@ -253,8 +253,11 @@ private fun VideoRow(
             items(videos, key = { it.videoId }) { video ->
                 VideoCard(
                     video = video,
-                    onClick = { onVideoClick(video.videoId) },
-                    onChannelClick = onChannelClick,
+                    onClick = { onVideoClick(video.playableId()) },
+                    onChannelClick = { _ ->
+                        val channelId = video.channelPlayableId()
+                        if (channelId.isNotBlank()) onChannelClick(channelId)
+                    },
                     onLongClick = { onVideoLongClick?.invoke(video) },
                     modifier = Modifier.width(320.dp)
                 )

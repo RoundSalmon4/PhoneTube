@@ -117,7 +117,7 @@ class PlayerViewModel @Inject constructor(
     private val historyMutex = Mutex()
     private var continuePlayingListener: Player.Listener? = null
     private val isExternalVideo: Boolean
-        get() = videoId.startsWith("streamable:") || videoId.startsWith("media:")
+        get() = videoId.startsWith("streamable:") || videoId.startsWith("media:") || videoId.startsWith("peertube:")
 
     init {
         playerStateManager.isPlayerScreenVisible = true
@@ -154,6 +154,10 @@ class PlayerViewModel @Inject constructor(
                     encoded
                 }
                 loadDirectMedia(url)
+                return@launch
+            }
+            if (videoId.startsWith("peertube:")) {
+                loadPeerTube()
                 return@launch
             }
             engine.getStreamInfo(videoId)
@@ -253,6 +257,35 @@ class PlayerViewModel @Inject constructor(
             thumbnailUrl = ""
         )
         startPlayback(info)
+    }
+
+    private fun loadPeerTube() {
+        val parts = videoId.removePrefix("peertube:").split(":", limit = 2)
+        if (parts.size != 2 || parts[0].isBlank() || parts[1].isBlank()) {
+            Log.e(TAG, "Malformed peertube videoId: '$videoId'")
+            _uiState.value = PlayerUiState.Error("Invalid PeerTube video link")
+            return
+        }
+        val host = parts[0]
+        val uuid = parts[1]
+        Log.d(TAG, "loadPeerTube: host=$host uuid=$uuid")
+        viewModelScope.launch {
+            val info = withContext(Dispatchers.IO) {
+                engine.getPeerTubeStreamInfo(host, uuid)
+            }
+            if (info == null) {
+                Log.e(TAG, "loadPeerTube: stream info unavailable for $host/$uuid")
+                _uiState.value = PlayerUiState.Error("Could not get playback data for this PeerTube video")
+                return@launch
+            }
+            _uiState.value = PlayerUiState.Ready(info)
+            playerStateManager.updateVideoInfo(
+                videoId = videoId,
+                title = info.title,
+                thumbnailUrl = ""
+            )
+            startPlayback(info)
+        }
     }
 
     private fun loadSponsorSegments() {

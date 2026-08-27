@@ -23,7 +23,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 import javax.inject.Inject
 
@@ -41,6 +43,12 @@ class ChannelViewModel @Inject constructor(
     }
 
     private val channelId: String = savedStateHandle["channelId"]!!
+
+    private val isPeerTubeChannel: Boolean
+        get() = channelId.startsWith("peertube:")
+
+    private fun peerTubeHost(): String = channelId.removePrefix("peertube:").substringBefore(":")
+    private fun peerTubeName(): String = channelId.removePrefix("peertube:").substringAfter(":", "")
 
     private val _uiState = MutableStateFlow<ChannelUiState>(ChannelUiState.Loading)
     val uiState: StateFlow<ChannelUiState> = _uiState.asStateFlow()
@@ -73,6 +81,10 @@ class ChannelViewModel @Inject constructor(
     private fun loadChannel() {
         _uiState.value = ChannelUiState.Loading
         viewModelScope.launch {
+            if (isPeerTubeChannel) {
+                loadPeerTubeChannel()
+                return@launch
+            }
             engine.getChannel(channelId)
                 .catch { e ->
                     if (e is CancellationException) throw e
@@ -99,6 +111,30 @@ class ChannelViewModel @Inject constructor(
         }
     }
 
+    private fun loadPeerTubeChannel() {
+        val host = peerTubeHost()
+        val name = peerTubeName()
+        Log.d(TAG, "loadPeerTubeChannel: host=$host name=$name")
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                engine.getPeerTubeChannel(host, name)
+            }
+            val channel = result.channel
+            if (channel == null && result.sections.isEmpty()) {
+                Log.e(TAG, "loadPeerTubeChannel: channel not found $host/$name")
+                _uiState.value = ChannelUiState.Error("Channel not found")
+            } else {
+                Log.d(TAG, "loadPeerTubeChannel: loaded '${channel?.name}' with ${result.sections.size} sections")
+                _uiState.value = ChannelUiState.Success(
+                    name = channel?.name ?: name,
+                    avatarUrl = channel?.avatarUrl,
+                    subscriberCount = channel?.subscriberCount,
+                    sections = result.sections
+                )
+            }
+        }
+    }
+
     private fun observeSubscription() {
         viewModelScope.launch {
             subscriptionDao.isSubscribed(channelId).collect { subscribed ->
@@ -111,11 +147,12 @@ class ChannelViewModel @Inject constructor(
         viewModelScope.launch {
             if (_isSubscribed.value) {
                 subscriptionDao.unsubscribe(channelId)
+                Log.d(TAG, "toggleSubscription: unsubscribed $channelId")
             } else {
                 val state = _uiState.value
                 val name = if (state is ChannelUiState.Success) state.name else channelId
                 var avatar = if (state is ChannelUiState.Success) state.avatarUrl else null
-                if (avatar.isNullOrBlank() && state is ChannelUiState.Success) {
+                if (avatar.isNullOrBlank() && state is ChannelUiState.Success && !isPeerTubeChannel) {
                     val firstVideoId = state.sections.firstOrNull()?.videos?.firstOrNull()?.videoId
                     if (!firstVideoId.isNullOrBlank()) {
                         try {
@@ -124,6 +161,7 @@ class ChannelViewModel @Inject constructor(
                         } catch (_: Exception) { }
                     }
                 }
+                Log.d(TAG, "toggleSubscription: subscribe channelId=$channelId name=$name avatar=${!avatar.isNullOrBlank()}")
                 subscriptionDao.subscribe(
                     LocalSubscription(
                         channelId = channelId,

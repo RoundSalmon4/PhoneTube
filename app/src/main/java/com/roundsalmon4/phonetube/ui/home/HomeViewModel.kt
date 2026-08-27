@@ -194,14 +194,35 @@ class HomeViewModel @Inject constructor(
         return try {
             val subscriptions = subscriptionDao.getAll().first()
             if (subscriptions.isEmpty()) return null
-            val channelIds = subscriptions.take(10).map { it.channelId }
-            val videos = engine.getRssFeedVideos(channelIds)
-            Log.d(TAG, "fetchSubscriptionsFeed: got ${videos.size} videos from ${channelIds.size} channels")
+
+            val youtubeChannels = subscriptions.take(10)
+                .filter { !it.channelId.startsWith("peertube:") }
+                .map { it.channelId }
+            val peerTubeChannels = subscriptions.filter { it.channelId.startsWith("peertube:") }
+
+            val youtubeVideos = if (youtubeChannels.isNotEmpty()) {
+                engine.getRssFeedVideos(youtubeChannels)
+            } else {
+                emptyList()
+            }
+
+            // Fetch PeerTube channel videos in parallel
+            val peerTubeVideos = if (peerTubeChannels.isNotEmpty()) {
+                val host = peerTubeChannels.first().channelId.removePrefix("peertube:").substringBefore(":")
+                val name = peerTubeChannels.first().channelId.removePrefix("peertube:").substringAfter(":", "")
+                Log.d(TAG, "fetchSubscriptionsFeed: peerTubeHost=$host peerTubeChannel=$name")
+                engine.getPeerTubeChannelFeed(host, name)
+            } else {
+                emptyList()
+            }
+
+            val videos = (youtubeVideos + peerTubeVideos).distinctBy { it.videoId }
+            Log.d(TAG, "fetchSubscriptionsFeed: got ${videos.size} videos (yt=${youtubeVideos.size}, pt=${peerTubeVideos.size}) from ${subscriptions.size} channels")
             if (videos.isEmpty()) null
             else com.roundsalmon4.phonetube.core.engine.model.HomeFeed(
                 sections = listOf(com.roundsalmon4.phonetube.core.engine.model.HomeSection(
                     title = "Subscriptions",
-                    videos = videos.distinctBy { it.videoId }.take(20),
+                    videos = videos.take(20),
                     source = "Subscriptions"
                 ))
             )

@@ -11,4 +11,26 @@ data class Video(
     val publishedDate: Long,
     val percentWatched: Int,
     val source: String? = null
-)
+) {
+    /**
+     * The id to pass into the player route. When this video comes from a
+     * PeerTube instance (source = host), the id is prefixed so the player
+     * routes it to the PeerTube loader instead of the YouTube engine.
+     */
+    fun playableId(): String = if (source != null && source.isNotBlank()) {
+        "peertube:$source:${videoId.removePrefix("peertube:")}"
+    } else {
+        videoId
+    }
+
+    /**
+     * The id to use when navigating to this video's channel. For a PeerTube
+     * video this is prefixed so the channel screen routes to the PeerTube
+     * channel loader.
+     */
+    fun channelPlayableId(): String = if (source != null && source.isNotBlank() && channelId.isNotBlank()) {
+        "peertube:$source:${channelId.removePrefix("peertube:")}"
+    } else {
+        channelId
+    }
+}

@@ -246,7 +246,7 @@ fun SearchScreen(
                         items(state.videos, key = { "vid-${it.videoId}" }) { video ->
                             VideoCard(
                                 video = video,
-                                onClick = { onVideoClick(video.videoId) },
+                                onClick = { onVideoClick(video.playableId()) },
                                 onChannelClick = { channelId ->
                                     if (channelId.isNotBlank()) {
                                         onChannelClick(channelId)
@@ -270,14 +270,11 @@ fun SearchScreen(
                             items(state.peerTubeVideos, key = { "pt-${it.videoId}" }) { video ->
                                 VideoCard(
                                     video = video,
-                                    onClick = { onVideoClick(video.videoId) },
-                                    onChannelClick = { channelId ->
+                                    onClick = { onVideoClick(video.playableId()) },
+                                    onChannelClick = { _ ->
+                                        val channelId = video.channelPlayableId()
                                         if (channelId.isNotBlank()) {
                                             onChannelClick(channelId)
-                                        } else if (video.videoId.isNotBlank()) {
-                                            viewModel.fetchChannelIdForVideo(video.videoId) { id ->
-                                                if (id.isNotBlank()) onChannelClick(id)
-                                            }
                                         }
                                     },
                                     onLongClick = { longPressedVideo = video }

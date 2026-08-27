@@ -92,7 +92,8 @@ fun ChannelScreen(
                 }.padding(vertical = 12.dp))
                 Text("Go to channel", modifier = Modifier.fillMaxWidth().clickable {
                     longPressedVideo = null
-                    if (video.channelId.isNotBlank()) onChannelClick(video.channelId)
+                    val channelId = video.channelPlayableId()
+                    if (channelId.isNotBlank()) onChannelClick(channelId)
                 }.padding(vertical = 12.dp))
             }
         }
@@ -220,7 +221,10 @@ private fun ChannelVideoRow(title: String, videos: List<Video>, onVideoClick: (S
         if (title.isNotBlank()) Text(text = title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
         LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             items(videos, key = { it.videoId }) { video ->
-                VideoCard(video = video, onClick = { onVideoClick(video.videoId) }, onChannelClick = onChannelClick, onLongClick = if (onVideoLongClick != null) {{ onVideoLongClick(video) }} else null, modifier = Modifier.width(320.dp))
+                VideoCard(video = video, onClick = { onVideoClick(video.playableId()) }, onChannelClick = { _ ->
+                    val channelId = video.channelPlayableId()
+                    if (channelId.isNotBlank()) onChannelClick?.invoke(channelId)
+                }, onLongClick = if (onVideoLongClick != null) {{ onVideoLongClick(video) }} else null, modifier = Modifier.width(320.dp))
             }
         }
     }
