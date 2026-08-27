@@ -256,7 +256,7 @@ private fun VideoRow(
                     onClick = { onVideoClick(video.playableId()) },
                     onChannelClick = { _ ->
                         val channelId = video.channelPlayableId()
-                        if (channelId.isNotBlank()) onChannelClick(channelId)
+                        if (channelId.isNotBlank()) onChannelClick?.invoke(channelId)
                     },
                     onLongClick = { onVideoLongClick?.invoke(video) },
                     modifier = Modifier.width(320.dp)
