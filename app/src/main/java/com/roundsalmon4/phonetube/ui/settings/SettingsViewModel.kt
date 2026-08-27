@@ -148,7 +148,7 @@ class SettingsViewModel @Inject constructor(
                 )
             }
         )
-        Log.d(TAG, "buildExportJson: exporting ${invidiousInstances.size} invidious instances")
+        Log.d(TAG, "buildExportJson: exporting ${invidiousInstances.value.size} invidious instances")
 
         return withContext(Dispatchers.IO) {
             Json { prettyPrint = true }.encodeToString(ExportData.serializer(), exportData)
