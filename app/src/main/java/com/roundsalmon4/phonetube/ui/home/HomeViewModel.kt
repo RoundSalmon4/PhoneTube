@@ -289,6 +289,9 @@ class HomeViewModel @Inject constructor(
                     val channelId = channel?.optString("name", "")
                         ?.takeIf { it.isNotBlank() }
                         ?: account?.optString("name", "").orEmpty()
+                    val channelHost = channel?.optString("host", "")
+                        ?.takeIf { it.isNotBlank() }
+                        ?: instance.host
                     com.roundsalmon4.phonetube.core.engine.model.Video(
                         videoId = vidId,
                         title = obj.optString("name", ""),
@@ -296,10 +299,11 @@ class HomeViewModel @Inject constructor(
                         channelId = channelId,
                         thumbnailUrl = "https://${instance.host}${obj.optString("thumbnailPath", "")}",
                         durationMs = (obj.optLong("duration", 0L)) * 1000,
-                        publishedDate = 0L,
+                        publishedDate = com.roundsalmon4.phonetube.core.engine.PhoneTubeDateParser.parse(obj.optString("publishedAt", "")),
                         viewCount = obj.optLong("views", 0L).toString(),
                         percentWatched = 0,
-                        source = instance.host
+                        source = instance.host,
+                        channelHost = channelHost
                     )
                 }
             }.take(12)

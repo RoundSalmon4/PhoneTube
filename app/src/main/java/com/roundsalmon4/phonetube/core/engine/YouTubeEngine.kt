@@ -341,6 +341,9 @@ class YouTubeEngine @Inject constructor(
                     val obj = array.getJSONObject(i)
                     val name = obj.optString("name", "")
                     if (name.isBlank()) continue
+                    // Federated channels carry their own host; use it so the
+                    // channel page and subscription route to the right instance.
+                    val chanHost = obj.optString("host", "").ifBlank { host }
                     val avatars = obj.optJSONArray("avatars")
                     val avatar = if (avatars != null && avatars.length() > 0) {
                         val path = avatars.getJSONObject(0).optString("path", "")
@@ -348,7 +351,7 @@ class YouTubeEngine @Inject constructor(
                     } else null
                     results.add(
                         SearchChannel(
-                            channelId = "peertube:$host:${name.removePrefix("peertube:")}",
+                            channelId = "peertube:$chanHost:${name.removePrefix("peertube:")}",
                             name = obj.optString("displayName", "").ifBlank { name },
                             thumbnailUrl = avatar
                         )
@@ -544,9 +547,22 @@ class YouTubeEngine @Inject constructor(
      * playback and channel pages.
      */
     suspend fun getPeerTubeChannel(host: String, channelName: String): ChannelResult {
-        val base = "https://$host/api/v1/video-channels/${java.net.URLEncoder.encode(channelName, "UTF-8")}"
-        val channelInfo = fetchPeerTubeChannelDetail(host, channelName, base)
-        val videos = fetchPeerTubeChannelVideos(host, channelName, base)
+        var resolvedHost = host
+        var base = "https://$host/api/v1/video-channels/${java.net.URLEncoder.encode(channelName, "UTF-8")}"
+        var channelInfo = fetchPeerTubeChannelDetail(resolvedHost, channelName, base)
+        var videos = fetchPeerTubeChannelVideos(resolvedHost, channelName, base)
+
+        // Federated channel on another host: resolve the real host and retry.
+        if (channelInfo == null && videos.isEmpty()) {
+            val realHost = resolvePeerTubeChannelHost(host, channelName)
+            if (realHost != null && realHost != host) {
+                Log.d(TAG, "getPeerTubeChannel: resolved $channelName to host $realHost")
+                resolvedHost = realHost
+                base = "https://$realHost/api/v1/video-channels/${java.net.URLEncoder.encode(channelName, "UTF-8")}"
+                channelInfo = fetchPeerTubeChannelDetail(resolvedHost, channelName, base)
+                videos = fetchPeerTubeChannelVideos(resolvedHost, channelName, base)
+            }
+        }
         Log.d(TAG, "getPeerTubeChannel($host/$channelName): channel=${channelInfo?.name} videos=${videos.size}")
         val sections = if (videos.isNotEmpty()) {
             listOf(ChannelSection(title = "Latest", videos = videos))
@@ -595,13 +611,64 @@ class YouTubeEngine @Inject constructor(
     /**
      * Public entry point for the PeerTube subscription feed. Fetches the
      * latest videos for a PeerTube channel, tagged with the serving host so
-     * they route to PeerTube playback.
+     * they route to PeerTube playback. If the channel is federated and the
+     * supplied host can't resolve it, the real host is looked up and retried.
      */
     suspend fun getPeerTubeChannelFeed(host: String, channelName: String): List<Video> {
-        val base = "https://$host/api/v1/video-channels/${java.net.URLEncoder.encode(channelName, "UTF-8")}"
+        var resolvedHost = host
+        var base = "https://$host/api/v1/video-channels/${java.net.URLEncoder.encode(channelName, "UTF-8")}"
         Log.d(TAG, "getPeerTubeChannelFeed($host/$channelName)")
-        return fetchPeerTubeChannelVideos(host, channelName, base)
+        var videos = fetchPeerTubeChannelVideos(resolvedHost, channelName, base)
+        if (videos.isEmpty()) {
+            // The channel may be federated on another host. Resolve its real host.
+            val realHost = resolvePeerTubeChannelHost(host, channelName)
+            if (realHost != null && realHost != host) {
+                Log.d(TAG, "getPeerTubeChannelFeed: resolved $channelName to host $realHost")
+                resolvedHost = realHost
+                base = "https://$realHost/api/v1/video-channels/${java.net.URLEncoder.encode(channelName, "UTF-8")}"
+                videos = fetchPeerTubeChannelVideos(resolvedHost, channelName, base)
+            }
+        }
+        return videos
     }
+
+    /**
+     * Looks up a PeerTube channel's real host. Tries the search API on the
+     * serving host (which knows federated channels) and returns the channel's
+     * own host, or null when it can't be found.
+     */
+    private suspend fun resolvePeerTubeChannelHost(host: String, channelName: String): String? =
+        withContext(Dispatchers.IO) {
+            try {
+                val encoded = java.net.URLEncoder.encode(channelName, "UTF-8")
+                val connection = java.net.URL("https://$host/api/v1/search/video-channels?search=$encoded&count=5")
+                    .openConnection() as HttpURLConnection
+                try {
+                    connection.requestMethod = "GET"
+                    connection.connectTimeout = 10_000
+                    connection.readTimeout = 15_000
+                    connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                    connection.setRequestProperty("Accept", "application/json")
+                    val status = connection.responseCode
+                    Log.d(TAG, "resolvePeerTubeChannelHost($host/$channelName): HTTP $status")
+                    if (status !in 200..399) return@withContext null
+                    val root = org.json.JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                    val data = root.optJSONArray("data") ?: org.json.JSONArray()
+                    for (i in 0 until data.length()) {
+                        val obj = data.getJSONObject(i)
+                        if (obj.optString("name", "") == channelName) {
+                            return@withContext obj.optString("host", "").ifBlank { null }
+                        }
+                    }
+                    null
+                } finally {
+                    connection.disconnect()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "resolvePeerTubeChannelHost($host/$channelName) failed", e)
+                null
+            }
+        }
 
     private suspend fun fetchPeerTubeChannelVideos(
         host: String,
@@ -647,6 +714,12 @@ class YouTubeEngine @Inject constructor(
             ?: account?.optString("displayName", "").orEmpty()
         val channelId = channel?.optString("name", "")?.takeIf { it.isNotBlank() }
             ?: account?.optString("name", "").orEmpty()
+        // A federated channel may be hosted on a different instance than the one
+        // serving the feed/catalog. Use the channel's own host so channel pages
+        // and subscriptions route to the right instance.
+        val channelHost = channel?.optString("host", "")
+            ?.takeIf { it.isNotBlank() }
+            ?: host
         return Video(
             videoId = videoId,
             title = optString("name", ""),
@@ -655,12 +728,14 @@ class YouTubeEngine @Inject constructor(
             thumbnailUrl = "https://$host${optString("thumbnailPath", "")}",
             durationMs = optLong("duration", 0L) * 1000,
             viewCount = optLong("views", 0L).toString(),
-            publishedDate = 0L,
+            publishedDate = parsePeerTubeDate(optString("publishedAt", "")),
             percentWatched = 0,
-            source = host
+            source = host,
+            channelHost = channelHost
         )
     }
 
+    private fun parsePeerTubeDate(iso: String): Long = PhoneTubeDateParser.parse(iso)
     fun getMetadata(videoId: String): Flow<VideoMetadataResult> = flow {
         val metadata = mediaItemService.getMetadataObserve(videoId).awaitOrNull()
         emit((metadata ?: throw IllegalStateException("No metadata available for $videoId")).toVideoMetadataResult())
@@ -1126,5 +1201,28 @@ private data class StreamableVideoResponse(
 
     @Serializable
     data class FileInfo(val url: String? = null)
+}
+
+/**
+ * Parses a PeerTube ISO-8601 publishedAt timestamp into epoch milliseconds.
+ * Returns 0 when blank or unparseable.
+ */
+object PhoneTubeDateParser {
+    private const val TAG = "DateParser"
+
+    fun parse(iso: String): Long {
+        if (iso.isBlank()) return 0L
+        return try {
+            if (android.os.Build.VERSION.SDK_INT >= 26) {
+                java.time.OffsetDateTime.parse(iso).toInstant().toEpochMilli()
+            } else {
+                // Older APIs don't ship java.time without desugaring; fall back.
+                0L
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "could not parse '$iso'")
+            0L
+        }
+    }
 }
 

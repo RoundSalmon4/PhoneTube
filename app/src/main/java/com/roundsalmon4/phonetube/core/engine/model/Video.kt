@@ -10,7 +10,8 @@ data class Video(
     val viewCount: String?,
     val publishedDate: Long,
     val percentWatched: Int,
-    val source: String? = null
+    val source: String? = null,
+    val channelHost: String? = null
 ) {
     /**
      * The id to pass into the player route. When this video comes from a
@@ -26,11 +27,13 @@ data class Video(
     /**
      * The id to use when navigating to this video's channel. For a PeerTube
      * video this is prefixed so the channel screen routes to the PeerTube
-     * channel loader.
+     * channel loader. Uses the channel's own host (its federated origin) when
+     * known, falling back to the serving instance host.
      */
-    fun channelPlayableId(): String = if (source != null && source.isNotBlank() && channelId.isNotBlank()) {
-        "peertube:$source:${channelId.removePrefix("peertube:")}"
+    fun channelPlayableId(): String = if (channelId.isNotBlank()) {
+        val chanHost = channelHost ?: source
+        "peertube:$chanHost:${channelId.removePrefix("peertube:")}"
     } else {
-        channelId
+        ""
     }
 }
