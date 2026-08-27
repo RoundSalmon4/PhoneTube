@@ -112,6 +112,14 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: android.content.res.Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        playerStateManager.isPlayerScreenVisible = isInPictureInPictureMode
+    }
+
     private fun configureInvidiousHosts() {
         val hosts = getSharedPreferences("phonetube_prefs", MODE_PRIVATE)
             .getString("invidious_hosts", null)
@@ -120,9 +128,22 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent) {
-        val uri = intent.data ?: return
-        if (isSupportedUrl(uri)) {
-            deepLinkUri.value = uri
+        when (intent.action) {
+            Intent.ACTION_VIEW -> {
+                val uri = intent.data ?: return
+                if (isSupportedUrl(uri)) {
+                    deepLinkUri.value = uri
+                }
+            }
+            Intent.ACTION_SEND -> {
+                val text = intent.getStringExtra(Intent.EXTRA_TEXT) ?: return
+                val urlPattern = Regex("https?://\\S+")
+                val url = urlPattern.find(text.trim())?.value ?: return
+                val uri = Uri.parse(url)
+                if (isSupportedUrl(uri)) {
+                    deepLinkUri.value = uri
+                }
+            }
         }
     }
 

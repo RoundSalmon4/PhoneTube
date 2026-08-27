@@ -9,5 +9,6 @@ data class Video(
     val durationMs: Long,
     val viewCount: String?,
     val publishedDate: Long,
-    val percentWatched: Int
+    val percentWatched: Int,
+    val source: String? = null
 )

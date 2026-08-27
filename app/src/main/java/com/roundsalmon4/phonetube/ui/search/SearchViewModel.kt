@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
 import com.roundsalmon4.phonetube.core.database.PlaylistSaver
+import com.roundsalmon4.phonetube.core.database.InvidiousDao
 import com.roundsalmon4.phonetube.core.database.SubscriptionDao
 import com.roundsalmon4.phonetube.core.database.toPlaylistVideoInfo
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
@@ -17,7 +18,10 @@ import com.roundsalmon4.phonetube.core.engine.model.SearchFilter
 import com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist
 import com.roundsalmon4.phonetube.core.engine.model.Video
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +30,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -33,7 +38,8 @@ class SearchViewModel @Inject constructor(
     private val engine: YouTubeEngine,
     private val playerPreferences: PlayerPreferences,
     private val subscriptionDao: SubscriptionDao,
-    private val playlistDao: PlaylistDao
+    private val playlistDao: PlaylistDao,
+    private val invidiousDao: InvidiousDao
 ) : ViewModel() {
 
     companion object {
@@ -73,6 +79,7 @@ class SearchViewModel @Inject constructor(
     private var allVideos: List<Video> = emptyList()
     private var allChannels: List<SearchChannel> = emptyList()
     private var allPlaylists: List<SearchPlaylist> = emptyList()
+    private var allInvidiousVideos: List<Video> = emptyList()
     private var suggestionJob: Job? = null
 
     init {
@@ -201,24 +208,30 @@ class SearchViewModel @Inject constructor(
             val prefs = playerPreferences.uiState.first()
             val filteredVideos = when (_filter.value) {
                 SearchFilter.ALL, SearchFilter.VIDEOS -> allVideos.take(prefs.videoSearchLimit)
+                SearchFilter.INVIDIOUS -> emptyList()
                 SearchFilter.CHANNELS, SearchFilter.PLAYLISTS -> emptyList()
             }
             val filteredChannels = when (_filter.value) {
                 SearchFilter.ALL, SearchFilter.CHANNELS -> allChannels.take(prefs.channelSearchLimit)
-                SearchFilter.VIDEOS, SearchFilter.PLAYLISTS -> emptyList()
+                SearchFilter.VIDEOS, SearchFilter.PLAYLISTS, SearchFilter.INVIDIOUS -> emptyList()
             }
             val filteredPlaylists = when (_filter.value) {
                 SearchFilter.ALL, SearchFilter.PLAYLISTS -> allPlaylists.take(prefs.playlistSearchLimit)
                 else -> emptyList()
             }
+            val filteredInvidious = when (_filter.value) {
+                SearchFilter.ALL, SearchFilter.VIDEOS, SearchFilter.INVIDIOUS -> allInvidiousVideos
+                SearchFilter.CHANNELS, SearchFilter.PLAYLISTS -> emptyList()
+            }
 
-            if (filteredVideos.isEmpty() && filteredChannels.isEmpty() && filteredPlaylists.isEmpty()) {
+            if (filteredVideos.isEmpty() && filteredChannels.isEmpty() && filteredPlaylists.isEmpty() && filteredInvidious.isEmpty()) {
                 _uiState.value = SearchUiState.Empty
             } else {
                 _uiState.value = SearchUiState.Results(
                     videos = filteredVideos,
                     channels = filteredChannels,
-                    playlists = filteredPlaylists
+                    playlists = filteredPlaylists,
+                    invidiousVideos = filteredInvidious
                 )
             }
         }
@@ -317,17 +330,48 @@ class SearchViewModel @Inject constructor(
     private fun search(query: String) {
         _uiState.value = SearchUiState.Loading
         viewModelScope.launch {
+            allVideos = emptyList()
+            allChannels = emptyList()
+            allPlaylists = emptyList()
+            allInvidiousVideos = emptyList()
+
+            var youtubeError: String? = null
+
             engine.search(query)
                 .catch { e ->
-                    _uiState.value = SearchUiState.Error(e.message ?: "Search failed")
+                    youtubeError = e.message ?: "Search failed"
                 }
                 .firstOrNull()
                 ?.let { result ->
                     allVideos = result.sections.flatMap { it.videos }.distinctBy { it.videoId }
                     allChannels = result.channels
                     allPlaylists = result.playlists
-                    applyFilter()
                 }
+
+            val invidiousResults = try {
+                val instances = withContext(Dispatchers.IO) {
+                    invidiousDao.getEnabledSync()
+                }
+                if (instances.isNotEmpty()) {
+                    instances.map { instance ->
+                        async {
+                            engine.getInvidiousSearchResults(query, instance.host)
+                        }
+                    }.awaitAll().flatten().distinctBy { it.videoId }
+                } else {
+                    emptyList()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Invidious search failed", e)
+                emptyList()
+            }
+            allInvidiousVideos = invidiousResults
+
+            if (youtubeError != null && allVideos.isEmpty() && allInvidiousVideos.isEmpty()) {
+                _uiState.value = SearchUiState.Error(youtubeError!!)
+            } else {
+                applyFilter()
+            }
         }
     }
 }
@@ -340,8 +384,9 @@ sealed interface SearchUiState {
     data class Results(
         val videos: List<Video>,
         val channels: List<SearchChannel>,
-        val playlists: List<SearchPlaylist> = emptyList()
+        val playlists: List<SearchPlaylist> = emptyList(),
+        val invidiousVideos: List<Video> = emptyList()
     ) : SearchUiState
 }
 
-private const val SUGGESTION_DEBOUNCE_MS = 300L
+private const val SUGGESTION_DEBOUNCE_MS = 500L

@@ -101,6 +101,7 @@ class HomeViewModel @Inject constructor(
     val addToPlaylistVideo: StateFlow<Video?> = _addToPlaylistVideo.asStateFlow()
 
     private var homeRetryJob: Job? = null
+    private var loadNetworkJob: Job? = null
     private var lastRefreshAt = 0L
     private val cacheMutex = Mutex()
 
@@ -291,7 +292,8 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun loadFromNetwork(isRefresh: Boolean) {
-        viewModelScope.launch {
+        if (loadNetworkJob?.isActive == true && !isRefresh) return
+        loadNetworkJob = viewModelScope.launch {
             try {
                 val prefs = playerPreferences.uiState.first()
 

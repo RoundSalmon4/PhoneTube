@@ -6,6 +6,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -77,18 +78,37 @@ fun VideoCard(
             )
         }
         Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = video.author,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = if (onChannelClick != null) {
-                Modifier.clickable { onChannelClick(video.channelId) }
-            } else {
-                Modifier
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = video.author,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = if (onChannelClick != null) {
+                    Modifier.clickable { onChannelClick(video.channelId) }
+                } else {
+                    Modifier
+                }
+            )
+            if (video.source != null) {
+                Text(
+                    text = video.source,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                    fontSize = 9.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .padding(start = 6.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                )
             }
-        )
+        }
         if (video.publishedDate > 0) {
             Text(
                 text = formatRelativeDate(video.publishedDate),

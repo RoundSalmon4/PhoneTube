@@ -98,33 +98,32 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="https" />
-                <data android:pathPrefix="/watch" />
+                <data android:scheme="https" android:pathPrefix="/watch" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="https" />
-                <data android:pathPrefix="/channel/" />
+                <data android:scheme="https" android:pathPrefix="/channel/" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-
-                <data android:scheme="https" />
-                <data android:pathPrefix="/shorts/" />
+                <data android:scheme="https" android:pathPrefix="/shorts/" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:pathPrefix="/playlist" />
+            </intent-filter>
 
-                <data android:scheme="https" />
-                <data android:pathPrefix="/playlist" />
+            <!-- Share to PhoneTube (for URLs shared from browser) -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
 
             <!-- YouTube app scheme -->

@@ -308,7 +308,7 @@ class PlayerEngineController(context: Context) {
             val height = format.height
             val fps = format.frameRate.toInt()
             if (height > 0) {
-                if (fps > 0) "${height}p${fps}" else "${height}p"
+                "${height}p"
             } else null
         } ?: ""
 

@@ -9,7 +9,8 @@ data class ExportData(
     val exportedAt: Long = System.currentTimeMillis(),
     val preferences: PreferencesExport? = null,
     val playlists: List<LocalPlaylistExport>? = null,
-    val subscriptions: List<LocalSubscriptionExport>? = null
+    val subscriptions: List<LocalSubscriptionExport>? = null,
+    val invidiousInstances: List<InvidiousInstanceExport>? = null
 )
 
 @Serializable
@@ -46,7 +47,15 @@ data class PreferencesExport(
     val continuePlaying: Boolean = false,
     val duplicatePlaylistWarning: Boolean = true,
     val screenProtection: Boolean = false,
-    val incognitoMode: Boolean = false
+    val incognitoMode: Boolean = false,
+    val clearVisitorOnExit: Boolean = false
+)
+
+@Serializable
+data class InvidiousInstanceExport(
+    val host: String,
+    val name: String,
+    val enabled: Boolean
 )
 
 @Serializable

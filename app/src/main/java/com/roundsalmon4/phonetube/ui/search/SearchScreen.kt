@@ -259,6 +259,31 @@ fun SearchScreen(
                                 onLongClick = { longPressedVideo = video }
                             )
                         }
+                        if (state.invidiousVideos.isNotEmpty()) {
+                            item(key = "invidious-header") {
+                                Text(
+                                    "Invidious",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                            items(state.invidiousVideos, key = { "inv-${it.videoId}" }) { video ->
+                                VideoCard(
+                                    video = video,
+                                    onClick = { onVideoClick(video.videoId) },
+                                    onChannelClick = { channelId ->
+                                        if (channelId.isNotBlank()) {
+                                            onChannelClick(channelId)
+                                        } else if (video.videoId.isNotBlank()) {
+                                            viewModel.fetchChannelIdForVideo(video.videoId) { id ->
+                                                if (id.isNotBlank()) onChannelClick(id)
+                                            }
+                                        }
+                                    },
+                                    onLongClick = { longPressedVideo = video }
+                                )
+                            }
+                        }
                         if (state.playlists.isNotEmpty()) {
                             item {
                                 Text(
@@ -331,6 +356,7 @@ private fun FilterChips(filter: SearchFilter, onFilterChange: (SearchFilter) -> 
                 SearchFilter.VIDEOS -> "Videos"
                 SearchFilter.CHANNELS -> "Channels"
                 SearchFilter.PLAYLISTS -> "Playlists"
+                SearchFilter.INVIDIOUS -> "Invidious"
             }
             FilterChip(
                 selected = filter == entry,

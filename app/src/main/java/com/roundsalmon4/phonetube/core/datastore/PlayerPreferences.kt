@@ -197,6 +197,7 @@ class PlayerPreferences @Inject constructor(
                 "gaming" -> prefs[Keys.FEED_GAMING] = enabled
                 "kids" -> prefs[Keys.FEED_KIDS] = enabled
                 "subscriptions" -> prefs[Keys.FEED_SUBSCRIPTIONS] = enabled
+                "invidious" -> prefs[Keys.FEED_INVIDIOUS] = enabled
             }
         }
     }

@@ -27,5 +27,6 @@ enum class SearchFilter {
     ALL,
     VIDEOS,
     CHANNELS,
-    PLAYLISTS
+    PLAYLISTS,
+    INVIDIOUS
 }

@@ -916,7 +916,8 @@ private fun DataSection(
 
         ListItem(
             modifier = Modifier.clickable {
-                context.cacheDir.listFiles()?.filter { it.isDirectory }?.forEach { it.deleteRecursively() }
+                val coilDir = java.io.File(context.cacheDir, "coil")
+                if (coilDir.exists()) coilDir.deleteRecursively()
                 Toast.makeText(context, "Cached images cleared", Toast.LENGTH_SHORT).show()
             },
             headlineContent = { Text("Clear Cached Images", fontWeight = FontWeight.SemiBold) },

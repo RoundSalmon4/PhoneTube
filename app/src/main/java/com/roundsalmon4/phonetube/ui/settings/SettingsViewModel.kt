@@ -68,6 +68,10 @@ class SettingsViewModel @Inject constructor(
         val prefs = playerPreferences.uiState.first()
         val playlists = playlistDao.getAllPlaylists().first()
         val subscriptions = subscriptionDao.getAll().first()
+        val invidiousInstances = invidiousDao.getAll().first()
+
+        val visitorPrefs = context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
+        val clearVisitorOnExit = visitorPrefs.getBoolean("clear_visitor_on_exit", false)
 
         val exportData = ExportData(
             preferences = PreferencesExport(
@@ -103,7 +107,8 @@ class SettingsViewModel @Inject constructor(
                 duplicatePlaylistWarning = prefs.duplicatePlaylistWarning,
                 screenProtection = prefs.screenProtection,
                 incognitoMode = prefs.incognitoMode,
-                feedInvidious = prefs.feedInvidious
+                feedInvidious = prefs.feedInvidious,
+                clearVisitorOnExit = clearVisitorOnExit
             ),
             playlists = playlists.map { playlist ->
                 val videos = playlistDao.getPlaylistVideosSync(playlist.id)
@@ -128,6 +133,13 @@ class SettingsViewModel @Inject constructor(
                     channelName = sub.channelName,
                     thumbnailUrl = sub.thumbnailUrl,
                     subscribedAt = sub.subscribedAt
+                )
+            },
+            invidiousInstances = invidiousInstances.map { inst ->
+                com.roundsalmon4.phonetube.core.database.InvidiousInstanceExport(
+                    host = inst.host,
+                    name = inst.name,
+                    enabled = inst.enabled
                 )
             }
         )
@@ -181,6 +193,9 @@ class SettingsViewModel @Inject constructor(
                     playerPreferences.setScreenProtection(p.screenProtection)
                     playerPreferences.setIncognitoMode(p.incognitoMode)
                     playerPreferences.setFeedInvidious(p.feedInvidious)
+
+                    val visitorPrefs = context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
+                    visitorPrefs.edit().putBoolean("clear_visitor_on_exit", p.clearVisitorOnExit).apply()
                 }
 
                 if (data.subscriptions != null) {
@@ -218,6 +233,24 @@ class SettingsViewModel @Inject constructor(
                             LocalPlaylist(id = id, name = playlistData.name, createdAt = playlistData.createdAt, videoCount = playlistData.videos.size)
                         )
                     }
+                }
+
+                if (data.invidiousInstances != null) {
+                    for (inst in data.invidiousInstances) {
+                        invidiousDao.insert(
+                            InvidiousInstance(
+                                host = inst.host,
+                                name = inst.name,
+                                enabled = inst.enabled
+                            )
+                        )
+                    }
+                    val allHosts = invidiousDao.getAll().first().joinToString(",") { it.host }
+                    context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
+                        .edit().putString("invidious_hosts", allHosts).apply()
+                    com.roundsalmon4.phonetube.core.engine.YouTubeUrlParser.configureInvidiousHosts(
+                        allHosts.split(",").filter { it.isNotBlank() }.toSet()
+                    )
                 }
 
                 _importResult.value = "Import complete"

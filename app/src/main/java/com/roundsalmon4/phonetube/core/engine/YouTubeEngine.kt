@@ -262,6 +262,55 @@ class YouTubeEngine @Inject constructor(
         emit(suggestions)
     }.flowOn(Dispatchers.IO)
 
+    suspend fun getInvidiousSearchResults(query: String, host: String): List<Video> {
+        return try {
+            withContext(Dispatchers.IO) {
+                val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
+                val connection = java.net.URL("https://$host/api/v1/search?q=$encodedQuery")
+                    .openConnection() as java.net.HttpURLConnection
+                try {
+                    connection.requestMethod = "GET"
+                    connection.connectTimeout = 10_000
+                    connection.readTimeout = 15_000
+                    if (connection.responseCode != 200) {
+                        Log.w(TAG, "getInvidiousSearchResults($host): HTTP ${connection.responseCode}")
+                        return@withContext emptyList()
+                    }
+                    val json = connection.inputStream.bufferedReader().use { it.readText() }
+                    val array = org.json.JSONArray(json)
+                    val results = mutableListOf<Video>()
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        val type = obj.optString("type", "")
+                        if (type != "video") continue
+                        val videoId = obj.optString("videoId", "")
+                        if (videoId.isBlank()) continue
+                        results.add(
+                            Video(
+                                videoId = videoId,
+                                title = obj.optString("title", ""),
+                                author = obj.optString("author", ""),
+                                channelId = obj.optString("authorId", ""),
+                                thumbnailUrl = "https://$host${obj.optString("thumbnailPath", "")}",
+                                durationMs = obj.optLong("lengthSeconds", 0L) * 1000,
+                                viewCount = obj.optLong("viewCount", 0L).toString().takeIf { obj.has("viewCount") },
+                                publishedDate = 0L,
+                                percentWatched = 0,
+                                source = host
+                            )
+                        )
+                    }
+                    results
+                } finally {
+                    connection.disconnect()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getInvidiousSearchResults($host) failed", e)
+            emptyList()
+        }
+    }
+
     fun getChannel(channelId: String): Flow<ChannelResult> = flow {
         try {
             val groups = contentService.getChannelObserve(channelId).awaitFirstOrDefault(emptyList())
