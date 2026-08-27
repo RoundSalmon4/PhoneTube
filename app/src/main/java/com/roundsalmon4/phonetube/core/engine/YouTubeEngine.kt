@@ -300,7 +300,7 @@ class YouTubeEngine @Inject constructor(
                     val video = obj.toPeerTubeVideo(host)
                     if (video != null) results.add(video)
                 }
-                Log.d(TAG, "fetchPeerTubeSearchVideos($host): ${results.size} videos from ${array.length()} items")
+                Log.d(TAG, "fetchPeerTubeSearchVideos($host): ${results.size} videos from ${array.length()} items (localOnly=$localOnly)")
                 results
             } finally {
                 connection.disconnect()
@@ -341,8 +341,10 @@ class YouTubeEngine @Inject constructor(
                     val obj = array.getJSONObject(i)
                     val name = obj.optString("name", "")
                     if (name.isBlank()) continue
-                    // Federated channels carry their own host; use it so the
-                    // channel page and subscription route to the right instance.
+                    // A federated channel may be served by the instance even when
+                    // its content originates elsewhere; always surface it (the
+                    // search_target=local param is enough, and federated channels
+                    // like techlore@techlore.tv are expected to appear).
                     val chanHost = obj.optString("host", "").ifBlank { host }
                     val avatars = obj.optJSONArray("avatars")
                     val avatar = if (avatars != null && avatars.length() > 0) {
