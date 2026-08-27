@@ -384,6 +384,48 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Verifies the host actually exposes a working PeerTube API before the instance is saved.
+     * Returns null when valid, otherwise a human-readable error message.
+     */
+    suspend fun validatePeerTubeInstance(host: String): String? = withContext(Dispatchers.IO) {
+        val normalized = host.trim().removePrefix("https://").removePrefix("http://").trimEnd('/')
+        if (normalized.isBlank()) return@withContext "Please enter a URL"
+        var connection: java.net.HttpURLConnection? = null
+        try {
+            val url = java.net.URL("https://$normalized/api/v1/videos?count=1")
+            connection = url.openConnection() as java.net.HttpURLConnection
+            connection.connectTimeout = 10_000
+            connection.readTimeout = 10_000
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+            connection.setRequestProperty("Accept", "application/json")
+            val status = connection.responseCode
+            Log.d(TAG, "validatePeerTubeInstance($normalized): HTTP $status")
+            if (status !in 200..399) {
+                return@withContext "Not a valid PeerTube server (HTTP $status)"
+            }
+            val body = connection.inputStream.bufferedReader().use { it.readText() }
+            val root = org.json.JSONObject(body)
+            if (root.has("data")) {
+                null
+            } else {
+                Log.w(TAG, "validatePeerTubeInstance($normalized): response has no data array")
+                "Not a valid PeerTube server (no API data)"
+            }
+        } catch (e: java.net.ConnectException) {
+            Log.w(TAG, "validatePeerTubeInstance($normalized): connect failed", e)
+            "Could not connect to server"
+        } catch (e: java.net.SocketTimeoutException) {
+            Log.w(TAG, "validatePeerTubeInstance($normalized): timed out", e)
+            "Connection timed out"
+        } catch (e: Exception) {
+            Log.w(TAG, "validatePeerTubeInstance($normalized): unexpected error", e)
+            "Could not reach server"
+        } finally {
+            connection?.disconnect()
+        }
+    }
+
     fun removePeerTubeInstance(host: String) = viewModelScope.launch {
         Log.d(TAG, "removePeerTubeInstance: removing '$host'")
         invidiousDao.delete(host)

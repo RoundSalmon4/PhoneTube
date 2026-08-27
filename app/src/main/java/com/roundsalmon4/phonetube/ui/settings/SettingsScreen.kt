@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -34,6 +35,7 @@ import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -1001,9 +1003,25 @@ private fun DataSection(
 
     if (showAddPeerTubeDialog) {
         var addError by remember { mutableStateOf("") }
+        var validating by remember { mutableStateOf(false) }
+        var validHost by remember { mutableStateOf<String?>(null) }
+
+        if (validating && validHost != null) {
+            LaunchedEffect(validHost) {
+                val error = viewModel.validatePeerTubeInstance(validHost!!)
+                validating = false
+                if (error == null) {
+                    viewModel.addPeerTubeInstance(validHost!!, validHost!!)
+                    peerTubeInput = ""
+                    showAddPeerTubeDialog = false
+                } else {
+                    addError = error
+                }
+            }
+        }
 
         AlertDialog(
-            onDismissRequest = { showAddPeerTubeDialog = false; peerTubeInput = ""; addError = "" },
+            onDismissRequest = { if (!validating) { showAddPeerTubeDialog = false; peerTubeInput = ""; addError = "" } },
             title = { Text("Add PeerTube Instance") },
             text = {
                 Column {
@@ -1014,32 +1032,44 @@ private fun DataSection(
                         singleLine = true,
                         isError = addError.isNotEmpty(),
                         supportingText = if (addError.isNotEmpty()) {{ Text(addError) }} else null,
+                        enabled = !validating,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    if (validating) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
+                            CircularProgressIndicator(
+                                strokeWidth = 3.dp,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text("Checking PeerTube server...", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    val trimmed = peerTubeInput.trim().removePrefix("https://").removePrefix("http://").trimEnd('/')
-                    if (trimmed.isBlank()) {
-                        addError = "Please enter a URL"
-                    } else if (!trimmed.contains(".") || trimmed.startsWith(".") || trimmed.contains(" ")) {
-                        addError = "Enter a valid domain like neat.tube"
-                    } else if (instances.any { it.host == trimmed }) {
-                        addError = "Instance already added"
-                    } else {
-                        viewModel.addPeerTubeInstance(trimmed, trimmed)
-                        peerTubeInput = ""
-                        showAddPeerTubeDialog = false
+                TextButton(
+                    enabled = !validating && peerTubeInput.isNotBlank(),
+                    onClick = {
+                        val trimmed = peerTubeInput.trim().removePrefix("https://").removePrefix("http://").trimEnd('/')
+                        if (trimmed.isBlank()) {
+                            addError = "Please enter a URL"
+                        } else if (!trimmed.contains(".") || trimmed.startsWith(".") || trimmed.contains(" ")) {
+                            addError = "Enter a valid domain like neat.tube"
+                        } else if (instances.any { it.host == trimmed }) {
+                            addError = "Instance already added"
+                        } else {
+                            addError = ""
+                            validHost = trimmed
+                            validating = true
+                        }
                     }
-                }) {
-                    Text("Add")
-                }
+                ) { Text(if (validating) "Checking..." else "Add") }
             },
             dismissButton = {
-                TextButton(onClick = { showAddPeerTubeDialog = false; peerTubeInput = ""; addError = "" }) {
-                    Text("Cancel")
-                }
+                TextButton(onClick = {
+                    if (!validating) { showAddPeerTubeDialog = false; peerTubeInput = ""; addError = "" }
+                }) { Text("Cancel") }
             }
         )
     }
