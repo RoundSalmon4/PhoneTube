@@ -1,6 +1,7 @@
 package com.roundsalmon4.phonetube.core.engine
 
 import android.net.Uri
+import android.util.Log
 
 data class YouTubeLink(
     val type: Type,
@@ -13,12 +14,15 @@ data class YouTubeLink(
 
 object YouTubeUrlParser {
 
+    private const val TAG = "UrlParser"
+
     /** Set of Invidious instance hosts that should be parsed like YouTube. */
     private val invidiousHosts = mutableSetOf<String>()
 
     fun configureInvidiousHosts(hosts: Set<String>) {
         invidiousHosts.clear()
         invidiousHosts.addAll(hosts)
+        Log.d(TAG, "configureInvidiousHosts: ${hosts.size} hosts configured: $hosts")
     }
 
     fun isInvidiousHost(host: String): Boolean = host in invidiousHosts

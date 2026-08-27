@@ -1,5 +1,6 @@
 package com.roundsalmon4.phonetube.ui.settings
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.database.ExportData
@@ -43,6 +44,10 @@ class SettingsViewModel @Inject constructor(
 
     private val invidiousInstances = MutableStateFlow<List<InvidiousInstance>>(emptyList())
     val invidiousInstancesState: StateFlow<List<InvidiousInstance>> = invidiousInstances.asStateFlow()
+
+    companion object {
+        private const val TAG = "SettingsVM"
+    }
 
     private val _showClearHistoryDialog = MutableStateFlow(false)
     val showClearHistoryDialog: StateFlow<Boolean> = _showClearHistoryDialog.asStateFlow()
@@ -143,6 +148,7 @@ class SettingsViewModel @Inject constructor(
                 )
             }
         )
+        Log.d(TAG, "buildExportJson: exporting ${invidiousInstances.size} invidious instances")
 
         return withContext(Dispatchers.IO) {
             Json { prettyPrint = true }.encodeToString(ExportData.serializer(), exportData)
@@ -236,7 +242,9 @@ class SettingsViewModel @Inject constructor(
                 }
 
                 if (data.invidiousInstances != null) {
+                    Log.d(TAG, "importFromJson: importing ${data.invidiousInstances.size} invidious instances")
                     for (inst in data.invidiousInstances) {
+                        invidiousDao.insert(
                         invidiousDao.insert(
                             InvidiousInstance(
                                 host = inst.host,
@@ -246,6 +254,7 @@ class SettingsViewModel @Inject constructor(
                         )
                     }
                     val allHosts = invidiousDao.getAll().first().joinToString(",") { it.host }
+                    Log.d(TAG, "importFromJson: syncing invidious hosts pref: '$allHosts'")
                     context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
                         .edit().putString("invidious_hosts", allHosts).apply()
                     com.roundsalmon4.phonetube.core.engine.YouTubeUrlParser.configureInvidiousHosts(
@@ -371,23 +380,30 @@ class SettingsViewModel @Inject constructor(
     fun addInvidiousInstance(host: String, name: String) = viewModelScope.launch {
         val normalized = host.trim().removePrefix("https://").removePrefix("http://").trimEnd('/')
         if (normalized.isNotBlank()) {
+            Log.d(TAG, "addInvidiousInstance: adding '$normalized' (name='$name')")
             invidiousDao.insert(InvidiousInstance(host = normalized, name = name.ifBlank { normalized }))
             syncInvidiousHostsPref()
+        } else {
+            Log.w(TAG, "addInvidiousInstance: empty host after normalization (input='$host')")
         }
     }
 
     fun removeInvidiousInstance(host: String) = viewModelScope.launch {
+        Log.d(TAG, "removeInvidiousInstance: removing '$host'")
         invidiousDao.delete(host)
         syncInvidiousHostsPref()
     }
 
     fun setInvidiousEnabled(host: String, enabled: Boolean) = viewModelScope.launch {
+        Log.d(TAG, "setInvidiousEnabled: '$host' -> $enabled")
         invidiousDao.setEnabled(host, enabled)
         syncInvidiousHostsPref()
     }
 
     private fun syncInvidiousHostsPref() {
-        val hosts = invidiousInstances.value.filter { it.enabled }.map { it.host }.joinToString(",")
+        val enabledHosts = invidiousInstances.value.filter { it.enabled }.map { it.host }
+        val hosts = enabledHosts.joinToString(",")
+        Log.d(TAG, "syncInvidiousHostsPref: ${enabledHosts.size} enabled hosts: $enabledHosts")
         context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
             .edit().putString("invidious_hosts", hosts).apply()
     }

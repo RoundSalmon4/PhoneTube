@@ -121,9 +121,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun configureInvidiousHosts() {
-        val hosts = getSharedPreferences("phonetube_prefs", MODE_PRIVATE)
+        val raw = getSharedPreferences("phonetube_prefs", MODE_PRIVATE)
             .getString("invidious_hosts", null)
-            ?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+        val hosts = raw?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+        android.util.Log.d("PhoneTube", "configureInvidiousHosts: raw='$raw', parsed ${hosts.size} hosts: $hosts")
         YouTubeUrlParser.configureInvidiousHosts(hosts)
     }
 

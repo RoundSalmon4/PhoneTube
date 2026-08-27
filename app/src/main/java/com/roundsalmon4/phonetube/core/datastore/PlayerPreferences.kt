@@ -1,6 +1,7 @@
 package com.roundsalmon4.phonetube.core.datastore
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -147,10 +148,17 @@ class PlayerPreferences @Inject constructor(
         categories.map { "${it.key}=${it.value}" }.toSet()
 
     private fun parseFeedOrder(raw: String?): List<String> {
-        if (raw.isNullOrBlank()) return PlayerPreferences.DEFAULT_FEED_ORDER
+        if (raw.isNullOrBlank()) {
+            Log.d(TAG, "parseFeedOrder: no saved order, using defaults: ${PlayerPreferences.DEFAULT_FEED_ORDER}")
+            return PlayerPreferences.DEFAULT_FEED_ORDER
+        }
         val saved = raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
         val allKeys = PlayerPreferences.DEFAULT_FEED_ORDER
-        return saved.filter { it in allKeys } + allKeys.filter { it !in saved }
+        val merged = saved.filter { it in allKeys } + allKeys.filter { it !in saved }
+        if (saved != merged) {
+            Log.d(TAG, "parseFeedOrder: merged saved order with defaults. saved=$saved, added=${allKeys.filter { it !in saved }}, result=$merged")
+        }
+        return merged
     }
 
     private fun serializeFeedOrder(order: List<String>): String = order.joinToString(",")
@@ -265,10 +273,13 @@ class PlayerPreferences @Inject constructor(
     }
 
     suspend fun setFeedInvidious(enabled: Boolean) {
+        Log.d(TAG, "setFeedInvidious: $enabled")
         context.playerDataStore.edit { it[Keys.FEED_INVIDIOUS] = enabled }
     }
 
     companion object {
+        private const val TAG = "PrefsData"
+
         val PLAYBACK_SPEEDS = listOf(
             0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f
         )

@@ -360,6 +360,10 @@ class HomeViewModel @Inject constructor(
                     feedSourceMap[key]
                 }
 
+                Log.d(TAG, "loadFromNetwork: feedOrder=${prefs.feedOrder}")
+                Log.d(TAG, "loadFromNetwork: fetched feeds=${feedSourceMap.map { "${it.key}=${it.value?.sections?.flatMap { s -> s.videos }?.size ?: 0}v" }}")
+                Log.d(TAG, "loadFromNetwork: ordered sections=${orderedFeeds.flatMap { it.sections }.map { "${it.source}(${it.videos.size}v)" }}")
+
                 val allSections = orderedFeeds.flatMap { it.sections }
                 val nonEmpty = allSections.filter { it.videos.isNotEmpty() }
                 if (nonEmpty.isNotEmpty()) {
