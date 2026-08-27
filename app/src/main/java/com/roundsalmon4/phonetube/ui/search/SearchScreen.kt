@@ -331,6 +331,29 @@ fun SearchScreen(
                                 )
                             }
                         }
+                        if (state.peerTubeChannels.isNotEmpty()) {
+                            item(key = "peertube-channels-header") {
+                                Text(
+                                    "PeerTube Channels",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                            items(state.peerTubeChannels, key = { "ptch-${it.channelId}" }) { channel ->
+                                ChannelCard(
+                                    channel = channel,
+                                    onClick = { onChannelClick(channel.channelId) },
+                                    isSubscribed = channel.channelId in subscribedChannels,
+                                    onSubscribe = { channelId ->
+                                        if (channelId in subscribedChannels) {
+                                            viewModel.unsubscribeFromChannel(channelId)
+                                        } else {
+                                            viewModel.subscribeToChannel(channelId, channel.name, channel.thumbnailUrl)
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }

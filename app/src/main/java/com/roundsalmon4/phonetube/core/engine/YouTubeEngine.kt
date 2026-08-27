@@ -262,66 +262,113 @@ class YouTubeEngine @Inject constructor(
         emit(suggestions)
     }.flowOn(Dispatchers.IO)
 
-    suspend fun getPeerTubeSearchResults(query: String, host: String): List<Video> {
-        return try {
-            withContext(Dispatchers.IO) {
-                val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
-                val connection = java.net.URL("https://$host/api/v1/search/videos?search=$encodedQuery&count=20")
-                    .openConnection() as java.net.HttpURLConnection
-                try {
-                    connection.requestMethod = "GET"
-                    connection.connectTimeout = 10_000
-                    connection.readTimeout = 15_000
-                    connection.setRequestProperty("User-Agent", "Mozilla/5.0")
-                    connection.setRequestProperty("Accept", "application/json")
-                    val status = connection.responseCode
-                    Log.d(TAG, "getPeerTubeSearchResults($host): HTTP $status")
-                    if (status !in 200..399) {
-                        Log.w(TAG, "getPeerTubeSearchResults($host): HTTP error $status")
-                        return@withContext emptyList()
-                    }
-                    val json = connection.inputStream.bufferedReader().use { it.readText() }
-                    val root = org.json.JSONObject(json)
-                    val array = root.optJSONArray("data") ?: org.json.JSONArray()
-                    val results = mutableListOf<Video>()
-                    for (i in 0 until array.length()) {
-                        val obj = array.getJSONObject(i)
-                        val videoId = obj.optString("uuid", "")
-                        if (videoId.isBlank()) continue
-                        val channel = obj.optJSONObject("channel")
-                        val account = obj.optJSONObject("account")
-                        val author = channel?.optString("displayName", "")
-                            ?.takeIf { it.isNotBlank() }
-                            ?: account?.optString("displayName", "").orEmpty()
-                        val channelId = channel?.optString("name", "")
-                            ?.takeIf { it.isNotBlank() }
-                            ?: account?.optString("name", "").orEmpty()
-                        results.add(
-                            Video(
-                                videoId = videoId,
-                                title = obj.optString("name", ""),
-                                author = author,
-                                channelId = channelId,
-                                thumbnailUrl = "https://$host${obj.optString("thumbnailPath", "")}",
-                                durationMs = obj.optLong("duration", 0L) * 1000,
-                                viewCount = obj.optLong("views", 0L).toString(),
-                                publishedDate = 0L,
-                                percentWatched = 0,
-                                source = host
-                            )
-                        )
-                    }
-                    Log.d(TAG, "getPeerTubeSearchResults($host): ${results.size} videos from ${array.length()} items")
-                    results
-                } finally {
-                    connection.disconnect()
+    suspend fun getPeerTubeSearchResults(query: String, host: String, localOnly: Boolean = true): PeerTubeSearchResult {
+        val videos = fetchPeerTubeSearchVideos(query, host, localOnly)
+        val channels = fetchPeerTubeSearchChannels(query, host, localOnly)
+        Log.d(TAG, "getPeerTubeSearchResults($host): ${videos.size} videos, ${channels.size} channels")
+        return PeerTubeSearchResult(videos, channels)
+    }
+
+    private suspend fun fetchPeerTubeSearchVideos(
+        query: String,
+        host: String,
+        localOnly: Boolean
+    ): List<Video> = withContext(Dispatchers.IO) {
+        try {
+            val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
+            val target = if (localOnly) "&search_target=local" else ""
+            val connection = java.net.URL("https://$host/api/v1/search/videos?search=$encodedQuery&count=50$target")
+                .openConnection() as java.net.HttpURLConnection
+            try {
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 10_000
+                connection.readTimeout = 15_000
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                connection.setRequestProperty("Accept", "application/json")
+                val status = connection.responseCode
+                Log.d(TAG, "fetchPeerTubeSearchVideos($host): HTTP $status")
+                if (status !in 200..399) {
+                    Log.w(TAG, "fetchPeerTubeSearchVideos($host): HTTP error $status")
+                    return@withContext emptyList()
                 }
+                val json = connection.inputStream.bufferedReader().use { it.readText() }
+                val root = org.json.JSONObject(json)
+                val array = root.optJSONArray("data") ?: org.json.JSONArray()
+                val results = mutableListOf<Video>()
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    val video = obj.toPeerTubeVideo(host)
+                    if (video != null) results.add(video)
+                }
+                Log.d(TAG, "fetchPeerTubeSearchVideos($host): ${results.size} videos from ${array.length()} items")
+                results
+            } finally {
+                connection.disconnect()
             }
         } catch (e: Exception) {
-            Log.e(TAG, "getPeerTubeSearchResults($host) failed", e)
+            Log.e(TAG, "fetchPeerTubeSearchVideos($host) failed", e)
             emptyList()
         }
     }
+
+    private suspend fun fetchPeerTubeSearchChannels(
+        query: String,
+        host: String,
+        localOnly: Boolean
+    ): List<SearchChannel> = withContext(Dispatchers.IO) {
+        try {
+            val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
+            val target = if (localOnly) "&search_target=local" else ""
+            val connection = java.net.URL("https://$host/api/v1/search/video-channels?search=$encodedQuery&count=50$target")
+                .openConnection() as java.net.HttpURLConnection
+            try {
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 10_000
+                connection.readTimeout = 15_000
+                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                connection.setRequestProperty("Accept", "application/json")
+                val status = connection.responseCode
+                Log.d(TAG, "fetchPeerTubeSearchChannels($host): HTTP $status")
+                if (status !in 200..399) {
+                    Log.w(TAG, "fetchPeerTubeSearchChannels($host): HTTP error $status")
+                    return@withContext emptyList()
+                }
+                val json = connection.inputStream.bufferedReader().use { it.readText() }
+                val root = org.json.JSONObject(json)
+                val array = root.optJSONArray("data") ?: org.json.JSONArray()
+                val results = mutableListOf<SearchChannel>()
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    val name = obj.optString("name", "")
+                    if (name.isBlank()) continue
+                    val avatars = obj.optJSONArray("avatars")
+                    val avatar = if (avatars != null && avatars.length() > 0) {
+                        val path = avatars.getJSONObject(0).optString("path", "")
+                        path.ifBlank { null }?.let { "https://$host$it" }
+                    } else null
+                    results.add(
+                        SearchChannel(
+                            channelId = "peertube:$host:${name.removePrefix("peertube:")}",
+                            name = obj.optString("displayName", "").ifBlank { name },
+                            thumbnailUrl = avatar
+                        )
+                    )
+                }
+                Log.d(TAG, "fetchPeerTubeSearchChannels($host): ${results.size} channels")
+                results
+            } finally {
+                connection.disconnect()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchPeerTubeSearchChannels($host) failed", e)
+            emptyList()
+        }
+    }
+
+    data class PeerTubeSearchResult(
+        val videos: List<Video>,
+        val channels: List<SearchChannel>
+    )
 
     fun getChannel(channelId: String): Flow<ChannelResult> = flow {
         try {

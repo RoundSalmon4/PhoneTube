@@ -329,10 +329,19 @@ fun PlayerScreen(
                                 TextButton(onClick = { viewModel.showAddToPlaylist() }) {
                                     Text("Add to playlist")
                                 }
-                                val channelId = state.streamInfo.channelId
-                                if (channelId.isNotBlank() && onChannelClick != null) {
-                                    TextButton(onClick = { onChannelClick(channelId) }) {
-                                        Text("Go to channel")
+                                val rawChannelId = state.streamInfo.channelId
+                                if (rawChannelId.isNotBlank() && onChannelClick != null) {
+                                    val channelId = if (videoId.startsWith("peertube:")) {
+                                        videoId.removePrefix("peertube:").substringBefore(":").let { host ->
+                                            if (host.isNotBlank()) "peertube:$host:${rawChannelId.removePrefix("peertube:")}" else rawChannelId
+                                        }
+                                    } else {
+                                        rawChannelId
+                                    }
+                                    if (channelId.isNotBlank()) {
+                                        TextButton(onClick = { onChannelClick(channelId) }) {
+                                            Text("Go to channel")
+                                        }
                                     }
                                 }
                             }

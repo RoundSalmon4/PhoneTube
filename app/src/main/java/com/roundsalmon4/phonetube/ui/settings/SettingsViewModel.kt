@@ -104,6 +104,9 @@ class SettingsViewModel @Inject constructor(
                 colorSchemeMode = prefs.colorSchemeMode,
                 videoSearchLimit = prefs.videoSearchLimit,
                 channelSearchLimit = prefs.channelSearchLimit,
+                peerTubeVideoSearchLimit = prefs.peerTubeVideoSearchLimit,
+                peerTubeChannelSearchLimit = prefs.peerTubeChannelSearchLimit,
+                peerTubeSearchLocalOnly = prefs.peerTubeSearchLocalOnly,
                 pipEnabled = prefs.pipEnabled,
                 openLinksIn = prefs.openLinksIn,
                 playlistSearchLimit = prefs.playlistSearchLimit,
@@ -190,6 +193,9 @@ class SettingsViewModel @Inject constructor(
                     playerPreferences.setColorSchemeMode(p.colorSchemeMode)
                     playerPreferences.setVideoSearchLimit(p.videoSearchLimit)
                     playerPreferences.setChannelSearchLimit(p.channelSearchLimit)
+                    playerPreferences.setPeerTubeVideoSearchLimit(p.peerTubeVideoSearchLimit)
+                    playerPreferences.setPeerTubeChannelSearchLimit(p.peerTubeChannelSearchLimit)
+                    playerPreferences.setPeerTubeSearchLocalOnly(p.peerTubeSearchLocalOnly)
                     playerPreferences.setPiPEnabled(p.pipEnabled)
                     playerPreferences.setOpenLinksIn(p.openLinksIn)
                     playerPreferences.setPlaylistSearchLimit(p.playlistSearchLimit)
@@ -327,6 +333,18 @@ class SettingsViewModel @Inject constructor(
 
     fun setPlaylistSearchLimit(limit: Int) = viewModelScope.launch {
         playerPreferences.setPlaylistSearchLimit(limit)
+    }
+
+    fun setPeerTubeVideoSearchLimit(limit: Int) = viewModelScope.launch {
+        playerPreferences.setPeerTubeVideoSearchLimit(limit)
+    }
+
+    fun setPeerTubeChannelSearchLimit(limit: Int) = viewModelScope.launch {
+        playerPreferences.setPeerTubeChannelSearchLimit(limit)
+    }
+
+    fun setPeerTubeSearchLocalOnly(enabled: Boolean) = viewModelScope.launch {
+        playerPreferences.setPeerTubeSearchLocalOnly(enabled)
     }
 
     fun setPiPEnabled(enabled: Boolean) = viewModelScope.launch {

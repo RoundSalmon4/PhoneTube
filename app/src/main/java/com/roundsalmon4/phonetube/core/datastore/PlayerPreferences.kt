@@ -47,6 +47,9 @@ private object Keys {
     val VIDEO_SEARCH_LIMIT = intPreferencesKey("video_search_limit")
     val CHANNEL_SEARCH_LIMIT = intPreferencesKey("channel_search_limit")
     val PLAYLIST_SEARCH_LIMIT = intPreferencesKey("playlist_search_limit")
+    val PEERTUBE_VIDEO_SEARCH_LIMIT = intPreferencesKey("peertube_video_search_limit")
+    val PEERTUBE_CHANNEL_SEARCH_LIMIT = intPreferencesKey("peertube_channel_search_limit")
+    val PEERTUBE_SEARCH_LOCAL_ONLY = booleanPreferencesKey("peertube_search_local_only")
     val PIP_ENABLED = booleanPreferencesKey("pip_enabled")
     val OPEN_LINKS_IN = stringPreferencesKey("open_links_in")
     val FEED_ORDER = stringPreferencesKey("feed_order")
@@ -83,6 +86,9 @@ data class PreferencesUiState(
     val videoSearchLimit: Int = 50,
     val channelSearchLimit: Int = 20,
     val playlistSearchLimit: Int = 10,
+    val peerTubeVideoSearchLimit: Int = 10,
+    val peerTubeChannelSearchLimit: Int = 10,
+    val peerTubeSearchLocalOnly: Boolean = true,
     val pipEnabled: Boolean = true,
     val openLinksIn: String = "browser", // "browser" or "webview"
     val feedOrder: List<String> = PlayerPreferences.DEFAULT_FEED_ORDER,
@@ -125,6 +131,9 @@ class PlayerPreferences @Inject constructor(
             videoSearchLimit = prefs[Keys.VIDEO_SEARCH_LIMIT] ?: 50,
             channelSearchLimit = prefs[Keys.CHANNEL_SEARCH_LIMIT] ?: 20,
             playlistSearchLimit = prefs[Keys.PLAYLIST_SEARCH_LIMIT] ?: 10,
+            peerTubeVideoSearchLimit = prefs[Keys.PEERTUBE_VIDEO_SEARCH_LIMIT] ?: 10,
+            peerTubeChannelSearchLimit = prefs[Keys.PEERTUBE_CHANNEL_SEARCH_LIMIT] ?: 10,
+            peerTubeSearchLocalOnly = prefs[Keys.PEERTUBE_SEARCH_LOCAL_ONLY] ?: true,
             pipEnabled = prefs[Keys.PIP_ENABLED] ?: true,
             openLinksIn = prefs[Keys.OPEN_LINKS_IN] ?: "browser",
             feedOrder = parseFeedOrder(prefs[Keys.FEED_ORDER]),
@@ -242,6 +251,21 @@ class PlayerPreferences @Inject constructor(
 
     suspend fun setPlaylistSearchLimit(limit: Int) {
         context.playerDataStore.edit { it[Keys.PLAYLIST_SEARCH_LIMIT] = limit }
+    }
+
+    suspend fun setPeerTubeVideoSearchLimit(limit: Int) {
+        Log.d(TAG, "setPeerTubeVideoSearchLimit: $limit")
+        context.playerDataStore.edit { it[Keys.PEERTUBE_VIDEO_SEARCH_LIMIT] = limit }
+    }
+
+    suspend fun setPeerTubeChannelSearchLimit(limit: Int) {
+        Log.d(TAG, "setPeerTubeChannelSearchLimit: $limit")
+        context.playerDataStore.edit { it[Keys.PEERTUBE_CHANNEL_SEARCH_LIMIT] = limit }
+    }
+
+    suspend fun setPeerTubeSearchLocalOnly(enabled: Boolean) {
+        Log.d(TAG, "setPeerTubeSearchLocalOnly: $enabled")
+        context.playerDataStore.edit { it[Keys.PEERTUBE_SEARCH_LOCAL_ONLY] = enabled }
     }
 
     suspend fun setPiPEnabled(enabled: Boolean) {

@@ -80,6 +80,7 @@ class SearchViewModel @Inject constructor(
     private var allChannels: List<SearchChannel> = emptyList()
     private var allPlaylists: List<SearchPlaylist> = emptyList()
     private var allPeerTubeVideos: List<Video> = emptyList()
+    private var allPeerTubeChannels: List<SearchChannel> = emptyList()
     private var suggestionJob: Job? = null
 
     init {
@@ -219,19 +220,26 @@ class SearchViewModel @Inject constructor(
                 SearchFilter.ALL, SearchFilter.PLAYLISTS -> allPlaylists.take(prefs.playlistSearchLimit)
                 else -> emptyList()
             }
-            val filteredPeerTube = when (_filter.value) {
-                SearchFilter.ALL, SearchFilter.VIDEOS, SearchFilter.PEERTUBE -> allPeerTubeVideos
+            val filteredPeerTubeVideos = when (_filter.value) {
+                SearchFilter.ALL, SearchFilter.VIDEOS, SearchFilter.PEERTUBE -> allPeerTubeVideos.take(prefs.peerTubeVideoSearchLimit)
                 SearchFilter.CHANNELS, SearchFilter.PLAYLISTS -> emptyList()
             }
+            val filteredPeerTubeChannels = when (_filter.value) {
+                SearchFilter.ALL, SearchFilter.CHANNELS, SearchFilter.PEERTUBE -> allPeerTubeChannels.take(prefs.peerTubeChannelSearchLimit)
+                SearchFilter.VIDEOS, SearchFilter.PLAYLISTS -> emptyList()
+            }
 
-            if (filteredVideos.isEmpty() && filteredChannels.isEmpty() && filteredPlaylists.isEmpty() && filteredPeerTube.isEmpty()) {
+            if (filteredVideos.isEmpty() && filteredChannels.isEmpty() && filteredPlaylists.isEmpty() &&
+                filteredPeerTubeVideos.isEmpty() && filteredPeerTubeChannels.isEmpty()
+            ) {
                 _uiState.value = SearchUiState.Empty
             } else {
                 _uiState.value = SearchUiState.Results(
                     videos = filteredVideos,
                     channels = filteredChannels,
                     playlists = filteredPlaylists,
-                    peerTubeVideos = filteredPeerTube
+                    peerTubeVideos = filteredPeerTubeVideos,
+                    peerTubeChannels = filteredPeerTubeChannels
                 )
             }
         }
@@ -334,6 +342,7 @@ class SearchViewModel @Inject constructor(
             allChannels = emptyList()
             allPlaylists = emptyList()
             allPeerTubeVideos = emptyList()
+            allPeerTubeChannels = emptyList()
 
             var youtubeError: String? = null
 
@@ -352,14 +361,15 @@ class SearchViewModel @Inject constructor(
                 val instances = withContext(Dispatchers.IO) {
                     invidiousDao.getEnabledSync()
                 }
-                Log.d(TAG, "PeerTube search: ${instances.size} enabled instances")
+                val localOnly = playerPreferences.uiState.first().peerTubeSearchLocalOnly
+                Log.d(TAG, "PeerTube search: ${instances.size} enabled instances, localOnly=$localOnly")
                 if (instances.isNotEmpty()) {
                     instances.map { instance ->
                         async {
                             Log.d(TAG, "PeerTube search: querying ${instance.host}")
-                            engine.getPeerTubeSearchResults(query, instance.host)
+                            engine.getPeerTubeSearchResults(query, instance.host, localOnly)
                         }
-                    }.awaitAll().flatten().distinctBy { it.videoId }
+                    }.awaitAll()
                 } else {
                     emptyList()
                 }
@@ -367,10 +377,11 @@ class SearchViewModel @Inject constructor(
                 Log.e(TAG, "PeerTube search failed", e)
                 emptyList()
             }
-            Log.d(TAG, "PeerTube search: got ${peerTubeResults.size} results")
-            allPeerTubeVideos = peerTubeResults
+            allPeerTubeVideos = peerTubeResults.flatMap { it.videos }.distinctBy { it.videoId }
+            allPeerTubeChannels = peerTubeResults.flatMap { it.channels }.distinctBy { it.channelId }
+            Log.d(TAG, "PeerTube search: got ${allPeerTubeVideos.size} videos, ${allPeerTubeChannels.size} channels")
 
-            if (youtubeError != null && allVideos.isEmpty() && allPeerTubeVideos.isEmpty()) {
+            if (youtubeError != null && allVideos.isEmpty() && allPeerTubeVideos.isEmpty() && allPeerTubeChannels.isEmpty()) {
                 _uiState.value = SearchUiState.Error(youtubeError!!)
             } else {
                 applyFilter()
@@ -388,7 +399,8 @@ sealed interface SearchUiState {
         val videos: List<Video>,
         val channels: List<SearchChannel>,
         val playlists: List<SearchPlaylist> = emptyList(),
-        val peerTubeVideos: List<Video> = emptyList()
+        val peerTubeVideos: List<Video> = emptyList(),
+        val peerTubeChannels: List<SearchChannel> = emptyList()
     ) : SearchUiState
 }
 

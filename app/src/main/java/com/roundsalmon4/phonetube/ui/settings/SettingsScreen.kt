@@ -615,6 +615,72 @@ private fun SearchSection(uiState: PreferencesUiState, viewModel: SettingsViewMo
             }
         }
 
+        // PeerTube search limits (separate from YouTube limits)
+        SettingsCategory("PeerTube Search")
+
+        var ptVideoLimitExpanded by remember { mutableStateOf(false) }
+        val currentPtVideoLimit = uiState.peerTubeVideoSearchLimit
+
+        ExposedDropdownMenuBox(
+            expanded = ptVideoLimitExpanded,
+            onExpandedChange = { ptVideoLimitExpanded = it }
+        ) {
+            OutlinedTextField(
+                value = "$currentPtVideoLimit results",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("PeerTube Video Results Limit") },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = ptVideoLimitExpanded) }
+            )
+            ExposedDropdownMenu(expanded = ptVideoLimitExpanded, onDismissRequest = { ptVideoLimitExpanded = false }) {
+                listOf(5, 10, 20, 30, 50).forEach { limit ->
+                    DropdownMenuItem(
+                        text = { Text("$limit results") },
+                        onClick = {
+                            viewModel.setPeerTubeVideoSearchLimit(limit)
+                            ptVideoLimitExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        var ptChannelLimitExpanded by remember { mutableStateOf(false) }
+        val currentPtChannelLimit = uiState.peerTubeChannelSearchLimit
+
+        ExposedDropdownMenuBox(
+            expanded = ptChannelLimitExpanded,
+            onExpandedChange = { ptChannelLimitExpanded = it }
+        ) {
+            OutlinedTextField(
+                value = "$currentPtChannelLimit results",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("PeerTube Channel Results Limit") },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp).menuAnchor(MenuAnchorType.PrimaryNotEditable),
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = ptChannelLimitExpanded) }
+            )
+            ExposedDropdownMenu(expanded = ptChannelLimitExpanded, onDismissRequest = { ptChannelLimitExpanded = false }) {
+                listOf(5, 10, 20, 30, 50).forEach { limit ->
+                    DropdownMenuItem(
+                        text = { Text("$limit results") },
+                        onClick = {
+                            viewModel.setPeerTubeChannelSearchLimit(limit)
+                            ptChannelLimitExpanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        SwitchItem(
+            name = "Search Local Instance Only",
+            description = "Only return results published on the configured PeerTube instance (excludes federated content)",
+            checked = uiState.peerTubeSearchLocalOnly,
+            onCheckedChange = { viewModel.setPeerTubeSearchLocalOnly(it) }
+        )
+
         SwitchItem(
             name = "Duplicate Playlist Warning",
             description = "Ask before saving a playlist that is already in your library",
