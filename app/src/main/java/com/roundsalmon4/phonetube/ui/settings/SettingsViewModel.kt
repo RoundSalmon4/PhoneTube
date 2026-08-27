@@ -245,7 +245,6 @@ class SettingsViewModel @Inject constructor(
                     Log.d(TAG, "importFromJson: importing ${data.invidiousInstances.size} invidious instances")
                     for (inst in data.invidiousInstances) {
                         invidiousDao.insert(
-                        invidiousDao.insert(
                             InvidiousInstance(
                                 host = inst.host,
                                 name = inst.name,
