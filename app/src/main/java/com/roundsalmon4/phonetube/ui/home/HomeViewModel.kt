@@ -213,15 +213,31 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun fetchInvidiousFeed(): com.roundsalmon4.phonetube.core.engine.model.HomeFeed? {
         return try {
-            val instances = kotlinx.coroutines.withContext(Dispatchers.IO) {
+            val instances = withContext(Dispatchers.IO) {
                 invidiousDao.getEnabledSync()
             }
+            Log.d(TAG, "fetchInvidiousFeed: ${instances.size} enabled instances")
             if (instances.isEmpty()) return null
             val instance = instances.first()
-            val json = kotlinx.coroutines.withContext(Dispatchers.IO) {
-                java.net.URL("https://${instance.host}/api/v1/trending").readText()
-            }
+            Log.d(TAG, "fetchInvidiousFeed: fetching trending from ${instance.host}")
+            val json = withContext(Dispatchers.IO) {
+                val connection = java.net.URL("https://${instance.host}/api/v1/trending")
+                    .openConnection() as java.net.HttpURLConnection
+                try {
+                    connection.requestMethod = "GET"
+                    connection.connectTimeout = 10_000
+                    connection.readTimeout = 15_000
+                    if (connection.responseCode != 200) {
+                        Log.w(TAG, "fetchInvidiousFeed: HTTP ${connection.responseCode} from ${instance.host}")
+                        return@withContext null
+                    }
+                    connection.inputStream.bufferedReader().use { it.readText() }
+                } finally {
+                    connection.disconnect()
+                }
+            } ?: return null
             val array = org.json.JSONArray(json)
+            Log.d(TAG, "fetchInvidiousFeed: got ${array.length()} items from ${instance.host}")
             val videos = (0 until array.length()).mapNotNull { i ->
                 val obj = array.getJSONObject(i)
                 val vidId = obj.optString("videoId", "")
@@ -238,14 +254,19 @@ class HomeViewModel @Inject constructor(
                     percentWatched = 0
                 )
             }.take(20)
-            if (videos.isNullOrEmpty()) null
-            else com.roundsalmon4.phonetube.core.engine.model.HomeFeed(
-                sections = listOf(com.roundsalmon4.phonetube.core.engine.model.HomeSection(
-                    title = "Invidious",
-                    videos = videos,
-                    source = "Invidious"
-                ))
-            )
+            if (videos.isEmpty()) {
+                Log.d(TAG, "fetchInvidiousFeed: no valid videos from ${instance.host}")
+                null
+            } else {
+                Log.d(TAG, "fetchInvidiousFeed: returning ${videos.size} videos")
+                com.roundsalmon4.phonetube.core.engine.model.HomeFeed(
+                    sections = listOf(com.roundsalmon4.phonetube.core.engine.model.HomeSection(
+                        title = "Invidious",
+                        videos = videos,
+                        source = "Invidious"
+                    ))
+                )
+            }
         } catch (e: Exception) {
             Log.e(TAG, "fetchInvidiousFeed failed", e)
             null

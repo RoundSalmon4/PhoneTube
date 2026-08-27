@@ -148,7 +148,9 @@ class PlayerPreferences @Inject constructor(
 
     private fun parseFeedOrder(raw: String?): List<String> {
         if (raw.isNullOrBlank()) return PlayerPreferences.DEFAULT_FEED_ORDER
-        return raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        val saved = raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        val allKeys = PlayerPreferences.DEFAULT_FEED_ORDER
+        return saved.filter { it in allKeys } + allKeys.filter { it !in saved }
     }
 
     private fun serializeFeedOrder(order: List<String>): String = order.joinToString(",")

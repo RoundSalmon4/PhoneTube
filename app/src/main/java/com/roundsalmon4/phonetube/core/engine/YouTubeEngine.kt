@@ -300,6 +300,7 @@ class YouTubeEngine @Inject constructor(
                             )
                         )
                     }
+                    Log.d(TAG, "getInvidiousSearchResults($host): ${results.size} videos from ${array.length()} items")
                     results
                 } finally {
                     connection.disconnect()

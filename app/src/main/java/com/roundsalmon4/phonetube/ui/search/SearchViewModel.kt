@@ -352,9 +352,11 @@ class SearchViewModel @Inject constructor(
                 val instances = withContext(Dispatchers.IO) {
                     invidiousDao.getEnabledSync()
                 }
+                Log.d(TAG, "Invidious search: ${instances.size} enabled instances")
                 if (instances.isNotEmpty()) {
                     instances.map { instance ->
                         async {
+                            Log.d(TAG, "Invidious search: querying ${instance.host}")
                             engine.getInvidiousSearchResults(query, instance.host)
                         }
                     }.awaitAll().flatten().distinctBy { it.videoId }
@@ -365,6 +367,7 @@ class SearchViewModel @Inject constructor(
                 Log.e(TAG, "Invidious search failed", e)
                 emptyList()
             }
+            Log.d(TAG, "Invidious search: got ${invidiousResults.size} results")
             allInvidiousVideos = invidiousResults
 
             if (youtubeError != null && allVideos.isEmpty() && allInvidiousVideos.isEmpty()) {
