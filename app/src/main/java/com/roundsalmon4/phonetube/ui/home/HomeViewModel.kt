@@ -26,6 +26,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -210,14 +211,16 @@ class HomeViewModel @Inject constructor(
             // reference a different host, so fetch them independently.
             val peerTubeVideos = if (peerTubeChannels.isNotEmpty()) {
                 Log.d(TAG, "fetchSubscriptionsFeed: fetching ${peerTubeChannels.size} PeerTube channels")
-                peerTubeChannels.take(5).map { sub ->
-                    val host = sub.channelId.removePrefix("peertube:").substringBefore(":")
-                    val name = sub.channelId.removePrefix("peertube:").substringAfter(":", "")
-                    async {
-                        Log.d(TAG, "fetchSubscriptionsFeed: peerTubeHost=$host peerTubeChannel=$name")
-                        engine.getPeerTubeChannelFeed(host, name)
-                    }
-                }.awaitAll().flatten().distinctBy { it.videoId }
+                coroutineScope {
+                    peerTubeChannels.take(5).map { sub ->
+                        val host = sub.channelId.removePrefix("peertube:").substringBefore(":")
+                        val name = sub.channelId.removePrefix("peertube:").substringAfter(":", "")
+                        async {
+                            Log.d(TAG, "fetchSubscriptionsFeed: peerTubeHost=$host peerTubeChannel=$name")
+                            engine.getPeerTubeChannelFeed(host, name)
+                        }
+                    }.awaitAll().flatten().distinctBy { it.videoId }
+                }
             } else {
                 emptyList()
             }
