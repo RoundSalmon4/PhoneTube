@@ -206,12 +206,18 @@ class HomeViewModel @Inject constructor(
                 emptyList()
             }
 
-            // Fetch PeerTube channel videos in parallel
+            // Fetch PeerTube channel videos in parallel. Each subscription may
+            // reference a different host, so fetch them independently.
             val peerTubeVideos = if (peerTubeChannels.isNotEmpty()) {
-                val host = peerTubeChannels.first().channelId.removePrefix("peertube:").substringBefore(":")
-                val name = peerTubeChannels.first().channelId.removePrefix("peertube:").substringAfter(":", "")
-                Log.d(TAG, "fetchSubscriptionsFeed: peerTubeHost=$host peerTubeChannel=$name")
-                engine.getPeerTubeChannelFeed(host, name)
+                Log.d(TAG, "fetchSubscriptionsFeed: fetching ${peerTubeChannels.size} PeerTube channels")
+                peerTubeChannels.take(5).map { sub ->
+                    val host = sub.channelId.removePrefix("peertube:").substringBefore(":")
+                    val name = sub.channelId.removePrefix("peertube:").substringAfter(":", "")
+                    async {
+                        Log.d(TAG, "fetchSubscriptionsFeed: peerTubeHost=$host peerTubeChannel=$name")
+                        engine.getPeerTubeChannelFeed(host, name)
+                    }
+                }.awaitAll().flatten().distinctBy { it.videoId }
             } else {
                 emptyList()
             }
@@ -240,9 +246,12 @@ class HomeViewModel @Inject constructor(
             Log.d(TAG, "fetchPeerTubeFeed: ${instances.size} enabled instances")
             if (instances.isEmpty()) return null
             val instance = instances.first()
-            Log.d(TAG, "fetchPeerTubeFeed: fetching latest videos from ${instance.host}")
+            val prefs = playerPreferences.uiState.first()
+            val localOnly = prefs.peerTubeSearchLocalOnly
+            val localSuffix = if (localOnly) "&isLocal=true" else ""
+            Log.d(TAG, "fetchPeerTubeFeed: fetching latest videos from ${instance.host} (localOnly=$localOnly)")
             val json = withContext(Dispatchers.IO) {
-                val connection = java.net.URL("https://${instance.host}/api/v1/videos?sort=-publishedAt&count=12")
+                val connection = java.net.URL("https://${instance.host}/api/v1/videos?sort=-publishedAt&count=12$localSuffix")
                     .openConnection() as java.net.HttpURLConnection
                 try {
                     connection.requestMethod = "GET"
