@@ -259,15 +259,15 @@ fun SearchScreen(
                                 onLongClick = { longPressedVideo = video }
                             )
                         }
-                        if (state.invidiousVideos.isNotEmpty()) {
-                            item(key = "invidious-header") {
+                        if (state.peerTubeVideos.isNotEmpty()) {
+                            item(key = "peertube-header") {
                                 Text(
-                                    "Invidious",
+                                    "PeerTube",
                                     style = MaterialTheme.typography.titleMedium,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                                 )
                             }
-                            items(state.invidiousVideos, key = { "inv-${it.videoId}" }) { video ->
+                            items(state.peerTubeVideos, key = { "pt-${it.videoId}" }) { video ->
                                 VideoCard(
                                     video = video,
                                     onClick = { onVideoClick(video.videoId) },
@@ -356,7 +356,7 @@ private fun FilterChips(filter: SearchFilter, onFilterChange: (SearchFilter) -> 
                 SearchFilter.VIDEOS -> "Videos"
                 SearchFilter.CHANNELS -> "Channels"
                 SearchFilter.PLAYLISTS -> "Playlists"
-                SearchFilter.INVIDIOUS -> "Invidious"
+                SearchFilter.PEERTUBE -> "PeerTube"
             }
             FilterChip(
                 selected = filter == entry,

@@ -20,7 +20,6 @@ import androidx.lifecycle.lifecycleScope
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.core.engine.YouTubeInitializer
-import com.roundsalmon4.phonetube.core.engine.YouTubeUrlParser
 import com.roundsalmon4.phonetube.player.PlayerEngineController
 import com.roundsalmon4.phonetube.player.PlayerStateManager
 import com.roundsalmon4.phonetube.ui.navigation.AppNavigation
@@ -52,8 +51,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         requestNotificationPermission()
-        // Configure Invidious-compatible hosts before processing any deep links
-        configureInvidiousHosts()
         lifecycleScope.launch {
             youtubeInitializer.warmup()
         }
@@ -120,14 +117,6 @@ class MainActivity : ComponentActivity() {
         playerStateManager.isPlayerScreenVisible = isInPictureInPictureMode
     }
 
-    private fun configureInvidiousHosts() {
-        val raw = getSharedPreferences("phonetube_prefs", MODE_PRIVATE)
-            .getString("invidious_hosts", null)
-        val hosts = raw?.split(",")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
-        android.util.Log.d("PhoneTube", "configureInvidiousHosts: raw='$raw', parsed ${hosts.size} hosts: $hosts")
-        YouTubeUrlParser.configureInvidiousHosts(hosts)
-    }
-
     private fun handleIntent(intent: Intent) {
         val uri = intent.data ?: return
         if (isSupportedUrl(uri)) {
@@ -139,7 +128,6 @@ class MainActivity : ComponentActivity() {
         val scheme = uri.scheme?.lowercase()
         if (scheme == "vnd.youtube" || scheme == "vnd.youtube.launch") return true
         val host = uri.host?.lowercase() ?: return false
-        if (YouTubeUrlParser.isInvidiousHost(host)) return true
         return host == "youtube.com" ||
             host == "m.youtube.com" ||
             host == "www.youtube.com" ||

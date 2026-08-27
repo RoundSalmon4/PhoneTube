@@ -28,5 +28,5 @@ enum class SearchFilter {
     VIDEOS,
     CHANNELS,
     PLAYLISTS,
-    INVIDIOUS
+    PEERTUBE
 }

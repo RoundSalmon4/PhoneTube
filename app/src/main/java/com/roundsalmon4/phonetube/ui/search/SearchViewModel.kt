@@ -79,7 +79,7 @@ class SearchViewModel @Inject constructor(
     private var allVideos: List<Video> = emptyList()
     private var allChannels: List<SearchChannel> = emptyList()
     private var allPlaylists: List<SearchPlaylist> = emptyList()
-    private var allInvidiousVideos: List<Video> = emptyList()
+    private var allPeerTubeVideos: List<Video> = emptyList()
     private var suggestionJob: Job? = null
 
     init {
@@ -208,30 +208,30 @@ class SearchViewModel @Inject constructor(
             val prefs = playerPreferences.uiState.first()
             val filteredVideos = when (_filter.value) {
                 SearchFilter.ALL, SearchFilter.VIDEOS -> allVideos.take(prefs.videoSearchLimit)
-                SearchFilter.INVIDIOUS -> emptyList()
+                SearchFilter.PEERTUBE -> emptyList()
                 SearchFilter.CHANNELS, SearchFilter.PLAYLISTS -> emptyList()
             }
             val filteredChannels = when (_filter.value) {
                 SearchFilter.ALL, SearchFilter.CHANNELS -> allChannels.take(prefs.channelSearchLimit)
-                SearchFilter.VIDEOS, SearchFilter.PLAYLISTS, SearchFilter.INVIDIOUS -> emptyList()
+                SearchFilter.VIDEOS, SearchFilter.PLAYLISTS, SearchFilter.PEERTUBE -> emptyList()
             }
             val filteredPlaylists = when (_filter.value) {
                 SearchFilter.ALL, SearchFilter.PLAYLISTS -> allPlaylists.take(prefs.playlistSearchLimit)
                 else -> emptyList()
             }
-            val filteredInvidious = when (_filter.value) {
-                SearchFilter.ALL, SearchFilter.VIDEOS, SearchFilter.INVIDIOUS -> allInvidiousVideos
+            val filteredPeerTube = when (_filter.value) {
+                SearchFilter.ALL, SearchFilter.VIDEOS, SearchFilter.PEERTUBE -> allPeerTubeVideos
                 SearchFilter.CHANNELS, SearchFilter.PLAYLISTS -> emptyList()
             }
 
-            if (filteredVideos.isEmpty() && filteredChannels.isEmpty() && filteredPlaylists.isEmpty() && filteredInvidious.isEmpty()) {
+            if (filteredVideos.isEmpty() && filteredChannels.isEmpty() && filteredPlaylists.isEmpty() && filteredPeerTube.isEmpty()) {
                 _uiState.value = SearchUiState.Empty
             } else {
                 _uiState.value = SearchUiState.Results(
                     videos = filteredVideos,
                     channels = filteredChannels,
                     playlists = filteredPlaylists,
-                    invidiousVideos = filteredInvidious
+                    peerTubeVideos = filteredPeerTube
                 )
             }
         }
@@ -333,7 +333,7 @@ class SearchViewModel @Inject constructor(
             allVideos = emptyList()
             allChannels = emptyList()
             allPlaylists = emptyList()
-            allInvidiousVideos = emptyList()
+            allPeerTubeVideos = emptyList()
 
             var youtubeError: String? = null
 
@@ -348,29 +348,29 @@ class SearchViewModel @Inject constructor(
                     allPlaylists = result.playlists
                 }
 
-            val invidiousResults = try {
+            val peerTubeResults = try {
                 val instances = withContext(Dispatchers.IO) {
                     invidiousDao.getEnabledSync()
                 }
-                Log.d(TAG, "Invidious search: ${instances.size} enabled instances")
+                Log.d(TAG, "PeerTube search: ${instances.size} enabled instances")
                 if (instances.isNotEmpty()) {
                     instances.map { instance ->
                         async {
-                            Log.d(TAG, "Invidious search: querying ${instance.host}")
-                            engine.getInvidiousSearchResults(query, instance.host)
+                            Log.d(TAG, "PeerTube search: querying ${instance.host}")
+                            engine.getPeerTubeSearchResults(query, instance.host)
                         }
                     }.awaitAll().flatten().distinctBy { it.videoId }
                 } else {
                     emptyList()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Invidious search failed", e)
+                Log.e(TAG, "PeerTube search failed", e)
                 emptyList()
             }
-            Log.d(TAG, "Invidious search: got ${invidiousResults.size} results")
-            allInvidiousVideos = invidiousResults
+            Log.d(TAG, "PeerTube search: got ${peerTubeResults.size} results")
+            allPeerTubeVideos = peerTubeResults
 
-            if (youtubeError != null && allVideos.isEmpty() && allInvidiousVideos.isEmpty()) {
+            if (youtubeError != null && allVideos.isEmpty() && allPeerTubeVideos.isEmpty()) {
                 _uiState.value = SearchUiState.Error(youtubeError!!)
             } else {
                 applyFilter()
@@ -388,7 +388,7 @@ sealed interface SearchUiState {
         val videos: List<Video>,
         val channels: List<SearchChannel>,
         val playlists: List<SearchPlaylist> = emptyList(),
-        val invidiousVideos: List<Video> = emptyList()
+        val peerTubeVideos: List<Video> = emptyList()
     ) : SearchUiState
 }
 

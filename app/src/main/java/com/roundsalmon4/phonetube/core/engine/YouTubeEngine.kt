@@ -262,52 +262,63 @@ class YouTubeEngine @Inject constructor(
         emit(suggestions)
     }.flowOn(Dispatchers.IO)
 
-    suspend fun getInvidiousSearchResults(query: String, host: String): List<Video> {
+    suspend fun getPeerTubeSearchResults(query: String, host: String): List<Video> {
         return try {
             withContext(Dispatchers.IO) {
                 val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
-                val connection = java.net.URL("https://$host/api/v1/search?q=$encodedQuery")
+                val connection = java.net.URL("https://$host/api/v1/search/videos?search=$encodedQuery&count=20")
                     .openConnection() as java.net.HttpURLConnection
                 try {
                     connection.requestMethod = "GET"
                     connection.connectTimeout = 10_000
                     connection.readTimeout = 15_000
-                    if (connection.responseCode != 200) {
-                        Log.w(TAG, "getInvidiousSearchResults($host): HTTP ${connection.responseCode}")
+                    connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                    connection.setRequestProperty("Accept", "application/json")
+                    val status = connection.responseCode
+                    Log.d(TAG, "getPeerTubeSearchResults($host): HTTP $status")
+                    if (status !in 200..399) {
+                        Log.w(TAG, "getPeerTubeSearchResults($host): HTTP error $status")
                         return@withContext emptyList()
                     }
                     val json = connection.inputStream.bufferedReader().use { it.readText() }
-                    val array = org.json.JSONArray(json)
+                    val root = org.json.JSONObject(json)
+                    val array = root.optJSONArray("data") ?: org.json.JSONArray()
                     val results = mutableListOf<Video>()
                     for (i in 0 until array.length()) {
                         val obj = array.getJSONObject(i)
-                        val type = obj.optString("type", "")
-                        if (type != "video") continue
-                        val videoId = obj.optString("videoId", "")
+                        val videoId = obj.optString("uuid", "")
                         if (videoId.isBlank()) continue
+                        val channel = obj.optJSONObject("channel")
+                        val account = obj.optJSONObject("account")
+                        val author = channel?.optString("displayName", "")
+                            ?.takeIf { it.isNotBlank() }
+                            ?: account?.optString("displayName", "").orEmpty()
+                        val channelId = channel?.optString("name", "")
+                            ?.takeIf { it.isNotBlank() }
+                            ?: account?.optString("name", "").orEmpty()
                         results.add(
                             Video(
                                 videoId = videoId,
-                                title = obj.optString("title", ""),
-                                author = obj.optString("author", ""),
-                                channelId = obj.optString("authorId", ""),
+                                title = obj.optString("name", ""),
+                                author = author,
+                                channelId = channelId,
                                 thumbnailUrl = "https://$host${obj.optString("thumbnailPath", "")}",
-                                durationMs = obj.optLong("lengthSeconds", 0L) * 1000,
-                                viewCount = obj.optLong("viewCount", 0L).toString().takeIf { obj.has("viewCount") },
+                                durationMs = obj.optLong("duration", 0L) * 1000,
+                                viewCount = obj.optLong("views", 0L).toString(),
                                 publishedDate = 0L,
                                 percentWatched = 0,
                                 source = host
                             )
                         )
                     }
-                    Log.d(TAG, "getInvidiousSearchResults($host): ${results.size} videos from ${array.length()} items")
+                    Log.d(TAG, "getPeerTubeSearchResults($host): ${results.size} videos from ${array.length()} items")
                     results
                 } finally {
                     connection.disconnect()
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "getInvidiousSearchResults($host) failed", e)
+            Log.e(TAG, "getPeerTubeSearchResults($host) failed", e)
             emptyList()
         }
     }

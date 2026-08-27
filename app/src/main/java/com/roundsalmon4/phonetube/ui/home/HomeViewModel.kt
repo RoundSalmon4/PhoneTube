@@ -67,7 +67,7 @@ class HomeViewModel @Inject constructor(
             "Gaming" to "gaming",
             "Kids" to "kids",
             "Subscriptions" to "subscriptions",
-            "Invidious" to "invidious"
+            "PeerTube" to "invidious"
         )
 
         private fun isFeedEnabled(source: String, prefs: PreferencesUiState): Boolean {
@@ -159,7 +159,7 @@ class HomeViewModel @Inject constructor(
                 if (prefs.feedMusic && shouldRefresh("Music")) newFeeds.add(async { engine.getMusic().firstOrNull() })
                 if (prefs.feedKids && shouldRefresh("Kids")) newFeeds.add(async { engine.getKidsHome().firstOrNull() })
                 if (prefs.feedSubscriptions) newFeeds.add(async { fetchSubscriptionsFeed() })
-                if (prefs.feedInvidious) newFeeds.add(async { fetchInvidiousFeed() })
+                if (prefs.feedInvidious) newFeeds.add(async { fetchPeerTubeFeed() })
 
                 val newSections = newFeeds.awaitAll().flatMap { feed ->
                     feed?.sections?.filter { it.videos.isNotEmpty() } ?: emptyList()
@@ -211,24 +211,28 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private suspend fun fetchInvidiousFeed(): com.roundsalmon4.phonetube.core.engine.model.HomeFeed? {
+    private suspend fun fetchPeerTubeFeed(): com.roundsalmon4.phonetube.core.engine.model.HomeFeed? {
         return try {
             val instances = withContext(Dispatchers.IO) {
                 invidiousDao.getEnabledSync()
             }
-            Log.d(TAG, "fetchInvidiousFeed: ${instances.size} enabled instances")
+            Log.d(TAG, "fetchPeerTubeFeed: ${instances.size} enabled instances")
             if (instances.isEmpty()) return null
             val instance = instances.first()
-            Log.d(TAG, "fetchInvidiousFeed: fetching trending from ${instance.host}")
+            Log.d(TAG, "fetchPeerTubeFeed: fetching latest videos from ${instance.host}")
             val json = withContext(Dispatchers.IO) {
-                val connection = java.net.URL("https://${instance.host}/api/v1/trending")
+                val connection = java.net.URL("https://${instance.host}/api/v1/videos?sort=-publishedAt&count=12")
                     .openConnection() as java.net.HttpURLConnection
                 try {
                     connection.requestMethod = "GET"
                     connection.connectTimeout = 10_000
                     connection.readTimeout = 15_000
-                    if (connection.responseCode != 200) {
-                        Log.w(TAG, "fetchInvidiousFeed: HTTP ${connection.responseCode} from ${instance.host}")
+                    connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                    connection.setRequestProperty("Accept", "application/json")
+                    val status = connection.responseCode
+                    Log.d(TAG, "fetchPeerTubeFeed: HTTP $status from ${instance.host}")
+                    if (status !in 200..399) {
+                        Log.w(TAG, "fetchPeerTubeFeed: HTTP error $status from ${instance.host}")
                         return@withContext null
                     }
                     connection.inputStream.bufferedReader().use { it.readText() }
@@ -236,39 +240,51 @@ class HomeViewModel @Inject constructor(
                     connection.disconnect()
                 }
             } ?: return null
-            val array = org.json.JSONArray(json)
-            Log.d(TAG, "fetchInvidiousFeed: got ${array.length()} items from ${instance.host}")
+            val root = org.json.JSONObject(json)
+            val array = root.optJSONArray("data") ?: org.json.JSONArray()
+            Log.d(TAG, "fetchPeerTubeFeed: got ${array.length()} items from ${instance.host}")
             val videos = (0 until array.length()).mapNotNull { i ->
                 val obj = array.getJSONObject(i)
-                val vidId = obj.optString("videoId", "")
+                val vidId = obj.optString("uuid", "")
                 if (vidId.isBlank()) null
-                else com.roundsalmon4.phonetube.core.engine.model.Video(
-                    videoId = vidId,
-                    title = obj.optString("title", ""),
-                    author = obj.optString("author", ""),
-                    channelId = obj.optString("authorId", ""),
-                    thumbnailUrl = "https://${instance.host}${obj.optString("thumbnailPath", "")}",
-                    durationMs = (obj.optLong("lengthSeconds", 0L)) * 1000,
-                    publishedDate = 0L,
-                    viewCount = null,
-                    percentWatched = 0
-                )
-            }.take(20)
+                else {
+                    val channel = obj.optJSONObject("channel")
+                    val account = obj.optJSONObject("account")
+                    val author = channel?.optString("displayName", "")
+                        ?.takeIf { it.isNotBlank() }
+                        ?: account?.optString("displayName", "").orEmpty()
+                    val channelId = channel?.optString("name", "")
+                        ?.takeIf { it.isNotBlank() }
+                        ?: account?.optString("name", "").orEmpty()
+                    com.roundsalmon4.phonetube.core.engine.model.Video(
+                        videoId = vidId,
+                        title = obj.optString("name", ""),
+                        author = author,
+                        channelId = channelId,
+                        thumbnailUrl = "https://${instance.host}${obj.optString("thumbnailPath", "")}",
+                        durationMs = (obj.optLong("duration", 0L)) * 1000,
+                        publishedDate = 0L,
+                        viewCount = obj.optLong("views", 0L).toString(),
+                        percentWatched = 0,
+                        source = instance.host
+                    )
+                }
+            }.take(12)
             if (videos.isEmpty()) {
-                Log.d(TAG, "fetchInvidiousFeed: no valid videos from ${instance.host}")
+                Log.d(TAG, "fetchPeerTubeFeed: no valid videos from ${instance.host}")
                 null
             } else {
-                Log.d(TAG, "fetchInvidiousFeed: returning ${videos.size} videos")
+                Log.d(TAG, "fetchPeerTubeFeed: returning ${videos.size} videos")
                 com.roundsalmon4.phonetube.core.engine.model.HomeFeed(
                     sections = listOf(com.roundsalmon4.phonetube.core.engine.model.HomeSection(
-                        title = "Invidious",
+                        title = "PeerTube",
                         videos = videos,
-                        source = "Invidious"
+                        source = "PeerTube"
                     ))
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "fetchInvidiousFeed failed", e)
+            Log.e(TAG, "fetchPeerTubeFeed failed", e)
             null
         }
     }
@@ -328,7 +344,7 @@ class HomeViewModel @Inject constructor(
                 val gamingSections = if (prefs.feedGaming) async { engine.getGaming().firstOrNull() } else null
                 val kidsSections = if (prefs.feedKids) async { engine.getKidsHome().firstOrNull() } else null
                 val subscriptionsSection = if (prefs.feedSubscriptions) async { fetchSubscriptionsFeed() } else null
-                val invidiousSection = if (prefs.feedInvidious) async { fetchInvidiousFeed() } else null
+                val invidiousSection = if (prefs.feedInvidious) async { fetchPeerTubeFeed() } else null
 
                 val homeFeed = homeSections?.await()
                 val trendingFeed = trendingSections?.await()

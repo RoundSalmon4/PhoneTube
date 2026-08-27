@@ -1,7 +1,6 @@
 package com.roundsalmon4.phonetube.core.engine
 
 import android.net.Uri
-import android.util.Log
 
 data class YouTubeLink(
     val type: Type,
@@ -13,19 +12,6 @@ data class YouTubeLink(
 }
 
 object YouTubeUrlParser {
-
-    private const val TAG = "UrlParser"
-
-    /** Set of Invidious instance hosts that should be parsed like YouTube. */
-    private val invidiousHosts = mutableSetOf<String>()
-
-    fun configureInvidiousHosts(hosts: Set<String>) {
-        invidiousHosts.clear()
-        invidiousHosts.addAll(hosts)
-        Log.d(TAG, "configureInvidiousHosts: ${hosts.size} hosts configured: $hosts")
-    }
-
-    fun isInvidiousHost(host: String): Boolean = host in invidiousHosts
 
     fun parse(uri: Uri): YouTubeLink {
         val scheme = uri.scheme?.lowercase()
@@ -40,7 +26,7 @@ object YouTubeUrlParser {
 
         val host = uri.host?.lowercase() ?: return YouTubeLink(YouTubeLink.Type.UNKNOWN, "")
         val path = uri.path ?: ""
-        val isYouTubeLike = host.contains("youtube.com") || host == "youtu.be" || isInvidiousHost(host)
+        val isYouTubeLike = host.contains("youtube.com") || host == "youtu.be"
 
         // youtu.be/VIDEO_ID (short links)
         if (host == "youtu.be") {

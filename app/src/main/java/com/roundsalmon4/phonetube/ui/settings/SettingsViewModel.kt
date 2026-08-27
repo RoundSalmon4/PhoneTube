@@ -148,7 +148,7 @@ class SettingsViewModel @Inject constructor(
                 )
             }
         )
-        Log.d(TAG, "buildExportJson: exporting ${invidiousInstances.size} invidious instances")
+        Log.d(TAG, "buildExportJson: exporting ${invidiousInstances.size} peertube instances")
 
         return withContext(Dispatchers.IO) {
             Json { prettyPrint = true }.encodeToString(ExportData.serializer(), exportData)
@@ -242,7 +242,7 @@ class SettingsViewModel @Inject constructor(
                 }
 
                 if (data.invidiousInstances != null) {
-                    Log.d(TAG, "importFromJson: importing ${data.invidiousInstances.size} invidious instances")
+                    Log.d(TAG, "importFromJson: importing ${data.invidiousInstances.size} peertube instances")
                     for (inst in data.invidiousInstances) {
                         invidiousDao.insert(
                             InvidiousInstance(
@@ -253,12 +253,9 @@ class SettingsViewModel @Inject constructor(
                         )
                     }
                     val allHosts = invidiousDao.getAll().first().joinToString(",") { it.host }
-                    Log.d(TAG, "importFromJson: syncing invidious hosts pref: '$allHosts'")
+                    Log.d(TAG, "importFromJson: syncing peertube hosts pref: '$allHosts'")
                     context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
                         .edit().putString("invidious_hosts", allHosts).apply()
-                    com.roundsalmon4.phonetube.core.engine.YouTubeUrlParser.configureInvidiousHosts(
-                        allHosts.split(",").filter { it.isNotBlank() }.toSet()
-                    )
                 }
 
                 _importResult.value = "Import complete"
@@ -376,33 +373,33 @@ class SettingsViewModel @Inject constructor(
         playerPreferences.setFeedInvidious(enabled)
     }
 
-    fun addInvidiousInstance(host: String, name: String) = viewModelScope.launch {
+    fun addPeerTubeInstance(host: String, name: String) = viewModelScope.launch {
         val normalized = host.trim().removePrefix("https://").removePrefix("http://").trimEnd('/')
         if (normalized.isNotBlank()) {
-            Log.d(TAG, "addInvidiousInstance: adding '$normalized' (name='$name')")
+            Log.d(TAG, "addPeerTubeInstance: adding '$normalized' (name='$name')")
             invidiousDao.insert(InvidiousInstance(host = normalized, name = name.ifBlank { normalized }))
-            syncInvidiousHostsPref()
+            syncPeerTubeHostsPref()
         } else {
-            Log.w(TAG, "addInvidiousInstance: empty host after normalization (input='$host')")
+            Log.w(TAG, "addPeerTubeInstance: empty host after normalization (input='$host')")
         }
     }
 
-    fun removeInvidiousInstance(host: String) = viewModelScope.launch {
-        Log.d(TAG, "removeInvidiousInstance: removing '$host'")
+    fun removePeerTubeInstance(host: String) = viewModelScope.launch {
+        Log.d(TAG, "removePeerTubeInstance: removing '$host'")
         invidiousDao.delete(host)
-        syncInvidiousHostsPref()
+        syncPeerTubeHostsPref()
     }
 
-    fun setInvidiousEnabled(host: String, enabled: Boolean) = viewModelScope.launch {
-        Log.d(TAG, "setInvidiousEnabled: '$host' -> $enabled")
+    fun setPeerTubeEnabled(host: String, enabled: Boolean) = viewModelScope.launch {
+        Log.d(TAG, "setPeerTubeEnabled: '$host' -> $enabled")
         invidiousDao.setEnabled(host, enabled)
-        syncInvidiousHostsPref()
+        syncPeerTubeHostsPref()
     }
 
-    private fun syncInvidiousHostsPref() {
+    private fun syncPeerTubeHostsPref() {
         val enabledHosts = invidiousInstances.value.filter { it.enabled }.map { it.host }
         val hosts = enabledHosts.joinToString(",")
-        Log.d(TAG, "syncInvidiousHostsPref: ${enabledHosts.size} enabled hosts: $enabledHosts")
+        Log.d(TAG, "syncPeerTubeHostsPref: ${enabledHosts.size} enabled hosts: $enabledHosts")
         context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
             .edit().putString("invidious_hosts", hosts).apply()
     }

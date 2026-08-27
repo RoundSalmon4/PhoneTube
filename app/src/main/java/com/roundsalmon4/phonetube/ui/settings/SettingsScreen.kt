@@ -431,7 +431,7 @@ private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewMod
         "news" to "News",
         "gaming" to "Gaming",
         "kids" to "Kids",
-        "invidious" to "Invidious"
+        "invidious" to "PeerTube"
     )
 
     val orderedFeeds = feedLabels.keys.toList().let { all ->
@@ -841,10 +841,10 @@ private fun DataSection(
     val context = LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
-    // Invidious instance state
+    // PeerTube instance state
     val instances by viewModel.invidiousInstancesState.collectAsState()
-    var showAddInvidiousDialog by remember { mutableStateOf(false) }
-    var invidiousInput by remember { mutableStateOf("") }
+    var showAddPeerTubeDialog by remember { mutableStateOf(false) }
+    var peerTubeInput by remember { mutableStateOf("") }
 
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
@@ -925,7 +925,7 @@ private fun DataSection(
         )
 
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-        SettingsCategory("Invidious Instances")
+        SettingsCategory("PeerTube Instances")
 
         // Track which instances we've checked connectivity for
         val checkedHosts = remember { mutableStateOf(setOf<String>()) }
@@ -938,11 +938,13 @@ private fun DataSection(
                     checkedHosts.value = checkedHosts.value + instance.host
                     try {
                         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                            val url = java.net.URL("https://${instance.host}")
+                            val url = java.net.URL("https://${instance.host}/api/v1/videos?count=1")
                             val conn = url.openConnection() as java.net.HttpURLConnection
-                            conn.requestMethod = "HEAD"
-                            conn.connectTimeout = 5000
-                            conn.readTimeout = 5000
+                            conn.requestMethod = "GET"
+                            conn.connectTimeout = 10000
+                            conn.readTimeout = 10000
+                            conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+                            conn.setRequestProperty("Accept", "application/json")
                             val code = conn.responseCode
                             conn.disconnect()
                             if (code in 200..399) {
@@ -973,7 +975,7 @@ private fun DataSection(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         androidx.compose.material3.Switch(
                             checked = instance.enabled,
-                            onCheckedChange = { viewModel.setInvidiousEnabled(instance.host, it) },
+                            onCheckedChange = { viewModel.setPeerTubeEnabled(instance.host, it) },
                             modifier = Modifier.padding(end = 4.dp)
                         )
                         Icon(
@@ -982,7 +984,7 @@ private fun DataSection(
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier
                                 .size(24.dp)
-                                .clickable { viewModel.removeInvidiousInstance(instance.host) }
+                                .clickable { viewModel.removePeerTubeInstance(instance.host) }
                                 .padding(start = 4.dp)
                         )
                     }
@@ -991,23 +993,23 @@ private fun DataSection(
         }
 
         ListItem(
-            modifier = Modifier.clickable { showAddInvidiousDialog = true },
+            modifier = Modifier.clickable { showAddPeerTubeDialog = true },
             headlineContent = { Text("Add Instance", fontWeight = FontWeight.SemiBold) },
-            supportingContent = { Text("Add an Invidious or compatible instance URL") }
+            supportingContent = { Text("Add a PeerTube instance URL") }
         )
     }
 
-    if (showAddInvidiousDialog) {
+    if (showAddPeerTubeDialog) {
         var addError by remember { mutableStateOf("") }
 
         AlertDialog(
-            onDismissRequest = { showAddInvidiousDialog = false; invidiousInput = ""; addError = "" },
-            title = { Text("Add Invidious Instance") },
+            onDismissRequest = { showAddPeerTubeDialog = false; peerTubeInput = ""; addError = "" },
+            title = { Text("Add PeerTube Instance") },
             text = {
                 Column {
                     OutlinedTextField(
-                        value = invidiousInput,
-                        onValueChange = { invidiousInput = it; addError = "" },
+                        value = peerTubeInput,
+                        onValueChange = { peerTubeInput = it; addError = "" },
                         label = { Text("Instance URL (e.g. neat.tube)") },
                         singleLine = true,
                         isError = addError.isNotEmpty(),
@@ -1018,7 +1020,7 @@ private fun DataSection(
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val trimmed = invidiousInput.trim().removePrefix("https://").removePrefix("http://").trimEnd('/')
+                    val trimmed = peerTubeInput.trim().removePrefix("https://").removePrefix("http://").trimEnd('/')
                     if (trimmed.isBlank()) {
                         addError = "Please enter a URL"
                     } else if (!trimmed.contains(".") || trimmed.startsWith(".") || trimmed.contains(" ")) {
@@ -1026,16 +1028,16 @@ private fun DataSection(
                     } else if (instances.any { it.host == trimmed }) {
                         addError = "Instance already added"
                     } else {
-                        viewModel.addInvidiousInstance(trimmed, trimmed)
-                        invidiousInput = ""
-                        showAddInvidiousDialog = false
+                        viewModel.addPeerTubeInstance(trimmed, trimmed)
+                        peerTubeInput = ""
+                        showAddPeerTubeDialog = false
                     }
                 }) {
                     Text("Add")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAddInvidiousDialog = false; invidiousInput = ""; addError = "" }) {
+                TextButton(onClick = { showAddPeerTubeDialog = false; peerTubeInput = ""; addError = "" }) {
                     Text("Cancel")
                 }
             }
