@@ -262,22 +262,22 @@ class YouTubeEngine @Inject constructor(
         emit(suggestions)
     }.flowOn(Dispatchers.IO)
 
-    suspend fun getPeerTubeSearchResults(query: String, host: String, localOnly: Boolean = true): PeerTubeSearchResult {
-        val videos = fetchPeerTubeSearchVideos(query, host, localOnly)
-        val channels = fetchPeerTubeSearchChannels(query, host, localOnly)
+    suspend fun getPeerTubeSearchResults(query: String, host: String): PeerTubeSearchResult {
+        val videos = fetchPeerTubeSearchVideos(query, host)
+        val channels = fetchPeerTubeSearchChannels(query, host)
         Log.d(TAG, "getPeerTubeSearchResults($host): ${videos.size} videos, ${channels.size} channels")
         return PeerTubeSearchResult(videos, channels)
     }
 
     private suspend fun fetchPeerTubeSearchVideos(
         query: String,
-        host: String,
-        localOnly: Boolean
+        host: String
     ): List<Video> = withContext(Dispatchers.IO) {
         try {
             val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
-            val target = if (localOnly) "&search_target=local" else ""
-            val connection = java.net.URL("https://$host/api/v1/search/videos?search=$encodedQuery&count=50$target")
+            // Always match the instance's browser search, which targets its
+            // local search index (the native PeerTube UI defaults to this).
+            val connection = java.net.URL("https://$host/api/v1/search/videos?search=$encodedQuery&count=50&search_target=local")
                 .openConnection() as java.net.HttpURLConnection
             try {
                 connection.requestMethod = "GET"
@@ -300,7 +300,7 @@ class YouTubeEngine @Inject constructor(
                     val video = obj.toPeerTubeVideo(host)
                     if (video != null) results.add(video)
                 }
-                Log.d(TAG, "fetchPeerTubeSearchVideos($host): ${results.size} videos from ${array.length()} items (localOnly=$localOnly)")
+                Log.d(TAG, "fetchPeerTubeSearchVideos($host): ${results.size} videos from ${array.length()} items")
                 results
             } finally {
                 connection.disconnect()
@@ -313,13 +313,11 @@ class YouTubeEngine @Inject constructor(
 
     private suspend fun fetchPeerTubeSearchChannels(
         query: String,
-        host: String,
-        localOnly: Boolean
+        host: String
     ): List<SearchChannel> = withContext(Dispatchers.IO) {
         try {
             val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
-            val target = if (localOnly) "&search_target=local" else ""
-            val connection = java.net.URL("https://$host/api/v1/search/video-channels?search=$encodedQuery&count=50$target")
+            val connection = java.net.URL("https://$host/api/v1/search/video-channels?search=$encodedQuery&count=50&search_target=local")
                 .openConnection() as java.net.HttpURLConnection
             try {
                 connection.requestMethod = "GET"

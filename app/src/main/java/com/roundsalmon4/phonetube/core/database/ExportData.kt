@@ -42,7 +42,6 @@ data class PreferencesExport(
     val channelSearchLimit: Int = 20,
     val peerTubeVideoSearchLimit: Int = 10,
     val peerTubeChannelSearchLimit: Int = 10,
-    val peerTubeSearchLocalOnly: Boolean = true,
     val pipEnabled: Boolean = true,
     val openLinksIn: String = "browser",
     val playlistSearchLimit: Int = 10,

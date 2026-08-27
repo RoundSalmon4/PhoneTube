@@ -361,13 +361,12 @@ class SearchViewModel @Inject constructor(
                 val instances = withContext(Dispatchers.IO) {
                     invidiousDao.getEnabledSync()
                 }
-                val localOnly = playerPreferences.uiState.first().peerTubeSearchLocalOnly
-                Log.d(TAG, "PeerTube search: ${instances.size} enabled instances, localOnly=$localOnly")
+                Log.d(TAG, "PeerTube search: ${instances.size} enabled instances")
                 if (instances.isNotEmpty()) {
                     instances.map { instance ->
                         async {
                             Log.d(TAG, "PeerTube search: querying ${instance.host}")
-                            engine.getPeerTubeSearchResults(query, instance.host, localOnly)
+                            engine.getPeerTubeSearchResults(query, instance.host)
                         }
                     }.awaitAll()
                 } else {

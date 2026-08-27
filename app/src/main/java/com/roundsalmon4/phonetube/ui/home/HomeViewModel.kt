@@ -249,12 +249,9 @@ class HomeViewModel @Inject constructor(
             Log.d(TAG, "fetchPeerTubeFeed: ${instances.size} enabled instances")
             if (instances.isEmpty()) return null
             val instance = instances.first()
-            val prefs = playerPreferences.uiState.first()
-            val localOnly = prefs.peerTubeSearchLocalOnly
-            val localSuffix = if (localOnly) "&isLocal=true" else ""
-            Log.d(TAG, "fetchPeerTubeFeed: fetching latest videos from ${instance.host} (localOnly=$localOnly)")
+            Log.d(TAG, "fetchPeerTubeFeed: fetching latest videos from ${instance.host}")
             val json = withContext(Dispatchers.IO) {
-                val connection = java.net.URL("https://${instance.host}/api/v1/videos?sort=-publishedAt&count=12$localSuffix")
+                val connection = java.net.URL("https://${instance.host}/api/v1/videos?sort=-publishedAt&count=12&isLocal=true")
                     .openConnection() as java.net.HttpURLConnection
                 try {
                     connection.requestMethod = "GET"

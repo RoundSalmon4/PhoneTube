@@ -675,13 +675,6 @@ private fun SearchSection(uiState: PreferencesUiState, viewModel: SettingsViewMo
         }
 
         SwitchItem(
-            name = "Search Local Instance Only",
-            description = "Only return results published on the configured PeerTube instance (excludes federated content)",
-            checked = uiState.peerTubeSearchLocalOnly,
-            onCheckedChange = { viewModel.setPeerTubeSearchLocalOnly(it) }
-        )
-
-        SwitchItem(
             name = "Duplicate Playlist Warning",
             description = "Ask before saving a playlist that is already in your library",
             checked = uiState.duplicatePlaylistWarning,
