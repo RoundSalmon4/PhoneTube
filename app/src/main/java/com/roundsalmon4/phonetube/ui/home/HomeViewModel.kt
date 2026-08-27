@@ -226,12 +226,16 @@ class HomeViewModel @Inject constructor(
             }
 
             val videos = (youtubeVideos + peerTubeVideos).distinctBy { it.videoId }
+            // Merge into a single newest-first timeline so PeerTube subscription
+            // videos (hosted on a different instance) are not all pushed past the
+            // take(20) cap by the YouTube items that come first in the list.
+            val sortedVideos = videos.sortedByDescending { it.publishedDate }
             Log.d(TAG, "fetchSubscriptionsFeed: got ${videos.size} videos (yt=${youtubeVideos.size}, pt=${peerTubeVideos.size}) from ${subscriptions.size} channels")
-            if (videos.isEmpty()) null
+            if (sortedVideos.isEmpty()) null
             else com.roundsalmon4.phonetube.core.engine.model.HomeFeed(
                 sections = listOf(com.roundsalmon4.phonetube.core.engine.model.HomeSection(
                     title = "Subscriptions",
-                    videos = videos.take(20),
+                    videos = sortedVideos.take(20),
                     source = "Subscriptions"
                 ))
             )
