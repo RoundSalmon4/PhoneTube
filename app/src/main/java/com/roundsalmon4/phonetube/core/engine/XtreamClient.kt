@@ -162,6 +162,7 @@ class XtreamClient @Inject constructor() {
     ): String {
         val base = "https://$host/player_api.php?username=${Uri.encode(username)}&password=${Uri.encode(password)}"
         return when {
+            action != null && extra != null && extra.isNotBlank() -> "$base&action=$action&$extra"
             extra != null && extra.isNotBlank() -> "$base&$extra"
             action != null -> "$base&action=$action"
             else -> base
