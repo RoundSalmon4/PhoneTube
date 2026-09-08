@@ -67,6 +67,7 @@ data class IptvProviderExport(
     val username: String,
     val password: String,
     val name: String,
+    val scheme: String = "https",
     val enabled: Boolean
 )
 

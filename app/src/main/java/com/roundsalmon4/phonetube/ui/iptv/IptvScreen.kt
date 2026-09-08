@@ -328,7 +328,7 @@ private fun AddProviderDialog(
                 OutlinedTextField(
                     value = host,
                     onValueChange = { host = it },
-                    label = { Text("Server (e.g. iptv.example.com:8080)") },
+                    label = { Text("Server (host, add :port only if required)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )

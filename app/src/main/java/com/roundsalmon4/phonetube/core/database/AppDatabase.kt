@@ -24,7 +24,7 @@ import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
         InvidiousInstance::class,
         IptvProvider::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -140,6 +140,12 @@ abstract class AppDatabase : RoomDatabase() {
                         PRIMARY KEY(id)
                     )
                 """.trimIndent())
+            }
+        }
+
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE iptv_providers ADD COLUMN scheme TEXT NOT NULL DEFAULT 'https'")
             }
         }
     }

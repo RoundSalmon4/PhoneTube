@@ -26,5 +26,6 @@ data class XtreamAuthInfo(
     val auth: Boolean,
     val status: String,
     val expDate: Long,
-    val serverName: String?
+    val serverName: String?,
+    val scheme: String?
 )

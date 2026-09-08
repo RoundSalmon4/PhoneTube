@@ -159,6 +159,7 @@ class SettingsViewModel @Inject constructor(
                     username = provider.username,
                     password = provider.password,
                     name = provider.name,
+                    scheme = provider.scheme,
                     enabled = provider.enabled
                 )
             }
@@ -285,6 +286,7 @@ class SettingsViewModel @Inject constructor(
                                 username = provider.username,
                                 password = provider.password,
                                 name = provider.name,
+                                scheme = provider.scheme,
                                 enabled = provider.enabled
                             )
                         )

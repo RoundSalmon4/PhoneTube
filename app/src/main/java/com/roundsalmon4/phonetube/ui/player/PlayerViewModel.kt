@@ -314,8 +314,8 @@ class PlayerViewModel @Inject constructor(
                     _uiState.value = PlayerUiState.Error("IPTV provider not found. Re-add it from the IPTV tab.")
                     return@launch
                 }
-                val hlsUrl = xtreamClient.liveStreamUrl(provider.host, provider.username, provider.password, streamId)
-                Log.d(TAG, "loadIptv: stream $streamId via ${provider.host}")
+                val hlsUrl = xtreamClient.liveStreamUrl(provider.scheme, provider.host, provider.username, provider.password, streamId)
+                Log.d(TAG, "loadIptv: stream $streamId via ${provider.scheme}${provider.host}")
                 val info = StreamInfo(
                     title = provider.name,
                     author = provider.name,

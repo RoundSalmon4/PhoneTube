@@ -33,7 +33,8 @@ class XtreamClient @Inject constructor() {
     suspend fun authenticate(host: String, username: String, password: String): XtreamAuthInfo? =
         withContext(Dispatchers.IO) {
             try {
-                val body = fetch(host, username, password, action = null, extra = null) ?: return@withContext null
+                val (body, scheme) = fetch(host, username, password, action = null, extra = null)
+                    ?: return@withContext null
                 val json = org.json.JSONObject(body)
                 val userInfo = json.optJSONObject("user_info")
                 val serverInfo = json.optJSONObject("server_info")
@@ -42,7 +43,8 @@ class XtreamClient @Inject constructor() {
                     auth = userInfo?.optInt("auth", 0) == 1,
                     status = userInfo?.optString("status", "").orEmpty(),
                     expDate = userInfo?.optLong("exp_date", 0L) ?: 0L,
-                    serverName = serverUrl.ifBlank { null } ?: host
+                    serverName = serverUrl.ifBlank { null } ?: host,
+                    scheme = scheme
                 )
             } catch (e: Exception) {
                 Log.w(TAG, "authenticate($host) failed", e)
@@ -53,7 +55,7 @@ class XtreamClient @Inject constructor() {
     suspend fun liveCategories(host: String, username: String, password: String): List<IptvCategory> =
         withContext(Dispatchers.IO) {
             val body = fetch(host, username, password, action = "get_live_categories", extra = null)
-                ?: return@withContext emptyList()
+                ?.first ?: return@withContext emptyList()
             val array = try {
                 org.json.JSONArray(body)
             } catch (e: Exception) {
@@ -78,7 +80,7 @@ class XtreamClient @Inject constructor() {
     ): List<IptvLiveStream> = withContext(Dispatchers.IO) {
         val extra = if (categoryId.isNullOrBlank()) null else ("category_id=" + Uri.encode(categoryId))
         val body = fetch(host, username, password, action = "get_live_streams", extra = extra)
-            ?: return@withContext emptyList()
+            ?.first ?: return@withContext emptyList()
         val array = try {
             org.json.JSONArray(body)
         } catch (e: Exception) {
@@ -101,12 +103,15 @@ class XtreamClient @Inject constructor() {
 
     /**
      * Builds the HLS playback URL for a live stream. Segments are encoded so
-     * passwords containing reserved characters still work in the path.
+     * passwords containing reserved characters still work in the path. The port
+     * is embedded in [host] when the provider requires one.
      */
-    fun liveStreamUrl(host: String, username: String, password: String, streamId: String): String {
+    fun liveStreamUrl(scheme: String, host: String, username: String, password: String, streamId: String): String {
         val path = "live/${Uri.encode(username)}/${Uri.encode(password)}/$streamId.m3u8"
-        return "https://$host/$path"
+        return "$scheme://$host/$path"
     }
+
+    private data class FetchResult(val body: String, val scheme: String)
 
     private suspend fun fetch(
         host: String,
@@ -114,7 +119,7 @@ class XtreamClient @Inject constructor() {
         password: String,
         action: String?,
         extra: String?
-    ): String? = withContext(Dispatchers.IO) {
+    ): FetchResult? = withContext(Dispatchers.IO) {
         val base = buildApiUrl(host, username, password, action, extra)
         // Some providers are HTTP-only; try HTTPS first and fall back to HTTP.
         val urls = listOf(base, base.replaceFirst("https://", "http://")).distinct()
@@ -134,7 +139,8 @@ class XtreamClient @Inject constructor() {
                         Log.w(TAG, "fetch($host, action=$action): HTTP error $status")
                         continue
                     }
-                    return@withContext connection.inputStream.bufferedReader().use { it.readText() }
+                    val body = connection.inputStream.bufferedReader().use { it.readText() }
+                    return@withContext FetchResult(body, url.substringBefore("://"))
                 } finally {
                     connection.disconnect()
                 }
