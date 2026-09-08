@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
@@ -37,6 +38,7 @@ import com.roundsalmon4.phonetube.player.service.PlaybackService
 import com.roundsalmon4.phonetube.ui.channel.ChannelScreen
 import com.roundsalmon4.phonetube.ui.components.MiniPlayer
 import com.roundsalmon4.phonetube.ui.home.HomeScreen
+import com.roundsalmon4.phonetube.ui.iptv.IptvScreen
 import com.roundsalmon4.phonetube.ui.library.LibraryScreen
 import com.roundsalmon4.phonetube.ui.library.playlist.PlaylistDetailScreen
 import com.roundsalmon4.phonetube.ui.player.PlayerScreen
@@ -55,6 +57,7 @@ data class BottomNavItem(
 val bottomNavItems = listOf(
     BottomNavItem("Home", Icons.Default.Home, Route.Home),
     BottomNavItem("Search", Icons.Default.Search, Route.Search),
+    BottomNavItem("IPTV", Icons.Default.LiveTv, Route.IPTV),
     BottomNavItem("Library", Icons.Default.LibraryMusic, Route.Library),
     BottomNavItem("Settings", Icons.Default.Settings, Route.Settings)
 )
@@ -243,6 +246,14 @@ fun AppNavigation(
                         },
                         onPlaylistClick = { playlistId ->
                             navController.navigate(Route.PlaylistDetail(playlistId))
+                        }
+                    )
+                }
+
+                composable<Route.IPTV> {
+                    IptvScreen(
+                        onVideoClick = { videoId ->
+                            navController.navigate(Route.Player(videoId))
                         }
                     )
                 }

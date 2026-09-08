@@ -10,7 +10,8 @@ data class ExportData(
     val preferences: PreferencesExport? = null,
     val playlists: List<LocalPlaylistExport>? = null,
     val subscriptions: List<LocalSubscriptionExport>? = null,
-    val invidiousInstances: List<InvidiousInstanceExport>? = null
+    val invidiousInstances: List<InvidiousInstanceExport>? = null,
+    val iptvProviders: List<IptvProviderExport>? = null
 )
 
 @Serializable
@@ -56,6 +57,15 @@ data class PreferencesExport(
 @Serializable
 data class InvidiousInstanceExport(
     val host: String,
+    val name: String,
+    val enabled: Boolean
+)
+
+@Serializable
+data class IptvProviderExport(
+    val host: String,
+    val username: String,
+    val password: String,
     val name: String,
     val enabled: Boolean
 )

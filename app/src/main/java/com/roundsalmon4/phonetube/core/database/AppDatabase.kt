@@ -7,6 +7,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.roundsalmon4.phonetube.core.database.entity.CachedFeedSection
 import com.roundsalmon4.phonetube.core.database.entity.CachedFeedVideo
 import com.roundsalmon4.phonetube.core.database.entity.InvidiousInstance
+import com.roundsalmon4.phonetube.core.database.entity.IptvProvider
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.database.entity.LocalSubscription
 import com.roundsalmon4.phonetube.core.database.entity.PlaylistVideo
@@ -20,9 +21,10 @@ import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
         LocalSubscription::class,
         CachedFeedSection::class,
         CachedFeedVideo::class,
-        InvidiousInstance::class
+        InvidiousInstance::class,
+        IptvProvider::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -31,6 +33,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun subscriptionDao(): SubscriptionDao
     abstract fun feedCacheDao(): FeedCacheDao
     abstract fun invidiousDao(): InvidiousDao
+    abstract fun iptvDao(): IptvDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -119,6 +122,22 @@ abstract class AppDatabase : RoomDatabase() {
                         name TEXT NOT NULL DEFAULT '',
                         enabled INTEGER NOT NULL DEFAULT 1,
                         PRIMARY KEY(host)
+                    )
+                """.trimIndent())
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS iptv_providers (
+                        id TEXT NOT NULL,
+                        host TEXT NOT NULL DEFAULT '',
+                        username TEXT NOT NULL DEFAULT '',
+                        password TEXT NOT NULL DEFAULT '',
+                        name TEXT NOT NULL DEFAULT '',
+                        enabled INTEGER NOT NULL DEFAULT 1,
+                        PRIMARY KEY(id)
                     )
                 """.trimIndent())
             }
