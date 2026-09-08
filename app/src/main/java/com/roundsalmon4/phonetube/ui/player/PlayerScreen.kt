@@ -109,6 +109,22 @@ fun PlayerScreen(
         }
     }
 
+    // Keep the screen awake while playback is actually playing (music or IPTV)
+    // so the device does not auto-lock mid-stream.
+    LaunchedEffect(playbackState.isPlaying) {
+        val window = activity?.window
+        if (playbackState.isPlaying) {
+            window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     DisposableEffect(Unit) {
         val controller = activity?.let {
             WindowCompat.getInsetsController(it.window, it.window.decorView)
@@ -200,7 +216,7 @@ fun PlayerScreen(
                             onTogglePlayPause = { viewModel.togglePlayPause() },
                             onSeekTo = { viewModel.seekTo(it) },
                             onSeekBy = { viewModel.seekBy(it) },
-                            onSpeedClick = { viewModel.showSpeedPicker() },
+                            onSpeedClick = if (state.streamInfo.isLive || state.streamInfo.isLiveContent) null else ({ viewModel.showSpeedPicker() }),
                             onQualityClick = { viewModel.showQualityPicker() },
                             onSubtitleClick = { viewModel.showSubtitlePicker() },
                             onAudioClick = { viewModel.showAudioPicker() },
@@ -245,21 +261,21 @@ fun PlayerScreen(
                                     color = Color.White
                                 )
                             }
-                            PlayerControls(
-                                state = playbackState,
-                                title = state.streamInfo.title,
-                                sponsorSegments = sponsorSegments,
-                                onBackClick = onBackClick,
-                                onTogglePlayPause = { viewModel.togglePlayPause() },
-                                onSeekTo = { viewModel.seekTo(it) },
-                                onSeekBy = { viewModel.seekBy(it) },
-                                onSpeedClick = { viewModel.showSpeedPicker() },
-                                onQualityClick = { viewModel.showQualityPicker() },
-                                onSubtitleClick = { viewModel.showSubtitlePicker() },
-                                onAudioClick = { viewModel.showAudioPicker() },
-                                visible = controlsVisible,
-                                modifier = Modifier.fillMaxSize()
-                            )
+PlayerControls(
+                            state = playbackState,
+                            title = state.streamInfo.title,
+                            sponsorSegments = sponsorSegments,
+                            onBackClick = onBackClick,
+                            onTogglePlayPause = { viewModel.togglePlayPause() },
+                            onSeekTo = { viewModel.seekTo(it) },
+                            onSeekBy = { viewModel.seekBy(it) },
+                            onSpeedClick = if (state.streamInfo.isLive || state.streamInfo.isLiveContent) null else ({ viewModel.showSpeedPicker() }),
+                            onQualityClick = { viewModel.showQualityPicker() },
+                            onSubtitleClick = { viewModel.showSubtitlePicker() },
+                            onAudioClick = { viewModel.showAudioPicker() },
+                            visible = controlsVisible,
+                            modifier = Modifier.fillMaxSize()
+                        )
                             SubtitleOverlay(
                                 player = player,
                                 fontSizeSp = (maxWidth.value / 30f).coerceIn(14f, 32f),

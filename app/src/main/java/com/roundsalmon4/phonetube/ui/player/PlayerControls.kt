@@ -59,7 +59,7 @@ fun PlayerControls(
     onTogglePlayPause: () -> Unit,
     onSeekTo: (Long) -> Unit,
     onSeekBy: (Long) -> Unit,
-    onSpeedClick: () -> Unit,
+    onSpeedClick: (() -> Unit)? = null,
     onQualityClick: () -> Unit,
     onSubtitleClick: () -> Unit,
     onAudioClick: () -> Unit,
@@ -132,19 +132,21 @@ fun PlayerControls(
                                 .padding(horizontal = 12.dp, vertical = 8.dp)
                         )
                     }
-                    // Speed indicator
-                    Text(
-                        text = formatSpeed(state.playbackSpeed),
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) { onSpeedClick() }
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                    )
+                    // Speed indicator (hidden for live/IPTV which is always 1x)
+                    if (onSpeedClick != null) {
+                        Text(
+                            text = formatSpeed(state.playbackSpeed),
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { onSpeedClick() }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
                     // Quality button
                     val qualityText = state.currentQualityLabel.ifEmpty { "HQ" }
                     Text(

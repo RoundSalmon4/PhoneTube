@@ -6,6 +6,8 @@ import com.roundsalmon4.phonetube.core.database.AppDatabase
 import com.roundsalmon4.phonetube.core.database.FeedCacheDao
 import com.roundsalmon4.phonetube.core.database.HistoryDao
 import com.roundsalmon4.phonetube.core.database.InvidiousDao
+import com.roundsalmon4.phonetube.core.database.IptvDao
+import com.roundsalmon4.phonetube.core.database.IptvFavoriteDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
 import com.roundsalmon4.phonetube.core.database.SubscriptionDao
 import dagger.Module
@@ -28,7 +30,7 @@ object DatabaseModule {
             context,
             AppDatabase::class.java,
             "phonetube.db"
-        ).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6, AppDatabase.MIGRATION_6_7).build()
+        ).addMigrations(AppDatabase.MIGRATION_1_2, AppDatabase.MIGRATION_2_3, AppDatabase.MIGRATION_3_4, AppDatabase.MIGRATION_4_5, AppDatabase.MIGRATION_5_6, AppDatabase.MIGRATION_6_7, AppDatabase.MIGRATION_7_8, AppDatabase.MIGRATION_8_9, AppDatabase.MIGRATION_9_10, AppDatabase.MIGRATION_10_11).build()
     }
 
     @Provides
@@ -54,5 +56,15 @@ object DatabaseModule {
     @Provides
     fun provideInvidiousDao(database: AppDatabase): InvidiousDao {
         return database.invidiousDao()
+    }
+
+    @Provides
+    fun provideIptvDao(database: AppDatabase): IptvDao {
+        return database.iptvDao()
+    }
+
+    @Provides
+    fun provideIptvFavoriteDao(database: AppDatabase): IptvFavoriteDao {
+        return database.iptvFavoriteDao()
     }
 }

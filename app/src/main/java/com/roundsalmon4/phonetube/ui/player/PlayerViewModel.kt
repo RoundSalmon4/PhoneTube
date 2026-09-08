@@ -8,12 +8,14 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.database.HistoryDao
+import com.roundsalmon4.phonetube.core.database.IptvDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
 import com.roundsalmon4.phonetube.core.database.PlaylistSaver
 import com.roundsalmon4.phonetube.core.database.PlaylistVideoInfo
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
+import com.roundsalmon4.phonetube.core.engine.XtreamClient
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.model.SponsorSegment
 import com.roundsalmon4.phonetube.core.engine.model.StreamFormat
@@ -50,6 +52,8 @@ class PlayerViewModel @Inject constructor(
     private val playerPreferences: PlayerPreferences,
     private val historyDao: HistoryDao,
     private val playlistDao: PlaylistDao,
+    private val iptvDao: IptvDao,
+    private val xtreamClient: XtreamClient,
     val playerController: PlayerEngineController,
     private val playerStateManager: PlayerStateManager
 ) : AndroidViewModel(application) {
@@ -117,7 +121,7 @@ class PlayerViewModel @Inject constructor(
     private val historyMutex = Mutex()
     private var continuePlayingListener: Player.Listener? = null
     private val isExternalVideo: Boolean
-        get() = videoId.startsWith("streamable:") || videoId.startsWith("media:") || videoId.startsWith("peertube:")
+        get() = videoId.startsWith("streamable:") || videoId.startsWith("media:") || videoId.startsWith("peertube:") || videoId.startsWith("iptv:")
 
     init {
         playerStateManager.isPlayerScreenVisible = true
@@ -158,6 +162,10 @@ class PlayerViewModel @Inject constructor(
             }
             if (videoId.startsWith("peertube:")) {
                 loadPeerTube()
+                return@launch
+            }
+            if (videoId.startsWith("iptv:")) {
+                loadIptv()
                 return@launch
             }
             engine.getStreamInfo(videoId)
@@ -285,6 +293,59 @@ class PlayerViewModel @Inject constructor(
                 thumbnailUrl = ""
             )
             startPlayback(info)
+        }
+    }
+
+    private fun loadIptv() {
+        val parts = videoId.removePrefix("iptv:").split(":", limit = 2)
+        if (parts.size != 2 || parts[0].isBlank() || parts[1].isBlank()) {
+            Log.e(TAG, "loadIptv: malformed iptv videoId: '$videoId'")
+            _uiState.value = PlayerUiState.Error("Invalid IPTV stream link")
+            return
+        }
+        val providerId = parts[0]
+        val streamId = parts[1]
+        Log.d(TAG, "loadIptv: providerKey=$providerId streamId=$streamId")
+        viewModelScope.launch {
+            try {
+                val provider = withContext(Dispatchers.IO) { iptvDao.getById(providerId) }
+                if (provider == null) {
+                    Log.e(TAG, "loadIptv: provider '$providerId' not found")
+                    _uiState.value = PlayerUiState.Error("IPTV provider not found. Re-add it from the IPTV tab.")
+                    return@launch
+                }
+                val hlsUrl = xtreamClient.liveStreamUrl(provider.scheme, provider.host, provider.username, provider.password, streamId)
+                Log.d(TAG, "loadIptv: stream $streamId via ${provider.scheme}${provider.host}")
+                val info = StreamInfo(
+                    title = provider.name,
+                    author = provider.name,
+                    channelId = "",
+                    lengthSeconds = 0L,
+                    isLive = true,
+                    isLiveContent = false,
+                    adaptiveFormats = emptyList(),
+                    urlFormats = emptyList(),
+                    subtitles = emptyList(),
+                    dashManifestUrl = null,
+                    hlsManifestUrl = hlsUrl,
+                    isUnplayable = false,
+                    playabilityReason = null
+                )
+                _uiState.value = PlayerUiState.Ready(info)
+                playerStateManager.updateVideoInfo(
+                    videoId = videoId,
+                    title = info.title,
+                    thumbnailUrl = ""
+                )
+                startPlayback(info)
+                // Live TV should always play at 1x regardless of the global
+                // playback speed preference.
+                Log.d(TAG, "loadIptv: forcing 1x playback speed for live stream")
+                playerController.setPlaybackSpeed(1f)
+            } catch (e: Exception) {
+                Log.e(TAG, "loadIptv failed", e)
+                _uiState.value = PlayerUiState.Error(e.message ?: "Failed to start IPTV stream")
+            }
         }
     }
 
@@ -428,7 +489,13 @@ class PlayerViewModel @Inject constructor(
     private fun restoreSpeedPreference() {
         viewModelScope.launch {
             val savedSpeed = playerPreferences.uiState.first().playbackSpeed
-            playerController.setPlaybackSpeed(savedSpeed)
+            // IPTV is always 1x; the global playback speed preference must not
+            // apply to live streams (and must not race the 1x force in loadIptv).
+            if (videoId.startsWith("iptv:")) {
+                playerController.setPlaybackSpeed(1f)
+            } else {
+                playerController.setPlaybackSpeed(savedSpeed)
+            }
         }
     }
 

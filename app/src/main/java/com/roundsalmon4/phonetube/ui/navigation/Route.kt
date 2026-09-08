@@ -14,6 +14,7 @@ sealed interface Route {
     @Serializable data class Channel(val channelId: String) : Route
     @Serializable data object Library : Route
     @Serializable data object Settings : Route
+    @Serializable data object IPTV : Route
     @Serializable data object License : Route
     @Serializable data object Credits : Route
     @Serializable data class PlaylistDetail(val playlistId: Long) : Route

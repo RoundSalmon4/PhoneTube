@@ -15,7 +15,11 @@ import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.core.database.InvidiousDao
+import com.roundsalmon4.phonetube.core.database.IptvDao
+import com.roundsalmon4.phonetube.core.database.IptvFavoriteDao
 import com.roundsalmon4.phonetube.core.database.entity.InvidiousInstance
+import com.roundsalmon4.phonetube.core.database.entity.IptvFavorite
+import com.roundsalmon4.phonetube.core.database.entity.IptvProvider
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +40,9 @@ class SettingsViewModel @Inject constructor(
     private val playlistDao: PlaylistDao,
     private val subscriptionDao: SubscriptionDao,
     private val engine: YouTubeEngine,
-    private val invidiousDao: InvidiousDao
+    private val invidiousDao: InvidiousDao,
+    private val iptvDao: IptvDao,
+    private val iptvFavoriteDao: IptvFavoriteDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PreferencesUiState())
@@ -74,6 +80,8 @@ class SettingsViewModel @Inject constructor(
         val playlists = playlistDao.getAllPlaylists().first()
         val subscriptions = subscriptionDao.getAll().first()
         val invidiousInstances = invidiousDao.getAll().first()
+        val iptvProviders = iptvDao.getAll().first()
+        val iptvFavorites = iptvFavoriteDao.getAll().first()
 
         val visitorPrefs = context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
         val clearVisitorOnExit = visitorPrefs.getBoolean("clear_visitor_on_exit", false)
@@ -148,9 +156,29 @@ class SettingsViewModel @Inject constructor(
                     name = inst.name,
                     enabled = inst.enabled
                 )
+            },
+            iptvProviders = iptvProviders.map { provider ->
+                com.roundsalmon4.phonetube.core.database.IptvProviderExport(
+                    host = provider.host,
+                    username = provider.username,
+                    password = provider.password,
+                    name = provider.name,
+                    scheme = provider.scheme,
+                    timezone = provider.timezone,
+                    enabled = provider.enabled
+                )
+            },
+            iptvFavorites = iptvFavorites.map { favorite ->
+                com.roundsalmon4.phonetube.core.database.IptvFavoriteExport(
+                    videoId = favorite.videoId,
+                    title = favorite.title,
+                    providerName = favorite.providerName,
+                    iconUrl = favorite.iconUrl,
+                    addedAt = favorite.addedAt
+                )
             }
         )
-        Log.d(TAG, "buildExportJson: exporting ${invidiousInstances.size} peertube instances")
+        Log.d(TAG, "buildExportJson: exporting ${invidiousInstances.size} peertube instances, ${iptvProviders.size} iptv providers, ${iptvFavorites.size} iptv favorites")
 
         return withContext(Dispatchers.IO) {
             Json { prettyPrint = true }.encodeToString(ExportData.serializer(), exportData)
@@ -260,6 +288,49 @@ class SettingsViewModel @Inject constructor(
                     Log.d(TAG, "importFromJson: syncing peertube hosts pref: '$allHosts'")
                     context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
                         .edit().putString("invidious_hosts", allHosts).apply()
+                }
+
+                if (data.iptvProviders != null) {
+                    Log.d(TAG, "importFromJson: importing ${data.iptvProviders.size} iptv providers")
+                    for (provider in data.iptvProviders) {
+                        iptvDao.insert(
+                            IptvProvider(
+                                id = IptvProvider.makeId(provider.host, provider.username),
+                                host = provider.host,
+                                username = provider.username,
+                                password = provider.password,
+                                name = provider.name,
+                                scheme = provider.scheme,
+                                timezone = provider.timezone,
+                                enabled = provider.enabled
+                            )
+                        )
+                    }
+                }
+
+                if (data.iptvFavorites != null) {
+                    Log.d(TAG, "importFromJson: importing ${data.iptvFavorites.size} iptv favorites")
+                    var skipped = 0
+                    for (favorite in data.iptvFavorites) {
+                        val providerKey = favorite.videoId.removePrefix("iptv:").substringBefore(":")
+                        if (iptvDao.getById(providerKey) == null) {
+                            skipped++
+                            Log.w(TAG, "importFromJson: skipping favorite ${favorite.videoId} (provider $providerKey not found)")
+                            continue
+                        }
+                        iptvFavoriteDao.insert(
+                            IptvFavorite(
+                                videoId = favorite.videoId,
+                                title = favorite.title,
+                                providerName = favorite.providerName,
+                                iconUrl = favorite.iconUrl,
+                                addedAt = favorite.addedAt
+                            )
+                        )
+                    }
+                    if (skipped > 0) {
+                        Log.d(TAG, "importFromJson: skipped $skipped favorites without a matching provider")
+                    }
                 }
 
                 _importResult.value = "Import complete"
