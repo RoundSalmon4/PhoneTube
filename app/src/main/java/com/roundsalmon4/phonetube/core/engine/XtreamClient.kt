@@ -46,7 +46,7 @@ class XtreamClient @Inject constructor() {
                     expDate = userInfo?.optLong("exp_date", 0L) ?: 0L,
                     serverName = serverUrl.ifBlank { null } ?: host,
                     scheme = scheme,
-                    timezone = serverInfo?.optString("timezone", "").ifBlank { null }
+                    timezone = serverInfo?.optString("timezone", "").orEmpty().ifBlank { null }
                 )
             } catch (e: Exception) {
                 Log.w(TAG, "authenticate($host) failed", e)
