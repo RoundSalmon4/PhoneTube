@@ -7,6 +7,10 @@ on:
         description: 'Branch to build'
         required: true
         default: 'main'
+        type: choice
+        options:
+          - main
+          - feature/iptv
       build_type:
         description: 'Build type'
         required: true
