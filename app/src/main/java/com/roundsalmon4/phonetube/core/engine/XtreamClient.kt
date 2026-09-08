@@ -4,6 +4,7 @@ import android.net.Uri
 import android.util.Log
 import com.roundsalmon4.phonetube.core.engine.model.IptvCategory
 import com.roundsalmon4.phonetube.core.engine.model.IptvLiveStream
+import com.roundsalmon4.phonetube.core.engine.model.IptvProgram
 import com.roundsalmon4.phonetube.core.engine.model.XtreamAuthInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -44,7 +45,8 @@ class XtreamClient @Inject constructor() {
                     status = userInfo?.optString("status", "").orEmpty(),
                     expDate = userInfo?.optLong("exp_date", 0L) ?: 0L,
                     serverName = serverUrl.ifBlank { null } ?: host,
-                    scheme = scheme
+                    scheme = scheme,
+                    timezone = serverInfo?.optString("timezone", "").ifBlank { null }
                 )
             } catch (e: Exception) {
                 Log.w(TAG, "authenticate($host) failed", e)
@@ -109,6 +111,74 @@ class XtreamClient @Inject constructor() {
     fun liveStreamUrl(scheme: String, host: String, username: String, password: String, streamId: String): String {
         val path = "live/${Uri.encode(username)}/${Uri.encode(password)}/$streamId.m3u8"
         return "$scheme://$host/$path"
+    }
+
+    /**
+     * Fetches the short EPG for a stream and returns programs with epoch
+     * millis (UTC) so the app can pick the one airing right now. Titles are
+     * base64-encoded by some providers and are decoded when applicable.
+     */
+    suspend fun shortEpg(
+        host: String,
+        username: String,
+        password: String,
+        streamId: String,
+        timezone: String
+    ): List<IptvProgram> = withContext(Dispatchers.IO) {
+        val body = fetch(host, username, password, action = "get_short_epg", extra = "stream_id=" + Uri.encode(streamId))
+            ?.body ?: return@withContext emptyList()
+        val array = try {
+            org.json.JSONArray(body)
+        } catch (e: Exception) {
+            // Some panels wrap the listing: {"epg_listings": [...]}
+            try {
+                org.json.JSONObject(body).optJSONArray("epg_listings") ?: return@withContext emptyList()
+            } catch (e2: Exception) {
+                Log.w(TAG, "shortEpg($host): no epg_listings array", e2)
+                return@withContext emptyList()
+            }
+        }
+        val zone = try {
+            java.time.ZoneId.of(timezone)
+        } catch (e: Exception) {
+            Log.w(TAG, "shortEpg($host): bad timezone '$timezone', using device zone")
+            java.time.ZoneId.systemDefault()
+        }
+        val fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        val programs = (0 until array.length()).mapNotNull { i ->
+            val obj = array.optJSONObject(i) ?: return@mapNotNull null
+            val title = decodeTitle(obj.optString("title", ""))
+            val start = parseEpoch(obj.optString("start", ""), fmt, zone)
+            val end = parseEpoch(obj.optString("end", ""), fmt, zone)
+            if (title.isBlank() || start <= 0L || end <= 0L) return@mapNotNull null
+            IptvProgram(title = title, startEpoch = start, endEpoch = end)
+        }
+        Log.d(TAG, "shortEpg($host, stream=$streamId): ${programs.size} programs")
+        programs
+    }
+
+    private fun decodeTitle(raw: String): String {
+        if (raw.isBlank()) return raw
+        // Short EPG titles from some panels are base64-encoded. Attempt to
+        // decode, falling back to the raw text if that fails.
+        return try {
+            val decoded = String(
+                android.util.Base64.decode(raw.trim(), android.util.Base64.NO_WRAP),
+                Charsets.UTF_8
+            )
+            if (decoded.isBlank() || decoded.any { it.code == 0 } || decoded.length > raw.length * 2) raw else decoded
+        } catch (e: Exception) {
+            raw
+        }
+    }
+
+    private fun parseEpoch(local: String, fmt: java.time.format.DateTimeFormatter, zone: java.time.ZoneId): Long {
+        if (local.isBlank()) return 0L
+        return try {
+            java.time.LocalDateTime.parse(local, fmt).atZone(zone).toInstant().toEpochMilli()
+        } catch (e: Exception) {
+            0L
+        }
     }
 
     private data class FetchResult(val body: String, val scheme: String)

@@ -7,6 +7,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.roundsalmon4.phonetube.core.database.entity.CachedFeedSection
 import com.roundsalmon4.phonetube.core.database.entity.CachedFeedVideo
 import com.roundsalmon4.phonetube.core.database.entity.InvidiousInstance
+import com.roundsalmon4.phonetube.core.database.entity.IptvFavorite
 import com.roundsalmon4.phonetube.core.database.entity.IptvProvider
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.database.entity.LocalSubscription
@@ -22,9 +23,10 @@ import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
         CachedFeedSection::class,
         CachedFeedVideo::class,
         InvidiousInstance::class,
-        IptvProvider::class
+        IptvProvider::class,
+        IptvFavorite::class
     ],
-    version = 9,
+    version = 11,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -34,6 +36,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun feedCacheDao(): FeedCacheDao
     abstract fun invidiousDao(): InvidiousDao
     abstract fun iptvDao(): IptvDao
+    abstract fun iptvFavoriteDao(): IptvFavoriteDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -146,6 +149,27 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE iptv_providers ADD COLUMN scheme TEXT NOT NULL DEFAULT 'https'")
+            }
+        }
+
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE iptv_providers ADD COLUMN timezone TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS iptv_favorites (
+                        videoId TEXT NOT NULL,
+                        title TEXT NOT NULL DEFAULT '',
+                        providerName TEXT NOT NULL DEFAULT '',
+                        iconUrl TEXT NOT NULL DEFAULT '',
+                        addedAt INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(videoId)
+                    )
+                """.trimIndent())
             }
         }
     }

@@ -4,8 +4,10 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.database.IptvDao
+import com.roundsalmon4.phonetube.core.database.IptvFavoriteDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
 import com.roundsalmon4.phonetube.core.database.PlaylistSaver
+import com.roundsalmon4.phonetube.core.database.entity.IptvFavorite
 import com.roundsalmon4.phonetube.core.database.entity.IptvProvider
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.database.toPlaylistVideoInfo
@@ -25,6 +27,7 @@ import javax.inject.Inject
 @HiltViewModel
 class IptvViewModel @Inject constructor(
     private val iptvDao: IptvDao,
+    private val iptvFavoriteDao: IptvFavoriteDao,
     private val playlistDao: PlaylistDao,
     private val xtreamClient: XtreamClient
 ) : ViewModel() {
@@ -66,6 +69,20 @@ class IptvViewModel @Inject constructor(
     private val _playlists = MutableStateFlow<List<LocalPlaylist>>(emptyList())
     val playlists: StateFlow<List<LocalPlaylist>> = _playlists.asStateFlow()
 
+    // videoId -> "Title" (or "" when the provider has no EPG for that stream).
+    // An entry also acts as a cache so scrolling does not refetch.
+    private val _nowPlaying = MutableStateFlow<Map<String, String>>(emptyMap())
+    val nowPlaying: StateFlow<Map<String, String>> = _nowPlaying.asStateFlow()
+
+    private val _showFavorites = MutableStateFlow(false)
+    val showFavorites: StateFlow<Boolean> = _showFavorites.asStateFlow()
+
+    private val _favorites = MutableStateFlow<List<Video>>(emptyList())
+    val favorites: StateFlow<List<Video>> = _favorites.asStateFlow()
+
+    private val _favoriteIds = MutableStateFlow<Set<String>>(emptySet())
+    val favoriteIds: StateFlow<Set<String>> = _favoriteIds.asStateFlow()
+
     init {
         viewModelScope.launch {
             iptvDao.getAll().collect { providers ->
@@ -86,7 +103,55 @@ class IptvViewModel @Inject constructor(
         viewModelScope.launch {
             playlistDao.getAllPlaylists().collect { _playlists.value = it }
         }
+        viewModelScope.launch {
+            iptvFavoriteDao.getAll().collect { favorites ->
+                _favorites.value = favorites.map { it.toVideo() }
+                _favoriteIds.value = favorites.map { it.videoId }.toSet()
+            }
+        }
     }
+
+    fun toggleFavorite(video: Video) {
+        viewModelScope.launch {
+            if (video.videoId in _favoriteIds.value) {
+                Log.d(TAG, "toggleFavorite: removing ${video.videoId}")
+                iptvFavoriteDao.delete(video.videoId)
+            } else {
+                Log.d(TAG, "toggleFavorite: adding ${video.videoId} ('${video.title}')")
+                iptvFavoriteDao.insert(
+                    IptvFavorite(
+                        videoId = video.videoId,
+                        title = video.title,
+                        providerName = video.author,
+                        iconUrl = video.thumbnailUrl
+                    )
+                )
+            }
+        }
+    }
+
+    fun setShowFavorites(show: Boolean) {
+        Log.d(TAG, "setShowFavorites: $show")
+        _showFavorites.value = show
+        _selectedCategoryId.value = null
+        _channelCategoryName.value = null
+        _channels.value = emptyList()
+        _error.value = null
+    }
+
+    private fun IptvFavorite.toVideo(): Video = Video(
+        videoId = videoId,
+        title = title,
+        author = providerName,
+        channelId = "",
+        thumbnailUrl = iconUrl,
+        durationMs = 0L,
+        viewCount = null,
+        publishedDate = 0L,
+        percentWatched = 0,
+        source = null,
+        channelHost = null
+    )
 
     fun showAddToPlaylistDialog(video: Video) {
         _addToPlaylistVideo.value = video
@@ -141,6 +206,37 @@ class IptvViewModel @Inject constructor(
     }
 
     /**
+     * Fetches the short EPG for one stream and stores the currently airing
+     * program. Called lazily from each visible channel row; the map entry
+     * doubles as a cache so a stream is only fetched once per visit.
+     */
+    fun loadNowPlaying(videoId: String, streamId: String) {
+        if (_nowPlaying.value.containsKey(videoId)) return
+        val provider = _providers.value.find { it.id == _selectedProviderId.value } ?: return
+        viewModelScope.launch {
+            try {
+                val programs = withContext(Dispatchers.IO) {
+                    xtreamClient.shortEpg(provider.host, provider.username, provider.password, streamId, provider.timezone)
+                }
+                val now = System.currentTimeMillis()
+                val current = programs.firstOrNull { it.startEpoch <= now && now < it.endEpoch }
+                val label = current?.let { program ->
+                    val end = java.time.Instant.ofEpochMilli(program.endEpoch)
+                        .atZone(java.time.ZoneId.systemDefault())
+                        .toLocalTime()
+                        .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+                    "${program.title} - until $end"
+                }.orEmpty()
+                Log.d(TAG, "loadNowPlaying(stream=$streamId): ${if (label.isBlank()) "no current program" else label}")
+                _nowPlaying.value = _nowPlaying.value + (videoId to label)
+            } catch (e: Exception) {
+                Log.e(TAG, "loadNowPlaying(stream=$streamId) failed", e)
+                _nowPlaying.value = _nowPlaying.value + (videoId to "")
+            }
+        }
+    }
+
+    /**
      * Validates credentials via the player API, then saves the provider.
      * Returns null on success, otherwise a message explaining the failure.
      */
@@ -168,7 +264,8 @@ class IptvViewModel @Inject constructor(
         val id = IptvProvider.makeId(normalized, username)
         val displayName = name.ifBlank { auth.serverName?.takeIf { it.isNotBlank() } ?: normalized }
         val scheme = auth.scheme?.takeIf { it == "http" || it == "https" } ?: "https"
-        Log.d(TAG, "addProvider: '$normalized' validated OK (auth=${auth.auth}, status=${auth.status}, exp=${auth.expDate}, scheme=$scheme)")
+        val timezone = auth.timezone.orEmpty()
+        Log.d(TAG, "addProvider: '$normalized' validated OK (auth=${auth.auth}, status=${auth.status}, exp=${auth.expDate}, scheme=$scheme, tz=$timezone)")
         Log.d(TAG, "addProvider: saving '$displayName' ($normalized) as $id")
         iptvDao.insert(
             IptvProvider(
@@ -177,7 +274,8 @@ class IptvViewModel @Inject constructor(
                 username = username.trim(),
                 password = password,
                 name = displayName,
-                scheme = scheme
+                scheme = scheme,
+                timezone = timezone
             )
         )
         return null

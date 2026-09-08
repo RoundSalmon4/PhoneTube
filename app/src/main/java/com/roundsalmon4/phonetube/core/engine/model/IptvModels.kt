@@ -27,5 +27,16 @@ data class XtreamAuthInfo(
     val status: String,
     val expDate: Long,
     val serverName: String?,
-    val scheme: String?
+    val scheme: String?,
+    val timezone: String?
+)
+
+/**
+ * A program from the short EPG (action=get_short_epg). Timestamps are epoch
+ * millis in UTC so they can be matched against the device clock.
+ */
+data class IptvProgram(
+    val title: String,
+    val startEpoch: Long,
+    val endEpoch: Long
 )

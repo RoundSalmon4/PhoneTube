@@ -338,6 +338,10 @@ class PlayerViewModel @Inject constructor(
                     thumbnailUrl = ""
                 )
                 startPlayback(info)
+                // Live TV should always play at 1x regardless of the global
+                // playback speed preference.
+                Log.d(TAG, "loadIptv: forcing 1x playback speed for live stream")
+                playerController.setPlaybackSpeed(1f)
             } catch (e: Exception) {
                 Log.e(TAG, "loadIptv failed", e)
                 _uiState.value = PlayerUiState.Error(e.message ?: "Failed to start IPTV stream")
@@ -485,7 +489,13 @@ class PlayerViewModel @Inject constructor(
     private fun restoreSpeedPreference() {
         viewModelScope.launch {
             val savedSpeed = playerPreferences.uiState.first().playbackSpeed
-            playerController.setPlaybackSpeed(savedSpeed)
+            // IPTV is always 1x; the global playback speed preference must not
+            // apply to live streams (and must not race the 1x force in loadIptv).
+            if (videoId.startsWith("iptv:")) {
+                playerController.setPlaybackSpeed(1f)
+            } else {
+                playerController.setPlaybackSpeed(savedSpeed)
+            }
         }
     }
 
