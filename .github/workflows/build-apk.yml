@@ -10,7 +10,6 @@ on:
         type: choice
         options:
           - main
-          - feature/iptv
       build_type:
         description: 'Build type'
         required: true
