@@ -16,7 +16,9 @@ import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.core.database.InvidiousDao
 import com.roundsalmon4.phonetube.core.database.IptvDao
+import com.roundsalmon4.phonetube.core.database.IptvFavoriteDao
 import com.roundsalmon4.phonetube.core.database.entity.InvidiousInstance
+import com.roundsalmon4.phonetube.core.database.entity.IptvFavorite
 import com.roundsalmon4.phonetube.core.database.entity.IptvProvider
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,7 +41,8 @@ class SettingsViewModel @Inject constructor(
     private val subscriptionDao: SubscriptionDao,
     private val engine: YouTubeEngine,
     private val invidiousDao: InvidiousDao,
-    private val iptvDao: IptvDao
+    private val iptvDao: IptvDao,
+    private val iptvFavoriteDao: IptvFavoriteDao
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PreferencesUiState())
@@ -78,6 +81,7 @@ class SettingsViewModel @Inject constructor(
         val subscriptions = subscriptionDao.getAll().first()
         val invidiousInstances = invidiousDao.getAll().first()
         val iptvProviders = iptvDao.getAll().first()
+        val iptvFavorites = iptvFavoriteDao.getAll().first()
 
         val visitorPrefs = context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
         val clearVisitorOnExit = visitorPrefs.getBoolean("clear_visitor_on_exit", false)
@@ -163,9 +167,18 @@ class SettingsViewModel @Inject constructor(
                     timezone = provider.timezone,
                     enabled = provider.enabled
                 )
+            },
+            iptvFavorites = iptvFavorites.map { favorite ->
+                com.roundsalmon4.phonetube.core.database.IptvFavoriteExport(
+                    videoId = favorite.videoId,
+                    title = favorite.title,
+                    providerName = favorite.providerName,
+                    iconUrl = favorite.iconUrl,
+                    addedAt = favorite.addedAt
+                )
             }
         )
-        Log.d(TAG, "buildExportJson: exporting ${invidiousInstances.size} peertube instances, ${iptvProviders.size} iptv providers")
+        Log.d(TAG, "buildExportJson: exporting ${invidiousInstances.size} peertube instances, ${iptvProviders.size} iptv providers, ${iptvFavorites.size} iptv favorites")
 
         return withContext(Dispatchers.IO) {
             Json { prettyPrint = true }.encodeToString(ExportData.serializer(), exportData)
@@ -292,6 +305,31 @@ class SettingsViewModel @Inject constructor(
                                 enabled = provider.enabled
                             )
                         )
+                    }
+                }
+
+                if (data.iptvFavorites != null) {
+                    Log.d(TAG, "importFromJson: importing ${data.iptvFavorites.size} iptv favorites")
+                    var skipped = 0
+                    for (favorite in data.iptvFavorites) {
+                        val providerKey = favorite.videoId.removePrefix("iptv:").substringBefore(":")
+                        if (iptvDao.getById(providerKey) == null) {
+                            skipped++
+                            Log.w(TAG, "importFromJson: skipping favorite ${favorite.videoId} (provider $providerKey not found)")
+                            continue
+                        }
+                        iptvFavoriteDao.insert(
+                            IptvFavorite(
+                                videoId = favorite.videoId,
+                                title = favorite.title,
+                                providerName = favorite.providerName,
+                                iconUrl = favorite.iconUrl,
+                                addedAt = favorite.addedAt
+                            )
+                        )
+                    }
+                    if (skipped > 0) {
+                        Log.d(TAG, "importFromJson: skipped $skipped favorites without a matching provider")
                     }
                 }
 
