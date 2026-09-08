@@ -117,7 +117,7 @@ fun IptvScreen(onVideoClick: (String) -> Unit) {
 
         when {
             providers.isEmpty() -> EmptyIptvState(onAddClick = { showAddDialog = true })
-            error != null -> ErrorState(error)
+            error != null -> ErrorState(error.orEmpty())
             selectedCategoryId == null -> CategoriesList(
                 categories = categories,
                 loading = loading,
