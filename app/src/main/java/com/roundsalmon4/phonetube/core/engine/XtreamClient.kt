@@ -55,7 +55,7 @@ class XtreamClient @Inject constructor() {
     suspend fun liveCategories(host: String, username: String, password: String): List<IptvCategory> =
         withContext(Dispatchers.IO) {
             val body = fetch(host, username, password, action = "get_live_categories", extra = null)
-                ?.first ?: return@withContext emptyList()
+                ?.body ?: return@withContext emptyList()
             val array = try {
                 org.json.JSONArray(body)
             } catch (e: Exception) {
@@ -80,7 +80,7 @@ class XtreamClient @Inject constructor() {
     ): List<IptvLiveStream> = withContext(Dispatchers.IO) {
         val extra = if (categoryId.isNullOrBlank()) null else ("category_id=" + Uri.encode(categoryId))
         val body = fetch(host, username, password, action = "get_live_streams", extra = extra)
-            ?.first ?: return@withContext emptyList()
+            ?.body ?: return@withContext emptyList()
         val array = try {
             org.json.JSONArray(body)
         } catch (e: Exception) {
