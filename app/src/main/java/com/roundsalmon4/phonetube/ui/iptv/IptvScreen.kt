@@ -79,6 +79,7 @@ fun IptvScreen(onVideoClick: (String) -> Unit) {
     val addToPlaylistVideo by viewModel.addToPlaylistVideo.collectAsStateWithLifecycle()
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val nowPlaying by viewModel.nowPlaying.collectAsStateWithLifecycle()
+    val epgLoading by viewModel.epgLoading.collectAsStateWithLifecycle()
     val showFavorites by viewModel.showFavorites.collectAsStateWithLifecycle()
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val favoriteIds by viewModel.favoriteIds.collectAsStateWithLifecycle()
@@ -159,6 +160,7 @@ fun IptvScreen(onVideoClick: (String) -> Unit) {
                 categoryName = channelCategoryName,
                 channels = channels,
                 nowPlaying = nowPlaying,
+                epgLoading = epgLoading,
                 loading = loading,
                 onBack = { viewModel.backToCategories() },
                 onChannelClick = onVideoClick,
@@ -281,6 +283,7 @@ private fun ChannelList(
     categoryName: String?,
     channels: List<Video>,
     nowPlaying: Map<String, String>,
+    epgLoading: Set<String>,
     loading: Boolean,
     onBack: () -> Unit,
     onChannelClick: (String) -> Unit,
@@ -323,6 +326,7 @@ private fun ChannelList(
                 IptvChannelRow(
                     video = video,
                     nowPlayingText = nowPlaying[video.videoId].orEmpty(),
+                    epgLoading = video.videoId in epgLoading,
                     isFavorite = isFavorite(video),
                     onClick = { onChannelClick(video.videoId) },
                     onLongClick = { onChannelLongClick(video) },
@@ -363,6 +367,7 @@ private fun FavoritesList(
                 IptvChannelRow(
                     video = video,
                     nowPlayingText = "",
+                    epgLoading = false,
                     isFavorite = isFavorite(video),
                     onClick = { onChannelClick(video.videoId) },
                     onLongClick = { onToggleFavorite(video) },
@@ -379,6 +384,7 @@ private fun FavoritesList(
 private fun IptvChannelRow(
     video: Video,
     nowPlayingText: String,
+    epgLoading: Boolean,
     isFavorite: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
@@ -424,7 +430,22 @@ private fun IptvChannelRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            if (nowPlayingText.isNotBlank()) {
+            if (epgLoading) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = "Loading program...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
+                    )
+                }
+            } else if (nowPlayingText.isNotBlank()) {
                 Text(
                     text = nowPlayingText,
                     style = MaterialTheme.typography.bodySmall,

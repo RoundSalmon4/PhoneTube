@@ -74,6 +74,11 @@ class IptvViewModel @Inject constructor(
     private val _nowPlaying = MutableStateFlow<Map<String, String>>(emptyMap())
     val nowPlaying: StateFlow<Map<String, String>> = _nowPlaying.asStateFlow()
 
+    // videoIds whose short EPG is still being fetched, so rows can show a
+    // loading indicator until now playing is known.
+    private val _epgLoading = MutableStateFlow<Set<String>>(emptySet())
+    val epgLoading: StateFlow<Set<String>> = _epgLoading.asStateFlow()
+
     private val _showFavorites = MutableStateFlow(false)
     val showFavorites: StateFlow<Boolean> = _showFavorites.asStateFlow()
 
@@ -211,8 +216,9 @@ class IptvViewModel @Inject constructor(
      * doubles as a cache so a stream is only fetched once per visit.
      */
     fun loadNowPlaying(videoId: String, streamId: String) {
-        if (_nowPlaying.value.containsKey(videoId)) return
+        if (_nowPlaying.value.containsKey(videoId) || videoId in _epgLoading.value) return
         val provider = _providers.value.find { it.id == _selectedProviderId.value } ?: return
+        _epgLoading.value = _epgLoading.value + videoId
         viewModelScope.launch {
             try {
                 val programs = withContext(Dispatchers.IO) {
@@ -232,6 +238,8 @@ class IptvViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e(TAG, "loadNowPlaying(stream=$streamId) failed", e)
                 _nowPlaying.value = _nowPlaying.value + (videoId to "")
+            } finally {
+                _epgLoading.value = _epgLoading.value - videoId
             }
         }
     }
