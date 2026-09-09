@@ -78,6 +78,12 @@ private val credits = listOf(
         license = "Apache 2.0"
     ),
     CreditEntry(
+        name = "Material Icons (Extended)",
+        description = "UI icons used across the interface",
+        url = "https://developer.android.com/jetpack/compose/material-icons",
+        license = "Apache 2.0"
+    ),
+    CreditEntry(
         name = "Hilt",
         description = "Dependency injection",
         url = "https://github.com/google/dagger",
