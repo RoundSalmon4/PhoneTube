@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.roundsalmon4.phonetube.core.engine.model.SponsorSegment
+import com.roundsalmon4.phonetube.core.engine.model.VideoChapter
 import com.roundsalmon4.phonetube.player.PlayerPlaybackSnapshot
 import com.roundsalmon4.phonetube.player.SponsorBlockService
 import kotlin.math.roundToInt
@@ -56,6 +57,7 @@ fun PlayerControls(
     state: PlayerPlaybackSnapshot,
     title: String,
     sponsorSegments: List<SponsorSegment>,
+    chapters: List<VideoChapter> = emptyList(),
     onBackClick: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onSeekTo: (Long) -> Unit,
@@ -246,6 +248,15 @@ fun PlayerControls(
                                 size = Size(size.width * bufferedFraction, size.height)
                             )
                         }
+                        // Chapter boundaries as tick marks on the playbar
+                        ChapterBoundaries(
+                            chapters = chapters,
+                            durationMs = duration,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.Center)
+                                .height(4.dp)
+                        )
                         Slider(
                             value = displayFraction,
                             onValueChange = { fraction ->
@@ -364,6 +375,30 @@ private fun SponsorBlockSeekbar(
                     )
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ChapterBoundaries(
+    chapters: List<VideoChapter>,
+    durationMs: Long,
+    modifier: Modifier = Modifier
+) {
+    if (chapters.isEmpty() || durationMs <= 0L) return
+
+    androidx.compose.foundation.Canvas(modifier = modifier) {
+        val trackWidth = size.width
+        for (chapter in chapters) {
+            val fraction = chapter.startMs.toFloat() / durationMs
+            if (fraction <= 0f || fraction >= 1f) continue
+            val x = fraction * trackWidth
+            // Thin tick mark at each chapter boundary (except the start).
+            drawRect(
+                color = Color.White.copy(alpha = 0.8f),
+                topLeft = Offset(x - 1f, 0f),
+                size = Size(width = 2f, height = size.height)
+            )
         }
     }
 }
