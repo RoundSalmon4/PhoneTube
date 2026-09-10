@@ -199,7 +199,21 @@ class HomeViewModel @Inject constructor(
             val youtubeChannels = subscriptions.take(10)
                 .filter { !it.channelId.startsWith("peertube:") }
                 .map { it.channelId }
-            val peerTubeChannels = subscriptions.filter { it.channelId.startsWith("peertube:") }
+            // Only fetch PeerTube subscriptions whose instance is still enabled
+            // in Settings. Toggling an instance off must remove its channels
+            // from this feed too, not just from the PeerTube home section.
+            val enabledHosts = withContext(Dispatchers.IO) {
+                invidiousDao.getEnabledSync().map { it.host }.toSet()
+            }
+            val peerTubeChannels = subscriptions
+                .filter { it.channelId.startsWith("peertube:") }
+                .filter { sub ->
+                    val host = sub.channelId.removePrefix("peertube:").substringBefore(":")
+                    host in enabledHosts
+                }
+            if (peerTubeChannels.size < subscriptions.count { it.channelId.startsWith("peertube:") }) {
+                Log.w(TAG, "fetchSubscriptionsFeed: skipping PeerTube subscriptions from disabled instances")
+            }
 
             val youtubeVideos = if (youtubeChannels.isNotEmpty()) {
                 engine.getRssFeedVideos(youtubeChannels)
