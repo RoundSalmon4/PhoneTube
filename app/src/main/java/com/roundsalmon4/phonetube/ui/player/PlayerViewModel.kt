@@ -20,6 +20,7 @@ import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.model.SponsorSegment
 import com.roundsalmon4.phonetube.core.engine.model.StreamFormat
 import com.roundsalmon4.phonetube.core.engine.model.StreamInfo
+import com.roundsalmon4.phonetube.core.engine.model.VideoChapter
 import com.roundsalmon4.phonetube.player.AudioTrackInfo
 import com.roundsalmon4.phonetube.player.PlayerEngineController
 import com.roundsalmon4.phonetube.player.PlayerPlaybackSnapshot
@@ -91,6 +92,12 @@ class PlayerViewModel @Inject constructor(
 
     private val _description = MutableStateFlow<String?>(null)
     val description: StateFlow<String?> = _description.asStateFlow()
+
+    private val _chapters = MutableStateFlow<List<VideoChapter>>(emptyList())
+    val chapters: StateFlow<List<VideoChapter>> = _chapters.asStateFlow()
+
+    private val _showChapterPicker = MutableStateFlow(false)
+    val showChapterPicker: StateFlow<Boolean> = _showChapterPicker.asStateFlow()
 
     private val _viewCount = MutableStateFlow<String?>(null)
     val viewCount: StateFlow<String?> = _viewCount.asStateFlow()
@@ -373,12 +380,43 @@ class PlayerViewModel @Inject constructor(
                     .catch { /* ignore */ }
                     .collect { metadata ->
                         _description.value = metadata.description
+                        _chapters.value = parseChapters(metadata.description).also {
+                            Log.d(TAG, "loadDescription: parsed ${it.size} chapters")
+                        }
                         _viewCount.value = metadata.viewCount
                         _likeCount.value = metadata.likeCount
                         _subscriberCount.value = metadata.subscriberCount
                     }
             } catch (_: Exception) { }
         }
+    }
+
+    fun showChapterPicker() { _showChapterPicker.value = true }
+    fun hideChapterPicker() { _showChapterPicker.value = false }
+
+    /**
+     * Parses timestamped description lines (00:00 Intro, 1:23:45 Credits) into
+     * an ordered list of chapters. Lines are kept only when their start time is
+     * strictly after the previous one, which filters out recap/redo formatting.
+     */
+    private fun parseChapters(description: String): List<VideoChapter> {
+        val regex = Regex("""^((\d{1,2}):)?(\d{1,2}):(\d{2})\s+(.+)$""")
+        val result = mutableListOf<VideoChapter>()
+        var lastStartMs = -1L
+        for (line in description.lineSequence()) {
+            val match = regex.matchEntire(line.trim()) ?: continue
+            val hours = match.groupValues[2].toIntOrNull() ?: 0
+            val minutes = match.groupValues[3].toIntOrNull() ?: 0
+            val seconds = 60L * (hours * 60 + minutes) + (match.groupValues[4].toIntOrNull() ?: 0)
+            val title = match.groupValues[5].trim()
+            if (title.isBlank()) continue
+            val startMs = seconds * 1000L
+            if (startMs > lastStartMs) {
+                result.add(VideoChapter(title = title, startMs = startMs))
+                lastStartMs = startMs
+            }
+        }
+        return result
     }
 
     private fun startAutoSkip() {

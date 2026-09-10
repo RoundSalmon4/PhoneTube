@@ -8,7 +8,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -50,6 +54,7 @@ import androidx.compose.ui.text.withStyle
 
 import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
 import com.roundsalmon4.phonetube.ui.components.WebViewDialog
+import com.roundsalmon4.phonetube.ui.components.formatDuration
 import com.roundsalmon4.phonetube.ui.components.openLink
 
 @Composable
@@ -70,6 +75,8 @@ fun PlayerScreen(
     val showAudioPicker by viewModel.showAudioPicker.collectAsStateWithLifecycle()
     val toastMessage by viewModel.toastMessage.collectAsStateWithLifecycle()
     val description by viewModel.description.collectAsStateWithLifecycle()
+    val chapters by viewModel.chapters.collectAsStateWithLifecycle()
+    val showChapterPicker by viewModel.showChapterPicker.collectAsStateWithLifecycle()
     val viewCount by viewModel.viewCount.collectAsStateWithLifecycle()
     val likeCount by viewModel.likeCount.collectAsStateWithLifecycle()
     val subscriberCount by viewModel.subscriberCount.collectAsStateWithLifecycle()
@@ -343,6 +350,27 @@ onSpeedClick = if (state.streamInfo.isLive || state.streamInfo.isLiveContent) nu
                                     modifier = Modifier.padding(top = 2.dp)
                                 )
                             }
+                            if (chapters.isNotEmpty()) {
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.padding(top = 8.dp)
+                                ) {
+                                    items(chapters) { chapter ->
+                                        AssistChip(
+                                            onClick = { viewModel.seekTo(chapter.startMs) },
+                                            label = {
+                                                Text(
+                                                    text = "${chapter.title} • ${formatDuration(chapter.startMs)}",
+                                                    maxLines = 1
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
+                                TextButton(onClick = { viewModel.showChapterPicker() }) {
+                                    Text("Chapters")
+                                }
+                            }
                             description?.let { desc ->
                                 DescriptionSection(
                                     description = desc,
@@ -393,6 +421,15 @@ onSpeedClick = if (state.streamInfo.isLive || state.streamInfo.isLiveContent) nu
             currentSpeed = playbackState.playbackSpeed,
             onSpeedSelected = { viewModel.setPlaybackSpeed(it) },
             onDismiss = { viewModel.hideSpeedPicker() }
+        )
+    }
+
+    if (showChapterPicker) {
+        ChapterPickerSheet(
+            chapters = chapters,
+            currentPositionMs = playbackState.currentPosition,
+            onChapterSelected = { viewModel.seekTo(it.startMs) },
+            onDismiss = { viewModel.hideChapterPicker() }
         )
     }
 
