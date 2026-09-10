@@ -62,7 +62,13 @@ class PlayerEngineController(context: Context) {
     private val dataSourceFactory = DefaultDataSource.Factory(context)
         .setTransferListener(bandwidthMeter)
 
-    private val trackSelector = DefaultTrackSelector(context)
+    private val trackSelector = DefaultTrackSelector(context).apply {
+        // Floor for adaptive (AUTO): never sink to 144/240p. 360p minHeight
+        // keeps low-bandwidth sessions watchable without the estimator thrashing
+        // between the extreme low and mid resolutions. exceed constraints still
+        // allow falling below when a video has nothing higher.
+        setParameters(buildUponParameters().setMinVideoSize(360, 360))
+    }
 
     private val loadControl = DefaultLoadControl.Builder()
         .setBufferDurationsMs(15_000, 60_000, 2_500, 5_000)

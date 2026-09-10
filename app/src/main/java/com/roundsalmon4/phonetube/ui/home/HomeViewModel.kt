@@ -117,7 +117,10 @@ class HomeViewModel @Inject constructor(
                 val current = (_uiState.value as? HomeUiState.Success)?.sections ?: return@collect
                 val merged = applyFeedPrefs(current, prefs)
                 if (merged != current) {
+                    // Apply immediately, then reconcile with a full refresh so
+                    // feeds removed by an import do not linger.
                     _uiState.value = HomeUiState.Success(merged)
+                    refreshHomeOnly()
                 }
             }
         }
