@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.Forward10
 import androidx.compose.material.icons.rounded.Replay10
@@ -61,6 +62,7 @@ fun PlayerControls(
     onSeekBy: (Long) -> Unit,
     onSpeedClick: (() -> Unit)? = null,
     onQualityClick: () -> Unit,
+    onPipClick: (() -> Unit)? = null,
     onSubtitleClick: () -> Unit,
     onAudioClick: () -> Unit,
     onAddToPlaylistClick: (() -> Unit)? = null,
@@ -144,6 +146,20 @@ fun PlayerControls(
                                     indication = null,
                                     interactionSource = remember { MutableInteractionSource() }
                                 ) { onSpeedClick() }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                    // PiP button (available while playing/buffering)
+                    if (onPipClick != null) {
+                        Icon(
+                            imageVector = Icons.Filled.PictureInPictureAlt,
+                            contentDescription = "Picture in picture",
+                            tint = Color.White,
+                            modifier = Modifier
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { onPipClick() }
                                 .padding(horizontal = 12.dp, vertical = 8.dp)
                         )
                     }

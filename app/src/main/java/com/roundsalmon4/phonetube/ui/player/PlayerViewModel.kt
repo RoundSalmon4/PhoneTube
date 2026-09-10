@@ -107,6 +107,9 @@ class PlayerViewModel @Inject constructor(
     private val _screenProtection = MutableStateFlow(false)
     val screenProtection: StateFlow<Boolean> = _screenProtection.asStateFlow()
 
+    private val _pipEnabled = MutableStateFlow(true)
+    val pipEnabled: StateFlow<Boolean> = _pipEnabled.asStateFlow()
+
     private val _showAddToPlaylist = MutableStateFlow(false)
     val showAddToPlaylist: StateFlow<Boolean> = _showAddToPlaylist.asStateFlow()
 
@@ -131,6 +134,7 @@ class PlayerViewModel @Inject constructor(
         loadOpenLinksInPreference()
         loadScreenProtectionPreference()
         loadPlaylists()
+        loadPipEnabledPreference()
         startPeriodicHistorySave()
         if (!isExternalVideo) {
             loadSponsorSegments()
@@ -504,6 +508,12 @@ class PlayerViewModel @Inject constructor(
             playerPreferences.uiState.collect { prefs ->
                 _landscapeLock.value = prefs.landscapeLock
             }
+        }
+    }
+
+    private fun loadPipEnabledPreference() {
+        viewModelScope.launch {
+            _pipEnabled.value = playerPreferences.uiState.first().pipEnabled
         }
     }
 

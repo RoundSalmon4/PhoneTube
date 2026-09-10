@@ -1,6 +1,8 @@
 package com.roundsalmon4.phonetube.ui.player
 
 import android.app.Activity
+import android.app.PictureInPictureParams
+import android.util.Rational
 import android.content.pm.ActivityInfo
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -86,6 +88,20 @@ fun PlayerScreen(
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val landscapeLock by viewModel.landscapeLock.collectAsStateWithLifecycle()
     val screenProtection by viewModel.screenProtection.collectAsStateWithLifecycle()
+    val pipEnabled by viewModel.pipEnabled.collectAsStateWithLifecycle()
+
+    // PiP button available while actively playing (or rebuffering). Reused for
+    // both orientations; null hides the button.
+    val onPipClick: (() -> Unit)? = if (pipEnabled && (playbackState.isPlaying || playbackState.isBuffering)) {
+        {
+            val width = playbackState.videoWidth
+            val height = playbackState.videoHeight
+            val ratio = if (width > 0 && height > 0) Rational(width, height) else Rational(16, 9)
+            activity?.enterPictureInPictureMode(
+                PictureInPictureParams.Builder().setAspectRatio(ratio).build()
+            )
+        }
+    } else null
 
     // Portrait videos (e.g. Shorts) should stay in portrait; otherwise respect the landscape lock.
     val isPortraitVideo = playbackState.videoHeight > playbackState.videoWidth
@@ -218,6 +234,7 @@ fun PlayerScreen(
                             onSeekBy = { viewModel.seekBy(it) },
                             onSpeedClick = if (state.streamInfo.isLive || state.streamInfo.isLiveContent) null else ({ viewModel.showSpeedPicker() }),
                             onQualityClick = { viewModel.showQualityPicker() },
+                            onPipClick = onPipClick,
                             onSubtitleClick = { viewModel.showSubtitlePicker() },
                             onAudioClick = { viewModel.showAudioPicker() },
                             onAddToPlaylistClick = { viewModel.showAddToPlaylist() },
@@ -269,14 +286,15 @@ PlayerControls(
                             onTogglePlayPause = { viewModel.togglePlayPause() },
                             onSeekTo = { viewModel.seekTo(it) },
                             onSeekBy = { viewModel.seekBy(it) },
-                            onSpeedClick = if (state.streamInfo.isLive || state.streamInfo.isLiveContent) null else ({ viewModel.showSpeedPicker() }),
+onSpeedClick = if (state.streamInfo.isLive || state.streamInfo.isLiveContent) null else ({ viewModel.showSpeedPicker() }),
                             onQualityClick = { viewModel.showQualityPicker() },
+                            onPipClick = onPipClick,
                             onSubtitleClick = { viewModel.showSubtitlePicker() },
                             onAudioClick = { viewModel.showAudioPicker() },
                             visible = controlsVisible,
                             modifier = Modifier.fillMaxSize()
                         )
-                            SubtitleOverlay(
+                        SubtitleOverlay(
                                 player = player,
                                 fontSizeSp = (maxWidth.value / 30f).coerceIn(14f, 32f),
                                 modifier = Modifier
