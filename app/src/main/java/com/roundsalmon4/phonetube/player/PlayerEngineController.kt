@@ -19,6 +19,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.SingleSampleMediaSource
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
+import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import com.roundsalmon4.phonetube.core.engine.model.SubtitleTrack
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,13 +37,26 @@ class PlayerEngineController(context: Context) {
 
     companion object {
         private const val TAG = "PlayerEngine"
+        // Seeded adaptive start (~10 Mbps -> roughly 1080p+ target) so AUTO does
+        // not begin at the floor on a good connection; still ramps with the real
+        // measured throughput.
+        private const val INITIAL_BITRATE_ESTIMATE_BPS = 10_000_000L
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    private val dataSourceFactory = DefaultDataSource.Factory(context)
+    // Share one bandwidth meter so the initial estimate is a realistic start
+    // for adaptive (ExoPlayer's default ~1 Mbps makes AUTO begin at a very low
+    // resolution and ramp slowly). The same meter measures the actual
+    // transfers and is read by the AdaptiveTrackSelection.
+    private val bandwidthMeter = DefaultBandwidthMeter.Builder(context)
+        .setInitialBitrateEstimate(INITIAL_BITRATE_ESTIMATE_BPS)
+        .build()
 
-    private val trackSelector = DefaultTrackSelector(context)
+    private val dataSourceFactory = DefaultDataSource.Factory(context)
+        .setTransferListener(bandwidthMeter)
+
+    private val trackSelector = DefaultTrackSelector(context, bandwidthMeter)
 
     private val loadControl = DefaultLoadControl.Builder()
         .setBufferDurationsMs(15_000, 60_000, 2_500, 5_000)
@@ -86,6 +100,9 @@ class PlayerEngineController(context: Context) {
         }
 
         override fun onVideoSizeChanged(videoSize: VideoSize) {
+            // Log the actual rendered resolution (includes adaptive switches) so
+            // AUTO's behavior can be verified from the app log.
+            Log.d(TAG, "videoSize changed to ${videoSize.width}x${videoSize.height}")
             updateSnapshot()
         }
     }
