@@ -7,6 +7,8 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -17,6 +19,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
+import androidx.media3.common.Player
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.core.engine.YouTubeInitializer
@@ -46,6 +49,14 @@ class MainActivity : ComponentActivity() {
     lateinit var playerController: PlayerEngineController
 
     val deepLinkUri = MutableStateFlow<Uri?>(null)
+
+    // onStop() does not always follow onUserLeaveHint() (e.g. switching apps
+    // from Overview), so a debounced PiP check is posted there too. The delay
+    // lets transient stops (dialogs, overlays, config changes) cancel out in
+    // onStart() before PiP is requested.
+    private val pipHandler = Handler(Looper.getMainLooper())
+    private val pipStopRunnable = Runnable { tryEnterPictureInPicture() }
+    private val pipStopDelayMs = 300L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,25 +99,47 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-            playerStateManager.isPlayerScreenVisible &&
-            playerController.exoPlayer.isPlaying
-        ) {
-            val prefs = kotlinx.coroutines.runBlocking { playerPreferences.uiState.first() }
-            if (prefs.pipEnabled) {
-                val videoWidth = playerController.exoPlayer.videoSize.width
-                val videoHeight = playerController.exoPlayer.videoSize.height
-                val aspectRatio = if (videoWidth > 0 && videoHeight > 0) {
-                    Rational(videoWidth, videoHeight)
-                } else {
-                    Rational(16, 9)
-                }
-                val params = PictureInPictureParams.Builder()
-                    .setAspectRatio(aspectRatio)
-                    .build()
-                enterPictureInPictureMode(params)
-            }
+        tryEnterPictureInPicture()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!isFinishing && !isChangingConfigurations) {
+            pipHandler.postDelayed(pipStopRunnable, pipStopDelayMs)
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        pipHandler.removeCallbacks(pipStopRunnable)
+    }
+
+    private fun tryEnterPictureInPicture() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (isInPictureInPictureMode || isFinishing || isChangingConfigurations) return
+        if (!playerStateManager.isPlayerScreenVisible) return
+
+        val player = playerController.exoPlayer
+        // Enter PiP while actively playing OR while rebuffering. isPlaying is
+        // briefly false during rebuffers; checking state too strictly made PiP
+        // intermittent (audio kept playing but no PiP appeared).
+        val activelyPlaying = player.isPlaying || player.playbackState == Player.STATE_BUFFERING
+        if (!activelyPlaying) return
+
+        val prefs = kotlinx.coroutines.runBlocking { playerPreferences.uiState.first() }
+        if (!prefs.pipEnabled) return
+
+        val videoWidth = player.videoSize.width
+        val videoHeight = player.videoSize.height
+        val aspectRatio = if (videoWidth > 0 && videoHeight > 0) {
+            Rational(videoWidth, videoHeight)
+        } else {
+            Rational(16, 9)
+        }
+        val params = PictureInPictureParams.Builder()
+            .setAspectRatio(aspectRatio)
+            .build()
+        enterPictureInPictureMode(params)
     }
 
     override fun onPictureInPictureModeChanged(
