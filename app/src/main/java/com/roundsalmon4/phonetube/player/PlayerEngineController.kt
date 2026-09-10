@@ -18,6 +18,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.SingleSampleMediaSource
+import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import com.roundsalmon4.phonetube.core.engine.model.SubtitleTrack
@@ -62,13 +63,25 @@ class PlayerEngineController(context: Context) {
     private val dataSourceFactory = DefaultDataSource.Factory(context)
         .setTransferListener(bandwidthMeter)
 
-    private val trackSelector = DefaultTrackSelector(context).apply {
-        // Floor for adaptive (AUTO): never sink to 144/240p. 360p minHeight
-        // keeps low-bandwidth sessions watchable without the estimator thrashing
-        // between the extreme low and mid resolutions. exceed constraints still
-        // allow falling below when a video has nothing higher.
-        setParameters(buildUponParameters().setMinVideoSize(360, 360))
-    }
+// Adaptive selection tuning (Trusted ExoPlayer AdaptiveTrackSelection
+// parameters): require a sustained window before changing quality in either
+// direction, retain the higher quality after discarding, and use ~95% of the
+// estimated bandwidth instead of the conservative 70% default. This removes the
+// 144/480 thrash the feedback-loop estimator previously produced.
+private val adaptiveTrackSelectionFactory = AdaptiveTrackSelection.Factory(
+    /* minDurationForQualityIncreaseMs = */ 5_000,
+    /* maxDurationForQualityDecreaseMs = */ 5_000,
+    /* minDurationToRetainAfterDiscardMs = */ 10_000,
+    /* bandwidthFraction = */ 0.95f
+)
+
+private val trackSelector = DefaultTrackSelector(context, adaptiveTrackSelectionFactory).apply {
+    // Floor for adaptive (AUTO): never sink to 144/240p. 360p minHeight
+    // keeps low-bandwidth sessions watchable without the estimator thrashing
+    // between the extreme low and mid resolutions. exceed constraints still
+    // allow falling below when a video has nothing higher.
+    setParameters(buildUponParameters().setMinVideoSize(360, 360))
+}
 
     private val loadControl = DefaultLoadControl.Builder()
         .setBufferDurationsMs(15_000, 60_000, 2_500, 5_000)
