@@ -18,6 +18,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.SingleSampleMediaSource
+import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelectionParameters
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import com.roundsalmon4.phonetube.core.engine.model.SubtitleTrack
@@ -41,6 +42,9 @@ class PlayerEngineController(context: Context) {
         // not begin at the floor on a good connection; still ramps with the real
         // measured throughput.
         private const val INITIAL_BITRATE_ESTIMATE_BPS = 10_000_000L
+        // DefaultBandwidthMeter default sliding window is 2000ms; widen it so the
+        // estimate averages more history and recovers quickly after a low start.
+        private const val SLIDING_WINDOW_WEIGHT_MS = 10_000L
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -51,12 +55,23 @@ class PlayerEngineController(context: Context) {
     // transfers and is read by the AdaptiveTrackSelection.
     private val bandwidthMeter = DefaultBandwidthMeter.Builder(context)
         .setInitialBitrateEstimate(INITIAL_BITRATE_ESTIMATE_BPS)
+        // Longer averaging window so the very first measured chunk does not
+        // immediately collapse the estimate to that stream's lowest bitrate.
+        .setSlidingWindowMaxWeight(SLIDING_WINDOW_WEIGHT_MS)
         .build()
 
     private val dataSourceFactory = DefaultDataSource.Factory(context)
         .setTransferListener(bandwidthMeter)
 
-    private val trackSelector = DefaultTrackSelector(context)
+    private val trackSelector = DefaultTrackSelector(context).apply {
+        // Ramp the adaptive quality faster once bandwidth supports it.
+        val adaptiveParameters = AdaptiveTrackSelectionParameters.DEFAULT
+            .buildUpon()
+            .setMinDurationForQualityIncreaseMs(2_000)
+            .setBandwidthFraction(0.95f)
+            .build()
+        setParameters(buildUponParameters().setAdaptiveTrackSelectionParameters(adaptiveParameters))
+    }
 
     private val loadControl = DefaultLoadControl.Builder()
         .setBufferDurationsMs(15_000, 60_000, 2_500, 5_000)
@@ -332,20 +347,15 @@ class PlayerEngineController(context: Context) {
 
     private fun updateSnapshot() {
         val tracks = exoPlayer.currentTracks
-        val videoGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
         val textGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_TEXT }
         val audioGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
 
-        // Current quality label from selected video track
-        val qualityLabel = videoGroups.firstOrNull { it.isSelected }?.let { group ->
-            val selectedIndex = (0 until group.length).firstOrNull { group.isTrackSelected(it) } ?: 0
-            val format = group.getTrackFormat(selectedIndex)
-            val height = format.height
-            val fps = format.frameRate.toInt()
-            if (height > 0) {
-                "${height}p"
-            } else null
-        } ?: ""
+        // Current quality label from the actually rendered output. currentTracks is
+        // not reliable here: for an adaptive group isTrackSelected returns true
+        // for every enabled track, so picking the first selected always reported
+        // the lowest (e.g. 144p) regardless of playback.
+        val renderedHeight = exoPlayer.videoSize.height
+        val qualityLabel = if (renderedHeight > 0) "${renderedHeight}p" else ""
 
         // Subtitle tracks (global index across all groups)
         var subtitleIndex = 0

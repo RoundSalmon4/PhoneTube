@@ -109,6 +109,30 @@ class HomeViewModel @Inject constructor(
     init {
         loadHomeFromCache()
         loadPlaylists()
+        // Re-apply feed toggles and ordering immediately whenever preferences
+        // change (settings toggles or an import), so disabled feeds disappear
+        // without requiring a leave-and-return to Home.
+        viewModelScope.launch {
+            playerPreferences.uiState.collect { prefs ->
+                val current = (_uiState.value as? HomeUiState.Success)?.sections ?: return@collect
+                val merged = applyFeedPrefs(current, prefs)
+                if (merged != current) {
+                    _uiState.value = HomeUiState.Success(merged)
+                }
+            }
+        }
+    }
+
+    private fun applyFeedPrefs(current: List<HomeSection>, prefs: PreferencesUiState): List<HomeSection> {
+        val sectionMap = current.associateBy { it.source }
+        val ordered = prefs.feedOrder.mapNotNull { key ->
+            SOURCE_TO_FEED_KEY.entries.firstOrNull { it.value == key }?.key?.let { source ->
+                sectionMap[source]
+            }
+        }
+        val orderedSources = ordered.map { it.source }.toSet()
+        val leftover = current.filter { it.source !in orderedSources }
+        return (ordered + leftover).filter { isFeedEnabled(it.source, prefs) }
     }
 
     fun loadHome() {
