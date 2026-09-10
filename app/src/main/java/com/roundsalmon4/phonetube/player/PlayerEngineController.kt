@@ -18,7 +18,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.SingleSampleMediaSource
-import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelectionParameters
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import com.roundsalmon4.phonetube.core.engine.model.SubtitleTrack
@@ -44,7 +43,7 @@ class PlayerEngineController(context: Context) {
         private const val INITIAL_BITRATE_ESTIMATE_BPS = 10_000_000L
         // DefaultBandwidthMeter default sliding window is 2000ms; widen it so the
         // estimate averages more history and recovers quickly after a low start.
-        private const val SLIDING_WINDOW_WEIGHT_MS = 10_000L
+        private const val SLIDING_WINDOW_WEIGHT_MS = 10_000
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -63,15 +62,7 @@ class PlayerEngineController(context: Context) {
     private val dataSourceFactory = DefaultDataSource.Factory(context)
         .setTransferListener(bandwidthMeter)
 
-    private val trackSelector = DefaultTrackSelector(context).apply {
-        // Ramp the adaptive quality faster once bandwidth supports it.
-        val adaptiveParameters = AdaptiveTrackSelectionParameters.DEFAULT
-            .buildUpon()
-            .setMinDurationForQualityIncreaseMs(2_000)
-            .setBandwidthFraction(0.95f)
-            .build()
-        setParameters(buildUponParameters().setAdaptiveTrackSelectionParameters(adaptiveParameters))
-    }
+    private val trackSelector = DefaultTrackSelector(context)
 
     private val loadControl = DefaultLoadControl.Builder()
         .setBufferDurationsMs(15_000, 60_000, 2_500, 5_000)
