@@ -57,9 +57,9 @@ class PlayerEngineController(context: Context) {
     private val dataSourceFactory = DefaultDataSource.Factory(context)
         .setTransferListener(bandwidthMeter)
 
-    private val adaptiveTrackSelectionFactory = AdaptiveTrackSelection.Factory(bandwidthMeter)
+    private val adaptiveTrackSelectionFactory = AdaptiveTrackSelection.Factory()
 
-    private val trackSelector = DefaultTrackSelector(context, adaptiveTrackSelectionFactory)
+    private val trackSelector = DefaultTrackSelector(context, adaptiveTrackSelectionFactory, bandwidthMeter)
 
     private val loadControl = DefaultLoadControl.Builder()
         .setBufferDurationsMs(15_000, 60_000, 2_500, 5_000)
