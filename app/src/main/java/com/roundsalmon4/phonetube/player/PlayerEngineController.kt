@@ -18,6 +18,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.SingleSampleMediaSource
+import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import com.roundsalmon4.phonetube.core.engine.model.SubtitleTrack
@@ -56,7 +57,9 @@ class PlayerEngineController(context: Context) {
     private val dataSourceFactory = DefaultDataSource.Factory(context)
         .setTransferListener(bandwidthMeter)
 
-    private val trackSelector = DefaultTrackSelector(context, bandwidthMeter)
+    private val adaptiveTrackSelectionFactory = AdaptiveTrackSelection.Factory(bandwidthMeter)
+
+    private val trackSelector = DefaultTrackSelector(context, adaptiveTrackSelectionFactory)
 
     private val loadControl = DefaultLoadControl.Builder()
         .setBufferDurationsMs(15_000, 60_000, 2_500, 5_000)
