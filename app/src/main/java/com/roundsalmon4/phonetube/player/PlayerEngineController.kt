@@ -30,8 +30,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import android.util.Log
 
 class PlayerEngineController(context: Context) {
+
+    companion object {
+        private const val TAG = "PlayerEngine"
+    }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -260,24 +265,36 @@ class PlayerEngineController(context: Context) {
         val videoGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
         if (videoGroups.isEmpty()) return
 
-        // Match by height only, preferring the best (highest) frame rate at that height.
+        // Match the closest available height instead of an exact match. The
+        // requested height can come from a different metadata source (e.g. DASH
+        // format info) than the tracks the player actually exposes (e.g. HLS
+        // variants), so exact matching silently applied no override and ExoPlayer
+        // fell back to its lowest-first adaptive default.
         var bestGroup: Tracks.Group? = null
         var bestIndex = -1
+        var bestHeight = -1
         var bestFps = -1
+        var bestDiff = Int.MAX_VALUE
         for (group in videoGroups) {
             for (i in 0 until group.length) {
                 val format = group.getTrackFormat(i)
-                if (format.height == height) {
-                    val trackFps = format.frameRate.toInt()
-                    if (trackFps > bestFps) {
-                        bestIndex = i
-                        bestFps = trackFps
-                        bestGroup = group
-                    }
+                if (format.height <= 0) continue
+                val trackFps = format.frameRate.toInt().let { if (it > 0) it else 0 }
+                val diff = kotlin.math.abs(format.height - height)
+                val isCloser = diff < bestDiff
+                val isTieBetter = diff == bestDiff &&
+                    (format.height > bestHeight || (format.height == bestHeight && trackFps > bestFps))
+                if (isCloser || isTieBetter) {
+                    bestGroup = group
+                    bestIndex = i
+                    bestHeight = format.height
+                    bestFps = trackFps
+                    bestDiff = diff
                 }
             }
         }
         if (bestGroup != null && bestIndex >= 0) {
+            Log.d(TAG, "selectVideoTrack: requested ${height}p -> matched ${bestHeight}p (fps=$bestFps)")
             val override = TrackSelectionOverride(bestGroup.mediaTrackGroup, listOf(bestIndex))
             trackSelector.setParameters(
                 trackSelector.buildUponParameters().addOverride(override)

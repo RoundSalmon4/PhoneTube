@@ -458,22 +458,28 @@ class PlayerViewModel @Inject constructor(
 
                 val targetHeight = prefs.defaultQuality.removeSuffix("p").toIntOrNull() ?: return@launch
 
-                // Wait a bit for tracks to be available
-                delay(500)
-
-                val tracks = playerController.exoPlayer.currentTracks
-                val videoGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_VIDEO }
-                if (videoGroups.isEmpty()) return@launch
-
-                // Find the best matching format from the DASH adaptive list (what's actually played)
-                val formats = info.adaptiveFormats
-                val bestMatch = formats.minByOrNull {
-                    kotlin.math.abs(it.height - targetHeight)
+                // Wait (with retries) until the video tracks are actually exposed;
+                // DASH/HLS track groups appear shortly after prepare and a fixed
+                // delay can miss them, leaving the default lowest-first selection.
+                var videoReady = false
+                for (attempt in 0 until 20) {
+                    val groups = playerController.exoPlayer.currentTracks.groups
+                    if (groups.any { it.type == C.TRACK_TYPE_VIDEO }) {
+                        videoReady = true
+                        break
+                    }
+                    delay(300)
+                }
+                if (!videoReady) {
+                    Log.w(TAG, "applyDefaultQuality: no video tracks became available; using adaptive default")
+                    return@launch
                 }
 
-                if (bestMatch != null) {
-                    selectVideoTrack(bestMatch.height, bestMatch.fps?.toIntOrNull() ?: 0)
-                }
+                // Pass the user's target straight to the controller, which picks
+                // the closest available track (DASH or HLS) instead of exact-height
+                // matching that could silently fail and fall back to low quality.
+                Log.d(TAG, "applyDefaultQuality: requesting ${targetHeight}p")
+                selectVideoTrack(targetHeight, 0)
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to apply default quality", e)
             }
