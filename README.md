@@ -10,12 +10,13 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 |---------|-------------|
 | Home Feed | Browse YouTube recommendations, subscriptions, trending, music, sports, live, news, gaming, and kids content |
 | Search | Search YouTube with autocomplete suggestions and configurable result limits. Long press video to add to playlist or go to channel. Channel results include subscribe button |
-| Video Playback | Play videos with DASH and HLS streaming, quality picker, subtitle support, and audio track selection. View count, like count, and subscriber count are shown below the title |
+| Video Playback | Play videos with DASH and HLS streaming, quality picker, subtitle support, and audio track selection. View count, like count, and subscriber count are shown below the title. Keeps the screen awake while playing |
 | Background Play | Continue listening with a persistent notification (with media controls) and mini player controls. Playback stops when the app is swiped away from recents |
-| Picture-in-Picture | Floating video window when leaving the player during playback (Android 8+) |
+| Picture-in-Picture | Floating video window when leaving the player during playback (Android 8+), with a dedicated PiP button in the player controls and reliable auto-entry when leaving the app mid-playback |
 | Mini Player | Persistent playback bar with play/pause, rewind, forward, close, and progress bar |
 | Continue Playing | Automatically plays the next suggested video when one ends (optional) |
 | Description | Expand/collapse video description with clickable timestamps and URL links |
+| Video Chapters | Timestamped chapters parsed from the description. Chapter chips seek directly, a Chapters list highlights the current chapter, and the playbar is segmented with chapter boundaries |
 | SponsorBlock | Skip sponsor segments and other interruptions automatically with per-category skip/toast/none controls |
 | Local Playlists | Create and manage playlists without a Google account, add from home feed, player screen, or watch history. Drag-to-reorder videos within a playlist |
 | YouTube Playlist Viewer | Browse YouTube playlists from search, channel pages, or playlist links, with Play All and save-to-library. Play All queues the full playlist and advances through it automatically |
@@ -34,6 +35,7 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 | Video Card Dates | Video cards show when the video was published across home feeds, search, and channel pages |
 | Speed Control | Adjust playback speed from 0.25x to 3.0x, persisted across videos |
 | Quality Picker | Choose video quality from available formats with current resolution shown |
+| Smart Quality (AUTO) | AUTO starts from a realistic bandwidth estimate, enforces a 360p floor, and uses tuned adaptive thresholds so quality stays stable across the video. A specific Default Quality setting is honored reliably on both DASH and HLS streams |
 | Audio Track Picker | Select between available audio tracks when multiple are present |
 | Subtitles | Toggle and select subtitle tracks; captions render over the video with size-adaptive text |
 | Feed Toggle | Enable or disable individual feed sources |
