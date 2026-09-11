@@ -28,12 +28,13 @@ data class Video(
      * The id to use when navigating to this video's channel. For a PeerTube
      * video this is prefixed so the channel screen routes to the PeerTube
      * channel loader. Uses the channel's own host (its federated origin) when
-     * known, falling back to the serving instance host.
+     * known, falling back to the serving instance host. Regular YouTube videos
+     * pass the raw channel id through unchanged.
      */
-    fun channelPlayableId(): String = if (channelId.isNotBlank()) {
+    fun channelPlayableId(): String = if (source != null && source.isNotBlank() && channelId.isNotBlank()) {
         val chanHost = channelHost ?: source
         "peertube:$chanHost:${channelId.removePrefix("peertube:")}"
     } else {
-        ""
+        channelId
     }
 }
