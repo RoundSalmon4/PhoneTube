@@ -375,9 +375,10 @@ class YouTubeEngine @Inject constructor(
 
     fun getChannel(channelId: String): Flow<ChannelResult> = flow {
         try {
-            val groups = contentService.getChannelObserve(channelId).awaitFirstOrDefault(emptyList())
+            val browseId = resolveHandleChannelId(channelId)
+            val groups = contentService.getChannelObserve(browseId).awaitFirstOrDefault(emptyList())
             val firstGroup = groups.firstOrNull()
-            Log.d(TAG, "getChannel($channelId): ${groups.size} groups from API")
+            Log.d(TAG, "getChannel($channelId): ${groups.size} groups from API (browse=$browseId)")
             val sections = groups.mapNotNull { group ->
                 val items = (group.mediaItems ?: emptyList()).filterNotNull()
                 val videoItems = items.filter { it.videoId?.isNotBlank() == true || it.type != MediaItem.TYPE_PLAYLIST }
@@ -430,6 +431,34 @@ class YouTubeEngine @Inject constructor(
             emit(ChannelResult(null, emptyList()))
         }
     }.flowOn(Dispatchers.IO)
+
+    /**
+     * The innertube channel browse cannot resolve a bare channel handle (e.g.
+     * @privacyguides). Resolve it to the channel's UC... id via the search API
+     * first, falling back to the original id when no match is found.
+     */
+    private suspend fun resolveHandleChannelId(channelId: String): String {
+        if (!channelId.startsWith("@") || channelId.length <= 1) return channelId
+        val name = channelId.removePrefix("@")
+        return try {
+            val groups = contentService.getSearchObserve(name, SearchOptions.TYPE_CHANNEL)
+                .awaitFirstOrDefault(emptyList())
+            val resolved = groups.asSequence()
+                .flatMap { it.mediaItems.orEmpty().asSequence().filterNotNull() }
+                .mapNotNull { it.channelId?.takeIf { id -> id.startsWith("UC") && id.length >= 24 } }
+                .firstOrNull()
+            if (resolved != null) {
+                Log.d(TAG, "resolveHandleChannelId: $channelId -> $resolved")
+                resolved
+            } else {
+                Log.w(TAG, "resolveHandleChannelId: no UC id found for $channelId")
+                channelId
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "resolveHandleChannelId: search failed for $channelId", e)
+            channelId
+        }
+    }
 
     fun getStreamInfo(videoId: String): Flow<StreamInfo> = flow {
         try {
