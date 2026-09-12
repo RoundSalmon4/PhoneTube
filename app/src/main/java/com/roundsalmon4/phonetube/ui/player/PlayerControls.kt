@@ -225,7 +225,8 @@ fun PlayerControls(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    // Volume / mute control
+                    // Volume / mute control (compact, like other video players: icon + short
+                    // slider at the left instead of spanning the whole width)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -239,18 +240,19 @@ fun PlayerControls(
                                     indication = null,
                                     interactionSource = remember { MutableInteractionSource() }
                                 ) { onToggleMute() }
-                                .padding(end = 8.dp, top = 4.dp, bottom = 4.dp)
+                                .padding(end = 6.dp)
                         )
                         Slider(
                             value = volume,
                             onValueChange = onVolumeChange,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.width(128.dp),
                             colors = SliderDefaults.colors(
                                 thumbColor = MaterialTheme.colorScheme.primary,
                                 activeTrackColor = MaterialTheme.colorScheme.primary,
                                 inactiveTrackColor = Color.White.copy(alpha = 0.3f)
                             )
                         )
+                        Spacer(modifier = Modifier.weight(1f))
                     }
 
                     // Seekbar
