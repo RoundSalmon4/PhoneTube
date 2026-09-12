@@ -114,12 +114,21 @@ object YouTubeUrlParser {
                 }
             }
 
-            // /@CHANNEL_HANDLE or /c/CHANNEL_NAME (may carry a tab segment,
-            // e.g. /@handle/live); keep only the first segment.
-            if (pathLower.startsWith("/@") || pathLower.startsWith("/c/")) {
-                val handle = path.removePrefix("/@").removePrefix("/c/").trim('/').substringBefore('/')
+            // /@CHANNEL_HANDLE (may carry a tab segment, e.g. /@handle/live); keep only
+            // the first segment and preserve the @ prefix, which the innertube
+            // channel browse expects (a bare name returns no channel).
+            if (pathLower.startsWith("/@")) {
+                val handle = path.removePrefix("/@").trim('/').substringBefore('/')
                 if (handle.isNotEmpty()) {
-                    return YouTubeLink(YouTubeLink.Type.CHANNEL, handle)
+                    return YouTubeLink(YouTubeLink.Type.CHANNEL, "@$handle")
+                }
+            }
+
+            // /c/CHANNEL_NAME (legacy channel path)
+            if (pathLower.startsWith("/c/")) {
+                val name = path.removePrefix("/c/").trim('/').substringBefore('/')
+                if (name.isNotEmpty()) {
+                    return YouTubeLink(YouTubeLink.Type.CHANNEL, name)
                 }
             }
 
