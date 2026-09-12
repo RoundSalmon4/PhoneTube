@@ -40,6 +40,12 @@ object YouTubeUrlParser {
         if (isYouTubeLike) {
             val pathLower = path.lowercase()
 
+            // Bare-host form (e.g. m.youtube.com/?v=...) carries the id in the
+            // query regardless of path, so resolve it first.
+            uri.getQueryParameter("v")?.takeIf { it.isNotEmpty() }?.let { videoId ->
+                return YouTubeLink(YouTubeLink.Type.VIDEO, videoId)
+            }
+
             // /watch?v=VIDEO_ID
             if (pathLower.startsWith("/watch")) {
                 val videoId = uri.getQueryParameter("v")
