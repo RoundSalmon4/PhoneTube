@@ -346,6 +346,10 @@ private val trackSelector = DefaultTrackSelector(context, adaptiveTrackSelection
         }
     }
 
+    fun setVolume(volume: Float) {
+        exoPlayer.setVolume(volume.coerceIn(0f, 1f))
+    }
+
     private fun startSnapshotPolling() {
         scope.launch {
             while (isActive) {

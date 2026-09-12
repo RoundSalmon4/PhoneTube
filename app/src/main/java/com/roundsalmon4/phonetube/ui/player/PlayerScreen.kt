@@ -96,6 +96,8 @@ fun PlayerScreen(
     val landscapeLock by viewModel.landscapeLock.collectAsStateWithLifecycle()
     val screenProtection by viewModel.screenProtection.collectAsStateWithLifecycle()
     val pipEnabled by viewModel.pipEnabled.collectAsStateWithLifecycle()
+    val volume by viewModel.volume.collectAsStateWithLifecycle()
+    val muted by viewModel.muted.collectAsStateWithLifecycle()
 
     // PiP button available while actively playing (or rebuffering). Reused for
     // both orientations; null hides the button.
@@ -243,6 +245,10 @@ fun PlayerScreen(
                             onSpeedClick = if (state.streamInfo.isLive || state.streamInfo.isLiveContent) null else ({ viewModel.showSpeedPicker() }),
                             onQualityClick = { viewModel.showQualityPicker() },
                             onPipClick = onPipClick,
+                            volume = volume,
+                            muted = muted,
+                            onVolumeChange = { viewModel.setVolume(it) },
+                            onToggleMute = { viewModel.toggleMute() },
                             onSubtitleClick = { viewModel.showSubtitlePicker() },
                             onAudioClick = { viewModel.showAudioPicker() },
                             onAddToPlaylistClick = { viewModel.showAddToPlaylist() },
@@ -298,6 +304,10 @@ PlayerControls(
 onSpeedClick = if (state.streamInfo.isLive || state.streamInfo.isLiveContent) null else ({ viewModel.showSpeedPicker() }),
                             onQualityClick = { viewModel.showQualityPicker() },
                             onPipClick = onPipClick,
+                            volume = volume,
+                            muted = muted,
+                            onVolumeChange = { viewModel.setVolume(it) },
+                            onToggleMute = { viewModel.toggleMute() },
                             onSubtitleClick = { viewModel.showSubtitlePicker() },
                             onAudioClick = { viewModel.showAudioPicker() },
                             visible = controlsVisible,

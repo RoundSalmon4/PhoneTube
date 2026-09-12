@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.rounded.Forward10
 import androidx.compose.material.icons.rounded.Replay10
 import androidx.compose.material3.Icon
@@ -65,6 +67,10 @@ fun PlayerControls(
     onSpeedClick: (() -> Unit)? = null,
     onQualityClick: () -> Unit,
     onPipClick: (() -> Unit)? = null,
+    volume: Float = 1f,
+    muted: Boolean = false,
+    onVolumeChange: (Float) -> Unit = {},
+    onToggleMute: () -> Unit = {},
     onSubtitleClick: () -> Unit,
     onAudioClick: () -> Unit,
     onAddToPlaylistClick: (() -> Unit)? = null,
@@ -219,6 +225,34 @@ fun PlayerControls(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
+                    // Volume / mute control
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (muted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                            contentDescription = if (muted) "Unmute" else "Mute",
+                            tint = Color.White,
+                            modifier = Modifier
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { onToggleMute() }
+                                .padding(end = 8.dp, vertical = 4.dp)
+                        )
+                        Slider(
+                            value = volume,
+                            onValueChange = onVolumeChange,
+                            modifier = Modifier.weight(1f),
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.primary,
+                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                            )
+                        )
+                    }
+
                     // Seekbar
                     var scrubbing by remember { mutableStateOf(false) }
                     var scrubPosition by remember { mutableFloatStateOf(0f) }

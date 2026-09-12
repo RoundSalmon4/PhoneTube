@@ -117,6 +117,12 @@ class PlayerViewModel @Inject constructor(
     private val _pipEnabled = MutableStateFlow(true)
     val pipEnabled: StateFlow<Boolean> = _pipEnabled.asStateFlow()
 
+    private val _volume = MutableStateFlow(1f)
+    val volume: StateFlow<Float> = _volume.asStateFlow()
+
+    private val _muted = MutableStateFlow(false)
+    val muted: StateFlow<Boolean> = _muted.asStateFlow()
+
     private val _showAddToPlaylist = MutableStateFlow(false)
     val showAddToPlaylist: StateFlow<Boolean> = _showAddToPlaylist.asStateFlow()
 
@@ -553,6 +559,21 @@ class PlayerViewModel @Inject constructor(
                 _landscapeLock.value = prefs.landscapeLock
             }
         }
+    }
+
+    fun toggleMute() {
+        val next = !_muted.value
+        _muted.value = next
+        Log.d(TAG, "toggleMute: ${if (next) "muted" else "unmuted"}")
+        playerController.setVolume(if (next) 0f else _volume.value)
+    }
+
+    fun setVolume(value: Float) {
+        val v = value.coerceIn(0f, 1f)
+        _volume.value = v
+        _muted.value = v <= 0f
+        Log.d(TAG, "setVolume: $v")
+        playerController.setVolume(v)
     }
 
     private fun loadPipEnabledPreference() {
