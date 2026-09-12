@@ -100,7 +100,7 @@ object YouTubeUrlParser {
 
             // /channel/CHANNEL_ID
             if (pathLower.startsWith("/channel/")) {
-                val channelId = path.removePrefix("/channel/").trimEnd('/')
+                val channelId = path.removePrefix("/channel/").trim('/').substringBefore('/')
                 if (channelId.isNotEmpty()) {
                     return YouTubeLink(YouTubeLink.Type.CHANNEL, channelId)
                 }
@@ -108,15 +108,16 @@ object YouTubeUrlParser {
 
             // /user/CHANNEL_HANDLE
             if (pathLower.startsWith("/user/")) {
-                val handle = path.removePrefix("/user/").trimEnd('/')
+                val handle = path.removePrefix("/user/").trim('/').substringBefore('/')
                 if (handle.isNotEmpty()) {
                     return YouTubeLink(YouTubeLink.Type.CHANNEL, handle)
                 }
             }
 
-            // /@CHANNEL_HANDLE or /c/CHANNEL_NAME
+            // /@CHANNEL_HANDLE or /c/CHANNEL_NAME (may carry a tab segment,
+            // e.g. /@handle/live); keep only the first segment.
             if (pathLower.startsWith("/@") || pathLower.startsWith("/c/")) {
-                val handle = path.removePrefix("/@").removePrefix("/c/").trimEnd('/')
+                val handle = path.removePrefix("/@").removePrefix("/c/").trim('/').substringBefore('/')
                 if (handle.isNotEmpty()) {
                     return YouTubeLink(YouTubeLink.Type.CHANNEL, handle)
                 }
