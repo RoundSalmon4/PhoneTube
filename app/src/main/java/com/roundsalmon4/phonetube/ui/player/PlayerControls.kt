@@ -239,7 +239,7 @@ fun PlayerControls(
                                     indication = null,
                                     interactionSource = remember { MutableInteractionSource() }
                                 ) { onToggleMute() }
-                                .padding(end = 8.dp, vertical = 4.dp)
+                                .padding(end = 8.dp, top = 4.dp, bottom = 4.dp)
                         )
                         Slider(
                             value = volume,
