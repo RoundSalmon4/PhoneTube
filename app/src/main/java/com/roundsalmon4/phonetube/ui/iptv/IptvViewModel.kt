@@ -252,18 +252,20 @@ class IptvViewModel @Inject constructor(
             _searchResults.value = _allChannels.value.filter { it.title.contains(_searchQuery.value.trim(), ignoreCase = true) }
             return
         }
-        val cached = iptvChannelDao.getAllForProvider(provider.id)
-        if (cached.isNotEmpty()) {
-            Log.d(TAG, "loadAllChannels(${provider.host}): using ${cached.size} cached channels")
-            val videos = cached.map { it.toVideo(provider) }
-            _allChannels.value = videos
-            allChannelsLoadedFor = provider.id
-            _searchResults.value = videos.filter { it.title.contains(_searchQuery.value.trim(), ignoreCase = true) }
-            val stale = cached.any { it.cachedAt < System.currentTimeMillis() - CACHE_TTL_MS }
-            if (stale) refreshAllChannels(provider)
-            return
+        viewModelScope.launch {
+            val cached = iptvChannelDao.getAllForProvider(provider.id)
+            if (cached.isNotEmpty()) {
+                Log.d(TAG, "loadAllChannels(${provider.host}): using ${cached.size} cached channels")
+                val videos = cached.map { it.toVideo(provider) }
+                _allChannels.value = videos
+                allChannelsLoadedFor = provider.id
+                _searchResults.value = videos.filter { it.title.contains(_searchQuery.value.trim(), ignoreCase = true) }
+                val stale = cached.any { it.cachedAt < System.currentTimeMillis() - CACHE_TTL_MS }
+                if (stale) refreshAllChannels(provider)
+            } else {
+                refreshAllChannels(provider)
+            }
         }
-        refreshAllChannels(provider)
     }
 
     /**
