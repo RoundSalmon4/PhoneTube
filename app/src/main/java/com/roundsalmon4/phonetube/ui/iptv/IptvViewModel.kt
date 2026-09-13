@@ -3,10 +3,12 @@ package com.roundsalmon4.phonetube.ui.iptv
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.roundsalmon4.phonetube.core.database.IptvChannelDao
 import com.roundsalmon4.phonetube.core.database.IptvDao
 import com.roundsalmon4.phonetube.core.database.IptvFavoriteDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
 import com.roundsalmon4.phonetube.core.database.PlaylistSaver
+import com.roundsalmon4.phonetube.core.database.entity.IptvChannel
 import com.roundsalmon4.phonetube.core.database.entity.IptvFavorite
 import com.roundsalmon4.phonetube.core.database.entity.IptvProvider
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
@@ -28,12 +30,16 @@ import javax.inject.Inject
 class IptvViewModel @Inject constructor(
     private val iptvDao: IptvDao,
     private val iptvFavoriteDao: IptvFavoriteDao,
+    private val iptvChannelDao: IptvChannelDao,
     private val playlistDao: PlaylistDao,
     private val xtreamClient: XtreamClient
 ) : ViewModel() {
 
     companion object {
         private const val TAG = "IptvVM"
+        // How long a cached channel list is considered fresh before the app
+        // checks the provider again in the background.
+        private const val CACHE_TTL_MS = 24L * 60 * 60 * 1000
     }
 
     private val _providers = MutableStateFlow<List<IptvProvider>>(emptyList())
@@ -235,8 +241,9 @@ class IptvViewModel @Inject constructor(
     }
 
     /**
-     * Fetches every live stream of the provider once (cached per provider) so
-     * the search can match across categories.
+     * Loads the provider-wide channel list for search. Prefers the cached Room
+     * copy so search is instant on subsequent app opens; the provider is only
+     * re-queried in the background when the cache is stale.
      */
     private fun loadAllChannels() {
         val provider = _providers.value.find { it.id == _selectedProviderId.value } ?: return
@@ -245,6 +252,28 @@ class IptvViewModel @Inject constructor(
             _searchResults.value = _allChannels.value.filter { it.title.contains(_searchQuery.value.trim(), ignoreCase = true) }
             return
         }
+        val cached = iptvChannelDao.getAllForProvider(provider.id)
+        if (cached.isNotEmpty()) {
+            Log.d(TAG, "loadAllChannels(${provider.host}): using ${cached.size} cached channels")
+            val videos = cached.map { it.toVideo(provider) }
+            _allChannels.value = videos
+            allChannelsLoadedFor = provider.id
+            _searchResults.value = videos.filter { it.title.contains(_searchQuery.value.trim(), ignoreCase = true) }
+            val stale = cached.any { it.cachedAt < System.currentTimeMillis() - CACHE_TTL_MS }
+            if (stale) refreshAllChannels(provider)
+            return
+        }
+        refreshAllChannels(provider)
+    }
+
+    /**
+     * Fetches every live stream of the provider and merges it into the cached
+     * channel list. Idempotent: the cache is only rewritten when the list of
+     * channel ids actually changes, so an unchanged provider is not re-cached
+     * on every visit.
+     */
+    private fun refreshAllChannels(provider: IptvProvider) {
+        if (_searchLoading.value) return
         _searchLoading.value = true
         viewModelScope.launch {
             try {
@@ -252,17 +281,64 @@ class IptvViewModel @Inject constructor(
                     xtreamClient.liveStreams(provider.host, provider.username, provider.password, categoryId = null)
                 }
                 val videos = streams.map { it.toVideo(provider) }
-                Log.d(TAG, "loadAllChannels(${provider.host}): ${videos.size} total channels")
+                Log.d(TAG, "refreshAllChannels(${provider.host}): ${videos.size} total channels")
+
+                val cached = iptvChannelDao.getAllForProvider(provider.id)
+                val cachedIds = cached.map { it.streamId }.toSet()
+                val newIds = streams.map { it.streamId }.toSet()
+                if (cached.isEmpty() || newIds != cachedIds) {
+                    val now = System.currentTimeMillis()
+                    iptvChannelDao.deleteForProvider(provider.id)
+                    iptvChannelDao.insertAll(
+                        streams.map {
+                            IptvChannel(
+                                id = "${provider.id}|${it.streamId}",
+                                providerId = provider.id,
+                                streamId = it.streamId,
+                                title = it.name,
+                                iconUrl = it.iconUrl.orEmpty(),
+                                categoryId = it.categoryId,
+                                cachedAt = now
+                            )
+                        }
+                    )
+                    Log.d(TAG, "refreshAllChannels(${provider.host}): cache updated (changed or first fill)")
+                } else {
+                    Log.d(TAG, "refreshAllChannels(${provider.host}): list unchanged, cache left intact")
+                }
+
                 _allChannels.value = videos
                 allChannelsLoadedFor = provider.id
                 _searchResults.value = videos.filter { it.title.contains(_searchQuery.value.trim(), ignoreCase = true) }
             } catch (e: Exception) {
-                Log.e(TAG, "loadAllChannels failed", e)
+                Log.e(TAG, "refreshAllChannels failed", e)
+                if (_allChannels.value.isEmpty()) {
+                    val fallback = iptvChannelDao.getAllForProvider(provider.id)
+                    if (fallback.isNotEmpty()) {
+                        Log.w(TAG, "refreshAllChannels(${provider.host}): falling back to cached channels")
+                        _allChannels.value = fallback.map { it.toVideo(provider) }
+                        _searchResults.value = _allChannels.value.filter { it.title.contains(_searchQuery.value.trim(), ignoreCase = true) }
+                    }
+                }
             } finally {
                 _searchLoading.value = false
             }
         }
     }
+
+    private fun IptvChannel.toVideo(provider: IptvProvider): Video = Video(
+        videoId = "iptv:${provider.id}:$streamId",
+        title = title,
+        author = provider.name,
+        channelId = "",
+        thumbnailUrl = iconUrl,
+        durationMs = 0L,
+        viewCount = null,
+        publishedDate = 0L,
+        percentWatched = 0,
+        source = null,
+        channelHost = null
+    )
 
     fun selectCategory(categoryId: String, categoryName: String) {
         Log.d(TAG, "selectCategory: $categoryId ($categoryName)")
@@ -363,6 +439,7 @@ class IptvViewModel @Inject constructor(
         Log.d(TAG, "removeProvider: $id")
         viewModelScope.launch {
             iptvDao.delete(id)
+            iptvChannelDao.deleteForProvider(id)
             if (_selectedProviderId.value == id) {
                 _selectedProviderId.value = null
                 _categories.value = emptyList()

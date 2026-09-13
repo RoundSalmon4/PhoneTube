@@ -7,6 +7,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.roundsalmon4.phonetube.core.database.entity.CachedFeedSection
 import com.roundsalmon4.phonetube.core.database.entity.CachedFeedVideo
 import com.roundsalmon4.phonetube.core.database.entity.InvidiousInstance
+import com.roundsalmon4.phonetube.core.database.entity.IptvChannel
 import com.roundsalmon4.phonetube.core.database.entity.IptvFavorite
 import com.roundsalmon4.phonetube.core.database.entity.IptvProvider
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
@@ -24,9 +25,10 @@ import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
         CachedFeedVideo::class,
         InvidiousInstance::class,
         IptvProvider::class,
-        IptvFavorite::class
+        IptvFavorite::class,
+        IptvChannel::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -37,6 +39,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun invidiousDao(): InvidiousDao
     abstract fun iptvDao(): IptvDao
     abstract fun iptvFavoriteDao(): IptvFavoriteDao
+    abstract fun iptvChannelDao(): IptvChannelDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -168,6 +171,23 @@ abstract class AppDatabase : RoomDatabase() {
                         iconUrl TEXT NOT NULL DEFAULT '',
                         addedAt INTEGER NOT NULL DEFAULT 0,
                         PRIMARY KEY(videoId)
+                    )
+                """.trimIndent())
+            }
+        }
+
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS iptv_channels (
+                        id TEXT NOT NULL,
+                        providerId TEXT NOT NULL,
+                        streamId TEXT NOT NULL,
+                        title TEXT NOT NULL DEFAULT '',
+                        iconUrl TEXT NOT NULL DEFAULT '',
+                        categoryId TEXT NOT NULL DEFAULT '',
+                        cachedAt INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(id)
                     )
                 """.trimIndent())
             }
