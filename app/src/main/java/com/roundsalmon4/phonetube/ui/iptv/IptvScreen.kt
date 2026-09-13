@@ -22,8 +22,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LiveTv
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.AlertDialog
@@ -80,6 +82,9 @@ fun IptvScreen(onVideoClick: (String) -> Unit) {
     val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val nowPlaying by viewModel.nowPlaying.collectAsStateWithLifecycle()
     val epgLoading by viewModel.epgLoading.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
+    val searchLoading by viewModel.searchLoading.collectAsStateWithLifecycle()
     val showFavorites by viewModel.showFavorites.collectAsStateWithLifecycle()
     val favorites by viewModel.favorites.collectAsStateWithLifecycle()
     val favoriteIds by viewModel.favoriteIds.collectAsStateWithLifecycle()
@@ -138,6 +143,25 @@ fun IptvScreen(onVideoClick: (String) -> Unit) {
             }
         }
 
+        if (selectedProvider != null && !showFavorites) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { viewModel.setSearchQuery(it) },
+                label = { Text("Search channels") },
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.clearSearch() }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear search")
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+
         Spacer(Modifier.height(8.dp))
 
         when {
@@ -149,6 +173,14 @@ fun IptvScreen(onVideoClick: (String) -> Unit) {
                 onChannelClick = onVideoClick,
                 onToggleFavorite = { viewModel.toggleFavorite(it) },
                 isFavorite = { it.videoId in favoriteIds }
+            )
+            searchQuery.isNotBlank() -> SearchResults(
+                results = searchResults,
+                loading = searchLoading,
+                onChannelClick = onVideoClick,
+                onChannelLongClick = { viewModel.showAddToPlaylistDialog(it) },
+                isFavorite = { it.videoId in favoriteIds },
+                onToggleFavorite = { viewModel.toggleFavorite(it) }
             )
             selectedCategoryId == null -> CategoriesList(
                 categories = categories,
@@ -272,6 +304,53 @@ private fun CategoriesList(
                     .padding(vertical = 12.dp, horizontal = 4.dp)
             ) {
                 Text(category.name, style = MaterialTheme.typography.bodyLarge)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchResults(
+    results: List<Video>,
+    loading: Boolean,
+    onChannelClick: (String) -> Unit,
+    onChannelLongClick: (Video) -> Unit,
+    isFavorite: (Video) -> Boolean,
+    onToggleFavorite: (Video) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text(
+            text = "Results (${results.size})",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+        )
+        if (loading && results.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+            return
+        }
+        if (results.isEmpty()) {
+            Text(
+                "No channels match your search",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+            )
+            return
+        }
+        LazyColumn(modifier = Modifier.fillMaxSize()) {
+            items(results, key = { it.videoId }) { video ->
+                IptvChannelRow(
+                    video = video,
+                    nowPlayingText = "",
+                    epgLoading = false,
+                    isFavorite = isFavorite(video),
+                    onClick = { onChannelClick(video.videoId) },
+                    onLongClick = { onChannelLongClick(video) },
+                    onToggleFavorite = { onToggleFavorite(video) }
+                )
+                HorizontalDivider()
             }
         }
     }

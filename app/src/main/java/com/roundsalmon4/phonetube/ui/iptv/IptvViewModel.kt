@@ -63,6 +63,20 @@ class IptvViewModel @Inject constructor(
     private val _clearingProviderId = MutableStateFlow<String?>(null)
     val clearingProviderId: StateFlow<String?> = _clearingProviderId.asStateFlow()
 
+    // Provider-wide channel search (channels recur across categories, so a
+    // whole-provider list makes it easy to find a channel anywhere).
+    private val _allChannels = MutableStateFlow<List<Video>>(emptyList())
+    private var allChannelsLoadedFor: String? = null
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _searchResults = MutableStateFlow<List<Video>>(emptyList())
+    val searchResults: StateFlow<List<Video>> = _searchResults.asStateFlow()
+
+    private val _searchLoading = MutableStateFlow(false)
+    val searchLoading: StateFlow<Boolean> = _searchLoading.asStateFlow()
+
     private val _addToPlaylistVideo = MutableStateFlow<Video?>(null)
     val addToPlaylistVideo: StateFlow<Video?> = _addToPlaylistVideo.asStateFlow()
 
@@ -191,7 +205,63 @@ class IptvViewModel @Inject constructor(
         _channelCategoryName.value = null
         _channels.value = emptyList()
         _error.value = null
+        _searchQuery.value = ""
+        _searchResults.value = emptyList()
+        _allChannels.value = emptyList()
+        allChannelsLoadedFor = null
         loadCategories(id)
+    }
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+        val q = query.trim()
+        if (q.isEmpty()) {
+            _searchResults.value = emptyList()
+            return
+        }
+        val provider = _providers.value.find { it.id == _selectedProviderId.value } ?: return
+        val all = _allChannels.value
+        if (all.isEmpty()) {
+            // One in-flight full-provider fetch will compute the results from
+            // the latest query; avoid stacking requests per keystroke.
+            if (!_searchLoading.value) loadAllChannels()
+        } else {
+            _searchResults.value = all.filter { it.title.contains(q, ignoreCase = true) }
+        }
+    }
+
+    fun clearSearch() {
+        setSearchQuery("")
+    }
+
+    /**
+     * Fetches every live stream of the provider once (cached per provider) so
+     * the search can match across categories.
+     */
+    private fun loadAllChannels() {
+        val provider = _providers.value.find { it.id == _selectedProviderId.value } ?: return
+        if (_searchLoading.value) return
+        if (allChannelsLoadedFor == provider.id && _allChannels.value.isNotEmpty()) {
+            _searchResults.value = _allChannels.value.filter { it.title.contains(_searchQuery.value.trim(), ignoreCase = true) }
+            return
+        }
+        _searchLoading.value = true
+        viewModelScope.launch {
+            try {
+                val streams = withContext(Dispatchers.IO) {
+                    xtreamClient.liveStreams(provider.host, provider.username, provider.password, categoryId = null)
+                }
+                val videos = streams.map { it.toVideo(provider) }
+                Log.d(TAG, "loadAllChannels(${provider.host}): ${videos.size} total channels")
+                _allChannels.value = videos
+                allChannelsLoadedFor = provider.id
+                _searchResults.value = videos.filter { it.title.contains(_searchQuery.value.trim(), ignoreCase = true) }
+            } catch (e: Exception) {
+                Log.e(TAG, "loadAllChannels failed", e)
+            } finally {
+                _searchLoading.value = false
+            }
+        }
     }
 
     fun selectCategory(categoryId: String, categoryName: String) {
