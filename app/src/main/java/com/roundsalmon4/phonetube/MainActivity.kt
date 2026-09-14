@@ -121,10 +121,7 @@ class MainActivity : ComponentActivity() {
         // enterPictureInPictureMode throws IllegalStateException unless the
         // activity is resumed. The debounced onStop backstop can fire after the
         // activity has already left the resumed state, so guard against that.
-        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
-            Log.d(TAG, "tryEnterPictureInPicture: skipped, activity not resumed")
-            return
-        }
+        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return
         if (!playerStateManager.isPlayerScreenVisible) return
 
         val player = playerController.exoPlayer
