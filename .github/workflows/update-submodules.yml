@@ -49,7 +49,9 @@ jobs:
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/data/YouTubeMediaItem.java \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/MediaServiceData.java \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/V2/VideoInfoService.java \
-            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/models/VideoInfo.java
+            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/models/VideoInfo.java \
+            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeMediaItemService.java \
+            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/app/nsigsolver/common/InfoExtractor.kt
           # also copy CommonHelper.kt
           curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/patches/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
           # verify every patch made it into the working tree
@@ -59,6 +61,8 @@ jobs:
           grep -q 'android:required="false"' youtubeapi/src/main/AndroidManifest.xml || { echo "ERROR: manifest usb.host fix missing"; exit 1; }
           grep -q "setDurationMs" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/data/YouTubeMediaItem.java || { echo "ERROR: YouTubeMediaItem patch missing"; exit 1; }
           grep -q "setDurationMs(first.getDurationMs())" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/rss/RssService.kt || { echo "ERROR: RssService patch missing"; exit 1; }
+          grep -q "formatInfo == null || formatInfo.isUnplayable()" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeMediaItemService.java || { echo "ERROR: innertube fallback patch missing"; exit 1; }
+          grep -q '"User-Agent", USER_AGENT_BROWSER' youtubeapi/src/main/java/com/liskovsoft/youtubeapi/app/nsigsolver/common/InfoExtractor.kt || { echo "ERROR: browser User-Agent patch missing"; exit 1; }
           # Skip the rebuild when the result is content-identical to the current branch,
           # so an unchanged upstream doesn't generate a new commit SHA and a no-op PR.
           if git diff --quiet origin/phonetube-patches -- mediaserviceinterfaces youtubeapi; then
