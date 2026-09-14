@@ -307,7 +307,7 @@ class PlayerViewModel @Inject constructor(
             playerStateManager.updateVideoInfo(
                 videoId = videoId,
                 title = info.title,
-                thumbnailUrl = ""
+                thumbnailUrl = info.thumbnailUrl.orEmpty()
             )
             startPlayback(info)
             if (!info.isLive && !info.isLiveContent) {
@@ -640,7 +640,8 @@ class PlayerViewModel @Inject constructor(
                             title = title,
                             channelName = channelName,
                             channelId = info.channelId,
-                            thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                            thumbnailUrl = info.thumbnailUrl
+                                ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
                             durationMs = info.lengthSeconds * 1000,
                             positionMs = 0L,
                             speed = playerController.exoPlayer.playbackParameters.speed,

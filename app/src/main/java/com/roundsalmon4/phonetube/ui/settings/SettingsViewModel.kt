@@ -202,16 +202,23 @@ class SettingsViewModel @Inject constructor(
                     p.sponsorBlockCategories.forEach { (cat, action) ->
                         playerPreferences.setSponsorBlockCategory(cat, action)
                     }
-                    playerPreferences.setFeedEnabled("home", p.feedHome)
-                    playerPreferences.setFeedEnabled("trending", p.feedTrending)
-                    playerPreferences.setFeedEnabled("what_to_watch", p.feedWhatToWatch)
-                    playerPreferences.setFeedEnabled("music", p.feedMusic)
-                    playerPreferences.setFeedEnabled("sports", p.feedSports)
-                    playerPreferences.setFeedEnabled("live", p.feedLive)
-                    playerPreferences.setFeedEnabled("news", p.feedNews)
-                    playerPreferences.setFeedEnabled("gaming", p.feedGaming)
-                    playerPreferences.setFeedEnabled("kids", p.feedKids)
-                    playerPreferences.setFeedEnabled("subscriptions", p.feedSubscriptions)
+                    // Write all feed toggles in a single DataStore transaction so
+                    // the home feed refreshes once with the final imported state
+                    // instead of reacting to each intermediate toggle.
+                    playerPreferences.batchSetFeedPreferences(
+                        feedHome = p.feedHome,
+                        feedTrending = p.feedTrending,
+                        feedWhatToWatch = p.feedWhatToWatch,
+                        feedMusic = p.feedMusic,
+                        feedSports = p.feedSports,
+                        feedLive = p.feedLive,
+                        feedNews = p.feedNews,
+                        feedGaming = p.feedGaming,
+                        feedKids = p.feedKids,
+                        feedSubscriptions = p.feedSubscriptions,
+                        feedInvidious = p.feedInvidious,
+                        feedOrder = p.feedOrder
+                    )
                     playerPreferences.setThemeMode(p.themeMode)
                     playerPreferences.setUseAmoledTheme(p.useAmoledTheme)
                     playerPreferences.setPrimaryColor(p.primaryColor)
@@ -224,12 +231,10 @@ class SettingsViewModel @Inject constructor(
                     playerPreferences.setPiPEnabled(p.pipEnabled)
                     playerPreferences.setOpenLinksIn(p.openLinksIn)
                     playerPreferences.setPlaylistSearchLimit(p.playlistSearchLimit)
-                    playerPreferences.setFeedOrder(p.feedOrder)
                     playerPreferences.setContinuePlaying(p.continuePlaying)
                     playerPreferences.setDuplicatePlaylistWarning(p.duplicatePlaylistWarning)
                     playerPreferences.setScreenProtection(p.screenProtection)
                     playerPreferences.setIncognitoMode(p.incognitoMode)
-                    playerPreferences.setFeedInvidious(p.feedInvidious)
 
                     val visitorPrefs = context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
                     visitorPrefs.edit().putBoolean("clear_visitor_on_exit", p.clearVisitorOnExit).apply()

@@ -18,6 +18,7 @@ import androidx.core.content.ContextCompat
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.Player
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
@@ -117,6 +118,13 @@ class MainActivity : ComponentActivity() {
     private fun tryEnterPictureInPicture() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         if (isInPictureInPictureMode || isFinishing || isChangingConfigurations) return
+        // enterPictureInPictureMode throws IllegalStateException unless the
+        // activity is resumed. The debounced onStop backstop can fire after the
+        // activity has already left the resumed state, so guard against that.
+        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            Log.d(TAG, "tryEnterPictureInPicture: skipped, activity not resumed")
+            return
+        }
         if (!playerStateManager.isPlayerScreenVisible) return
 
         val player = playerController.exoPlayer

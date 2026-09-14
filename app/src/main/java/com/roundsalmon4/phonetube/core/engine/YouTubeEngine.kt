@@ -544,6 +544,7 @@ class YouTubeEngine @Inject constructor(
                     }
 
                     Log.d(TAG, "getPeerTubeStreamInfo: '$title' hls=${hlsUrl != null} files=${urlFormats.size} isLive=$isLive")
+                    val thumbnailPath = root.optString("thumbnailPath", "")
                     StreamInfo(
                         title = title,
                         author = author,
@@ -557,7 +558,8 @@ class YouTubeEngine @Inject constructor(
                         dashManifestUrl = null,
                         hlsManifestUrl = hlsUrl,
                         isUnplayable = false,
-                        playabilityReason = null
+                        playabilityReason = null,
+                        thumbnailUrl = thumbnailPath.ifBlank { null }?.let { "https://$host$it" }
                     )
                 } finally {
                     connection.disconnect()

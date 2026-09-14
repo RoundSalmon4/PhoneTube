@@ -293,6 +293,42 @@ class PlayerPreferences @Inject constructor(
         context.playerDataStore.edit { it[Keys.FEED_INVIDIOUS] = enabled }
     }
 
+    /**
+     * Atomically writes all feed-related preferences in a single DataStore
+     * transaction.  During import this prevents intermediate states from
+     * causing extra home-feed refresh cycles, and ensures HomeViewModel sees
+     * the final set of enabled feeds in one emission.
+     */
+    suspend fun batchSetFeedPreferences(
+        feedHome: Boolean,
+        feedTrending: Boolean,
+        feedWhatToWatch: Boolean,
+        feedMusic: Boolean,
+        feedSports: Boolean,
+        feedLive: Boolean,
+        feedNews: Boolean,
+        feedGaming: Boolean,
+        feedKids: Boolean,
+        feedSubscriptions: Boolean,
+        feedInvidious: Boolean,
+        feedOrder: List<String>
+    ) {
+        context.playerDataStore.edit { prefs ->
+            prefs[Keys.FEED_HOME] = feedHome
+            prefs[Keys.FEED_TRENDING] = feedTrending
+            prefs[Keys.FEED_WHAT_TO_WATCH] = feedWhatToWatch
+            prefs[Keys.FEED_MUSIC] = feedMusic
+            prefs[Keys.FEED_SPORTS] = feedSports
+            prefs[Keys.FEED_LIVE] = feedLive
+            prefs[Keys.FEED_NEWS] = feedNews
+            prefs[Keys.FEED_GAMING] = feedGaming
+            prefs[Keys.FEED_KIDS] = feedKids
+            prefs[Keys.FEED_SUBSCRIPTIONS] = feedSubscriptions
+            prefs[Keys.FEED_INVIDIOUS] = feedInvidious
+            prefs[Keys.FEED_ORDER] = serializeFeedOrder(feedOrder)
+        }
+    }
+
     companion object {
         private const val TAG = "PrefsData"
 

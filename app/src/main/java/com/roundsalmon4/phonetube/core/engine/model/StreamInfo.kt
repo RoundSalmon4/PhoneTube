@@ -13,7 +13,8 @@ data class StreamInfo(
     val dashManifestUrl: String?,
     val hlsManifestUrl: String?,
     val isUnplayable: Boolean,
-    val playabilityReason: String?
+    val playabilityReason: String?,
+    val thumbnailUrl: String? = null
 )
 
 data class StreamFormat(
