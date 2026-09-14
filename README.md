@@ -11,7 +11,7 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 | Home Feed | Browse YouTube recommendations, subscriptions, trending, music, sports, live, news, gaming, and kids content |
 | Search | Search YouTube with autocomplete suggestions and configurable result limits. Long press video to add to playlist or go to channel. Channel results include subscribe button |
 | Video Playback | Play videos with DASH and HLS streaming, quality picker, subtitle support, and audio track selection. View count, like count, and subscriber count are shown below the title. Keeps the screen awake while playing |
-| Background Play | Continue listening with a persistent notification (with media controls) and mini player controls. Playback stops when the app is swiped away from recents |
+| Background Play | Continue listening with a persistent notification (with Previous, Play/Pause, and Next controls) and mini player controls. Playback stops when the app is swiped away from recents |
 | Picture-in-Picture | Floating video window when leaving the player during playback (Android 8+), with a dedicated PiP button in the player controls and reliable auto-entry when leaving the app mid-playback |
 | Mini Player | Persistent playback bar with play/pause, rewind, forward, close, and progress bar |
 | Continue Playing | Automatically plays the next suggested video when one ends (optional) |
@@ -25,15 +25,17 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 | Local Subscriptions | Subscribe to channels locally. Latest videos appear on the home feed. Subscribe directly from search results |
 | Watch History | Your watch history is saved locally with resume position, playback speed, and progress indicators |
 | Channel Pages | Browse channel videos and playlists with subscriber count display, save them locally, and subscribe |
-| Deep Linking | Open YouTube video, playlist (into the playlist viewer), channel, and shorts links, plus Reddit video (v.redd.it) and Streamable links, directly in PhoneTube. Supports `vnd.youtube:` URI scheme |
+| Deep Linking | Open YouTube video, playlist (into the playlist viewer), channel, handle (`/@handle`), and shorts links, plus bare-host links such as `m.youtube.com/?v=...`, Reddit video (v.redd.it), and Streamable links, directly in PhoneTube. Supports `vnd.youtube:` URI scheme |
 | Streamable Video | Open `streamable.com` links and play them in the in-app player |
-| PeerTube Support | Add PeerTube instances in Settings (e.g. neat.tube). The add dialog verifies the server exposes a valid PeerTube API before saving. Configured instances provide a PeerTube home-feed section and search results with a source badge showing which instance each result came from |
+| PeerTube Support | Add PeerTube instances in Settings (e.g. neat.tube). The add dialog verifies the server exposes a valid PeerTube API before saving. Configured instances provide a PeerTube home-feed section and search results with a source badge showing which instance each result came from. Channel pages are browsable for federated channels, and PeerTube channels can be subscribed to so their latest videos appear in the subscriptions feed (channels hosted on disabled instances are hidden) |
 | IPTV (Xtream Codes) | Add Xtream Codes providers (server, username, password) from the IPTV tab. Browse live channels by category in a readable list with a LIVE badge. HTTP and HTTPS providers are supported; the working scheme is stored per provider |
+| IPTV Channel Search | Type in the search box to filter live channels across the whole provider by name. Channels are matched against a locally cached list that loads instantly, so search stays fast even for large providers |
 | IPTV Now Playing | Shows the currently airing program on each channel using the short EPG endpoint (with a loading indicator while it fetches). Program end times are computed using the provider's stored server timezone |
 | IPTV Favorites | Star channels to save them to a Favorites list. Favorites are stored locally and included in Import/Export |
 | IPTV Playback | Live channels play via HLS through the existing player. Live playback always runs at 1x (speed controls are hidden) and keeps the screen awake while playing |
 | Video Card Dates | Video cards show when the video was published across home feeds, search, and channel pages |
 | Speed Control | Adjust playback speed from 0.25x to 3.0x, persisted across videos |
+| Volume & Mute | Per-video volume slider with a mute toggle in the player controls |
 | Quality Picker | Choose video quality from available formats with current resolution shown |
 | Smart Quality (AUTO) | AUTO starts from a realistic bandwidth estimate, enforces a 360p floor, and uses tuned adaptive thresholds so quality stays stable across the video. A specific Default Quality setting is honored reliably on both DASH and HLS streams |
 | Audio Track Picker | Select between available audio tracks when multiple are present |
@@ -41,6 +43,7 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 | Feed Toggle | Enable or disable individual feed sources |
 | Feed Order | Drag-to-reorder feed sections in settings |
 | Feed Cache | Feed data is cached with watch progress for instant loading on return |
+| Manual Refresh | Pull down on the home feed to refresh it, or use the refresh icon to reload every feed section from the source |
 | Open Links | Choose between in-app WebView or system browser for opening links |
 | Customization | Choose theme colors, enable AMOLED dark mode, or use your wallpaper colors on Android 12+. Picture-in-Picture, landscape lock, screen protection, and incognito mode toggles |
 | Privacy | Screen protection blocks screenshots and screen recording. Incognito mode skips watch history. No Persistent Visitor mode clears YouTube visitor data on each launch. Clear Cached Images button |
