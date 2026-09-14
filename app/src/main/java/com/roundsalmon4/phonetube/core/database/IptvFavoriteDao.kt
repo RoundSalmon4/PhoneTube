@@ -17,7 +17,4 @@ interface IptvFavoriteDao {
 
     @Query("DELETE FROM iptv_favorites WHERE videoId = :videoId")
     suspend fun delete(videoId: String)
-
-    @Query("SELECT COUNT(*) FROM iptv_favorites WHERE videoId = :videoId")
-    suspend fun exists(videoId: String): Int
 }

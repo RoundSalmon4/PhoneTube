@@ -310,6 +310,10 @@ class PlayerViewModel @Inject constructor(
                 thumbnailUrl = ""
             )
             startPlayback(info)
+            if (!info.isLive && !info.isLiveContent) {
+                recordToHistory(info)
+                resumeFromHistory(info)
+            }
         }
     }
 

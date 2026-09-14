@@ -15,9 +15,6 @@ interface IptvDao {
     @Query("SELECT * FROM iptv_providers WHERE id = :id LIMIT 1")
     suspend fun getById(id: String): IptvProvider?
 
-    @Query("SELECT * FROM iptv_providers WHERE enabled = 1")
-    suspend fun getEnabledSync(): List<IptvProvider>
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(provider: IptvProvider)
 

@@ -28,7 +28,7 @@ import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
         IptvFavorite::class,
         IptvChannel::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -190,6 +190,74 @@ abstract class AppDatabase : RoomDatabase() {
                         PRIMARY KEY(id)
                     )
                 """.trimIndent())
+            }
+        }
+
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // feed_videos: drop the unused viewCount column.
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS feed_videos_new (
+                        sectionId INTEGER NOT NULL,
+                        videoId TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        author TEXT NOT NULL,
+                        channelId TEXT NOT NULL,
+                        thumbnailUrl TEXT NOT NULL,
+                        durationMs INTEGER NOT NULL,
+                        position INTEGER NOT NULL,
+                        percentWatched INTEGER NOT NULL DEFAULT 0,
+                        publishedDate INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(sectionId, videoId),
+                        FOREIGN KEY(sectionId) REFERENCES feed_sections(id) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    INSERT INTO feed_videos_new (sectionId, videoId, title, author, channelId, thumbnailUrl, durationMs, position, percentWatched, publishedDate)
+                    SELECT sectionId, videoId, title, author, channelId, thumbnailUrl, durationMs, position, percentWatched, publishedDate FROM feed_videos
+                """.trimIndent())
+                db.execSQL("DROP TABLE feed_videos")
+                db.execSQL("ALTER TABLE feed_videos_new RENAME TO feed_videos")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_feed_videos_sectionId ON feed_videos(sectionId)")
+
+                // iptv_providers: drop the never-used enabled column.
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS iptv_providers_new (
+                        id TEXT NOT NULL,
+                        host TEXT NOT NULL DEFAULT '',
+                        username TEXT NOT NULL DEFAULT '',
+                        password TEXT NOT NULL DEFAULT '',
+                        name TEXT NOT NULL DEFAULT '',
+                        scheme TEXT NOT NULL DEFAULT 'https',
+                        timezone TEXT NOT NULL DEFAULT '',
+                        PRIMARY KEY(id)
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    INSERT INTO iptv_providers_new (id, host, username, password, name, scheme, timezone)
+                    SELECT id, host, username, password, name, scheme, timezone FROM iptv_providers
+                """.trimIndent())
+                db.execSQL("DROP TABLE iptv_providers")
+                db.execSQL("ALTER TABLE iptv_providers_new RENAME TO iptv_providers")
+
+                // iptv_channels: drop the unused categoryId column.
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS iptv_channels_new (
+                        id TEXT NOT NULL,
+                        providerId TEXT NOT NULL,
+                        streamId TEXT NOT NULL,
+                        title TEXT NOT NULL DEFAULT '',
+                        iconUrl TEXT NOT NULL DEFAULT '',
+                        cachedAt INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(id)
+                    )
+                """.trimIndent())
+                db.execSQL("""
+                    INSERT INTO iptv_channels_new (id, providerId, streamId, title, iconUrl, cachedAt)
+                    SELECT id, providerId, streamId, title, iconUrl, cachedAt FROM iptv_channels
+                """.trimIndent())
+                db.execSQL("DROP TABLE iptv_channels")
+                db.execSQL("ALTER TABLE iptv_channels_new RENAME TO iptv_channels")
             }
         }
     }

@@ -23,7 +23,6 @@ data class CachedFeedVideo(
     val channelId: String,
     val thumbnailUrl: String,
     val durationMs: Long,
-    val viewCount: String,
     val position: Int,
     val percentWatched: Int = 0,
     val publishedDate: Long = 0

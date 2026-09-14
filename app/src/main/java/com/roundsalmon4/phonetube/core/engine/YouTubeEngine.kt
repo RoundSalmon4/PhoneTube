@@ -756,15 +756,13 @@ class YouTubeEngine @Inject constructor(
             channelId = channelId,
             thumbnailUrl = "https://$host${optString("thumbnailPath", "")}",
             durationMs = optLong("duration", 0L) * 1000,
-            viewCount = optLong("views", 0L).toString(),
-            publishedDate = parsePeerTubeDate(optString("publishedAt", "")),
+            publishedDate = PhoneTubeDateParser.parse(optString("publishedAt", "")),
             percentWatched = 0,
             source = host,
             channelHost = channelHost
         )
     }
 
-    private fun parsePeerTubeDate(iso: String): Long = PhoneTubeDateParser.parse(iso)
     fun getMetadata(videoId: String): Flow<VideoMetadataResult> = flow {
         val metadata = mediaItemService.getMetadataObserve(videoId).awaitOrNull()
         emit((metadata ?: throw IllegalStateException("No metadata available for $videoId")).toVideoMetadataResult())
@@ -911,7 +909,6 @@ class YouTubeEngine @Inject constructor(
             channelId = getChannelId().orEmpty(),
             thumbnailUrl = getCardImageUrl().orEmpty(),
             durationMs = durationMs,
-            viewCount = null,
             publishedDate = if (timestamp > 0) timestamp else parseProductionDate(productionDate),
             percentWatched = getPercentWatched()
         )
@@ -1003,7 +1000,6 @@ class YouTubeEngine @Inject constructor(
             channelId = getChannelId().orEmpty(),
             thumbnailUrl = getAuthorImageUrl().orEmpty(),
             durationMs = getDurationMs(),
-            viewCount = getViewCount(),
             publishedDate = parseProductionDate(getPublishedDate()),
             percentWatched = getPercentWatched()
         ),

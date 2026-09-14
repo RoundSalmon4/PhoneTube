@@ -11,8 +11,7 @@ data class IptvProvider(
     val password: String,
     val name: String,
     val scheme: String = "https",
-    val timezone: String = "",
-    val enabled: Boolean = true
+    val timezone: String = ""
 ) {
     companion object {
         /**

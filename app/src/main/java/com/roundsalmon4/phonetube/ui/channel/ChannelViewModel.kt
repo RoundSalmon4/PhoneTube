@@ -5,16 +5,14 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
-import com.roundsalmon4.phonetube.core.database.PlaylistSaver
-import com.roundsalmon4.phonetube.core.database.PlaylistVideoInfo
 import com.roundsalmon4.phonetube.core.database.SubscriptionDao
-import com.roundsalmon4.phonetube.core.database.toPlaylistVideoInfo
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.database.entity.LocalSubscription
 import com.roundsalmon4.phonetube.core.database.entity.PlaylistVideo
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.model.ChannelSection
+import com.roundsalmon4.phonetube.ui.common.PlaylistDialogController
 import com.roundsalmon4.phonetube.core.engine.model.Video
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,11 +54,9 @@ class ChannelViewModel @Inject constructor(
     private val _isSubscribed = MutableStateFlow(false)
     val isSubscribed: StateFlow<Boolean> = _isSubscribed.asStateFlow()
 
-    private val _addToPlaylistVideo = MutableStateFlow<Video?>(null)
-    val addToPlaylistVideo: StateFlow<Video?> = _addToPlaylistVideo.asStateFlow()
-
-    private val _playlists = MutableStateFlow<List<LocalPlaylist>>(emptyList())
-    val playlists: StateFlow<List<LocalPlaylist>> = _playlists.asStateFlow()
+    val playlistDialog = PlaylistDialogController(playlistDao, viewModelScope)
+    val addToPlaylistVideo get() = playlistDialog.video
+    val playlists get() = playlistDialog.playlists
 
     private val _saveMessage = MutableStateFlow<String?>(null)
     val saveMessage: StateFlow<String?> = _saveMessage.asStateFlow()
@@ -74,7 +70,6 @@ class ChannelViewModel @Inject constructor(
     init {
         loadChannel()
         observeSubscription()
-        loadPlaylists()
         loadSavedPlaylistIds()
     }
 
@@ -174,12 +169,6 @@ class ChannelViewModel @Inject constructor(
         }
     }
 
-    private fun loadPlaylists() {
-        viewModelScope.launch {
-            playlistDao.getAllPlaylists().collect { _playlists.value = it }
-        }
-    }
-
     private fun loadSavedPlaylistIds() {
         viewModelScope.launch {
             playlistDao.getSavedPlaylistIds().collect { ids ->
@@ -188,35 +177,13 @@ class ChannelViewModel @Inject constructor(
         }
     }
 
-    fun showAddToPlaylistDialog(video: Video) {
-        _addToPlaylistVideo.value = video
-    }
+    fun showAddToPlaylistDialog(video: Video) = playlistDialog.show(video)
 
-    fun dismissAddToPlaylistDialog() {
-        _addToPlaylistVideo.value = null
-    }
+    fun dismissAddToPlaylistDialog() = playlistDialog.dismiss()
 
-    fun addToPlaylist(playlist: LocalPlaylist) {
-        val video = _addToPlaylistVideo.value ?: return
-        viewModelScope.launch {
-            if (PlaylistSaver.addToPlaylist(playlistDao, video.toPlaylistVideoInfo(), playlist)) {
-                _addToPlaylistVideo.value = null
-            } else {
-                Log.e(TAG, "addToPlaylist failed")
-            }
-        }
-    }
+    fun addToPlaylist(playlist: LocalPlaylist) = playlistDialog.addToPlaylist(playlist)
 
-    fun createPlaylistAndAdd(name: String) {
-        val video = _addToPlaylistVideo.value ?: return
-        viewModelScope.launch {
-            if (PlaylistSaver.createAndAdd(playlistDao, video.toPlaylistVideoInfo(), name)) {
-                _addToPlaylistVideo.value = null
-            } else {
-                Log.e(TAG, "createPlaylistAndAdd failed")
-            }
-        }
-    }
+    fun createPlaylistAndAdd(name: String) = playlistDialog.createAndAdd(name)
 
     fun clearSaveMessage() { _saveMessage.value = null }
 

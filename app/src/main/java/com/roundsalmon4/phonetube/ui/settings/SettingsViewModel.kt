@@ -164,8 +164,7 @@ class SettingsViewModel @Inject constructor(
                     password = provider.password,
                     name = provider.name,
                     scheme = provider.scheme,
-                    timezone = provider.timezone,
-                    enabled = provider.enabled
+                    timezone = provider.timezone
                 )
             },
             iptvFavorites = iptvFavorites.map { favorite ->
@@ -301,8 +300,7 @@ class SettingsViewModel @Inject constructor(
                                 password = provider.password,
                                 name = provider.name,
                                 scheme = provider.scheme,
-                                timezone = provider.timezone,
-                                enabled = provider.enabled
+                                timezone = provider.timezone
                             )
                         )
                     }

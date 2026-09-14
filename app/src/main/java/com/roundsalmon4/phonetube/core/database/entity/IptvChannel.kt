@@ -10,6 +10,5 @@ data class IptvChannel(
     val streamId: String,
     val title: String,
     val iconUrl: String,
-    val categoryId: String,
     val cachedAt: Long
 )

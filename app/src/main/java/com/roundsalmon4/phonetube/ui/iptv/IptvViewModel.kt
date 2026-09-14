@@ -7,13 +7,11 @@ import com.roundsalmon4.phonetube.core.database.IptvChannelDao
 import com.roundsalmon4.phonetube.core.database.IptvDao
 import com.roundsalmon4.phonetube.core.database.IptvFavoriteDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
-import com.roundsalmon4.phonetube.core.database.PlaylistSaver
-import com.roundsalmon4.phonetube.core.database.entity.IptvChannel
 import com.roundsalmon4.phonetube.core.database.entity.IptvFavorite
 import com.roundsalmon4.phonetube.core.database.entity.IptvProvider
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
-import com.roundsalmon4.phonetube.core.database.toPlaylistVideoInfo
 import com.roundsalmon4.phonetube.core.engine.XtreamClient
+import com.roundsalmon4.phonetube.ui.common.PlaylistDialogController
 import com.roundsalmon4.phonetube.core.engine.model.IptvCategory
 import com.roundsalmon4.phonetube.core.engine.model.IptvLiveStream
 import com.roundsalmon4.phonetube.core.engine.model.Video
@@ -83,11 +81,9 @@ class IptvViewModel @Inject constructor(
     private val _searchLoading = MutableStateFlow(false)
     val searchLoading: StateFlow<Boolean> = _searchLoading.asStateFlow()
 
-    private val _addToPlaylistVideo = MutableStateFlow<Video?>(null)
-    val addToPlaylistVideo: StateFlow<Video?> = _addToPlaylistVideo.asStateFlow()
-
-    private val _playlists = MutableStateFlow<List<LocalPlaylist>>(emptyList())
-    val playlists: StateFlow<List<LocalPlaylist>> = _playlists.asStateFlow()
+    val playlistDialog = PlaylistDialogController(playlistDao, viewModelScope)
+    val addToPlaylistVideo get() = playlistDialog.video
+    val playlists get() = playlistDialog.playlists
 
     // videoId -> "Title" (or "" when the provider has no EPG for that stream).
     // An entry also acts as a cache so scrolling does not refetch.
@@ -114,7 +110,7 @@ class IptvViewModel @Inject constructor(
                 _providers.value = providers
                 val selected = _selectedProviderId.value
                 if (selected == null && providers.isNotEmpty()) {
-                    val first = providers.firstOrNull { it.enabled } ?: providers.first()
+                    val first = providers.first()
                     _selectedProviderId.value = first.id
                     loadCategories(first.id)
                 } else if (selected != null && providers.none { it.id == selected }) {
@@ -124,9 +120,6 @@ class IptvViewModel @Inject constructor(
                     _selectedCategoryId.value = null
                 }
             }
-        }
-        viewModelScope.launch {
-            playlistDao.getAllPlaylists().collect { _playlists.value = it }
         }
         viewModelScope.launch {
             iptvFavoriteDao.getAll().collect { favorites ->
@@ -171,38 +164,16 @@ class IptvViewModel @Inject constructor(
         channelId = "",
         thumbnailUrl = iconUrl,
         durationMs = 0L,
-        viewCount = null,
         publishedDate = 0L,
         percentWatched = 0,
         source = null,
         channelHost = null
     )
 
-    fun showAddToPlaylistDialog(video: Video) {
-        _addToPlaylistVideo.value = video
-    }
-
-    fun dismissAddToPlaylistDialog() {
-        _addToPlaylistVideo.value = null
-    }
-
-    fun addToPlaylist(playlist: LocalPlaylist) {
-        val video = _addToPlaylistVideo.value ?: return
-        viewModelScope.launch {
-            val saved = PlaylistSaver.addToPlaylist(playlistDao, video.toPlaylistVideoInfo(), playlist)
-            Log.d(TAG, "addToPlaylist: saved=${saved}")
-            _addToPlaylistVideo.value = null
-        }
-    }
-
-    fun createPlaylistAndAdd(name: String) {
-        val video = _addToPlaylistVideo.value ?: return
-        viewModelScope.launch {
-            val saved = PlaylistSaver.createAndAdd(playlistDao, video.toPlaylistVideoInfo(), name)
-            Log.d(TAG, "createPlaylistAndAdd: saved=${saved}")
-            _addToPlaylistVideo.value = null
-        }
-    }
+    fun showAddToPlaylistDialog(video: Video) = playlistDialog.show(video)
+    fun dismissAddToPlaylistDialog() = playlistDialog.dismiss()
+    fun addToPlaylist(playlist: LocalPlaylist) = playlistDialog.addToPlaylist(playlist)
+    fun createPlaylistAndAdd(name: String) = playlistDialog.createAndAdd(name)
 
     fun selectProvider(id: String) {
         Log.d(TAG, "selectProvider: $id")
@@ -299,7 +270,6 @@ class IptvViewModel @Inject constructor(
                                 streamId = it.streamId,
                                 title = it.name,
                                 iconUrl = it.iconUrl.orEmpty(),
-                                categoryId = it.categoryId,
                                 cachedAt = now
                             )
                         }
@@ -335,7 +305,6 @@ class IptvViewModel @Inject constructor(
         channelId = "",
         thumbnailUrl = iconUrl,
         durationMs = 0L,
-        viewCount = null,
         publishedDate = 0L,
         percentWatched = 0,
         source = null,
@@ -511,7 +480,6 @@ class IptvViewModel @Inject constructor(
         channelId = "",
         thumbnailUrl = iconUrl.orEmpty(),
         durationMs = 0L,
-        viewCount = null,
         publishedDate = 0L,
         percentWatched = 0,
         source = null,

@@ -7,10 +7,7 @@ import com.roundsalmon4.phonetube.core.database.FeedCacheDao
 import com.roundsalmon4.phonetube.core.database.HistoryDao
 import com.roundsalmon4.phonetube.core.database.InvidiousDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
-import com.roundsalmon4.phonetube.core.database.PlaylistSaver
-import com.roundsalmon4.phonetube.core.database.PlaylistVideoInfo
 import com.roundsalmon4.phonetube.core.database.SubscriptionDao
-import com.roundsalmon4.phonetube.core.database.toPlaylistVideoInfo
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.core.database.entity.CachedFeedSection
@@ -20,6 +17,7 @@ import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.model.HomeFeed
 import com.roundsalmon4.phonetube.core.engine.model.HomeSection
+import com.roundsalmon4.phonetube.ui.common.PlaylistDialogController
 import com.roundsalmon4.phonetube.core.engine.model.Video
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -95,11 +93,9 @@ class HomeViewModel @Inject constructor(
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
-    private val _playlists = MutableStateFlow<List<LocalPlaylist>>(emptyList())
-    val playlists: StateFlow<List<LocalPlaylist>> = _playlists.asStateFlow()
-
-    private val _addToPlaylistVideo = MutableStateFlow<Video?>(null)
-    val addToPlaylistVideo: StateFlow<Video?> = _addToPlaylistVideo.asStateFlow()
+    val playlistDialog = PlaylistDialogController(playlistDao, viewModelScope)
+    val playlists get() = playlistDialog.playlists
+    val addToPlaylistVideo get() = playlistDialog.video
 
     private var homeRetryJob: Job? = null
     private var loadNetworkJob: Job? = null
@@ -108,7 +104,6 @@ class HomeViewModel @Inject constructor(
 
     init {
         loadHomeFromCache()
-        loadPlaylists()
         // Re-apply feed toggles and ordering immediately whenever preferences
         // change (settings toggles or an import), so disabled feeds disappear
         // without requiring a leave-and-return to Home.
@@ -342,7 +337,6 @@ class HomeViewModel @Inject constructor(
                         thumbnailUrl = "https://${instance.host}${obj.optString("thumbnailPath", "")}",
                         durationMs = (obj.optLong("duration", 0L)) * 1000,
                         publishedDate = com.roundsalmon4.phonetube.core.engine.PhoneTubeDateParser.parse(obj.optString("publishedAt", "")),
-                        viewCount = obj.optLong("views", 0L).toString(),
                         percentWatched = 0,
                         source = instance.host,
                         channelHost = channelHost
@@ -512,7 +506,6 @@ class HomeViewModel @Inject constructor(
                             channelId = video.channelId,
                             thumbnailUrl = video.thumbnailUrl,
                             durationMs = video.durationMs,
-                            viewCount = "",
                             position = videoIndex,
                             percentWatched = video.percentWatched,
                             publishedDate = video.publishedDate
@@ -548,7 +541,6 @@ class HomeViewModel @Inject constructor(
                             channelId = entry.channelId,
                             thumbnailUrl = entry.thumbnailUrl,
                             durationMs = entry.durationMs,
-                            viewCount = null,
                             publishedDate = entry.timestamp,
                             percentWatched = if (entry.durationMs > 0) ((entry.positionMs * 100f) / entry.durationMs).toInt().coerceIn(0, 100) else 0
                         )
@@ -561,19 +553,8 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun loadPlaylists() {
-        viewModelScope.launch {
-            playlistDao.getAllPlaylists().collect { _playlists.value = it }
-        }
-    }
-
-    fun showAddToPlaylistDialog(video: Video) {
-        _addToPlaylistVideo.value = video
-    }
-
-    fun dismissAddToPlaylistDialog() {
-        _addToPlaylistVideo.value = null
-    }
+    fun showAddToPlaylistDialog(video: Video) = playlistDialog.show(video)
+    fun dismissAddToPlaylistDialog() = playlistDialog.dismiss()
 
     fun fetchChannelIdForVideo(videoId: String, onResult: (String) -> Unit) {
         viewModelScope.launch {
@@ -584,27 +565,8 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun addToPlaylist(playlist: LocalPlaylist) {
-        val video = _addToPlaylistVideo.value ?: return
-        viewModelScope.launch {
-            if (PlaylistSaver.addToPlaylist(playlistDao, video.toPlaylistVideoInfo(), playlist)) {
-                _addToPlaylistVideo.value = null
-            } else {
-                Log.e(TAG, "addToPlaylist failed")
-            }
-        }
-    }
-
-    fun createPlaylistAndAdd(name: String) {
-        val video = _addToPlaylistVideo.value ?: return
-        viewModelScope.launch {
-            if (PlaylistSaver.createAndAdd(playlistDao, video.toPlaylistVideoInfo(), name)) {
-                _addToPlaylistVideo.value = null
-            } else {
-                Log.e(TAG, "createPlaylistAndAdd failed")
-            }
-        }
-    }
+    fun addToPlaylist(playlist: LocalPlaylist) = playlistDialog.addToPlaylist(playlist)
+    fun createPlaylistAndAdd(name: String) = playlistDialog.createAndAdd(name)
 }
 
 private fun CachedFeedVideo.toVideo() = Video(
@@ -614,7 +576,6 @@ private fun CachedFeedVideo.toVideo() = Video(
     channelId = channelId,
     thumbnailUrl = thumbnailUrl,
     durationMs = durationMs,
-    viewCount = null,
     publishedDate = publishedDate,
     percentWatched = percentWatched
 )

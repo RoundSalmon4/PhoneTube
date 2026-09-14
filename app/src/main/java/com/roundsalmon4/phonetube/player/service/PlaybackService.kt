@@ -52,6 +52,24 @@ class PlaybackService : MediaSessionService() {
             ACTION_PLAY_PAUSE -> {
                 player.playWhenReady = !player.playWhenReady
             }
+            ACTION_PREVIOUS -> {
+                // Replicate common player behavior: if more than a few seconds in,
+                // restart the current video; otherwise go to the previous item.
+                if (player.currentPosition > 3000L && player.playbackState == Player.STATE_READY) {
+                    player.seekTo(0)
+                } else if (player.hasPreviousMediaItem()) {
+                    player.seekToPrevious()
+                }
+            }
+            ACTION_NEXT -> {
+                if (player.hasNextMediaItem()) {
+                    player.seekToNext()
+                } else {
+                    player.stop()
+                    player.clearMediaItems()
+                    stopSelf()
+                }
+            }
         }
 
         if (mediaSession == null) {
@@ -115,12 +133,22 @@ class PlaybackService : MediaSessionService() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+
+        val previousIntent = Intent(this, PlaybackService::class.java).setAction(ACTION_PREVIOUS)
+        val previousPending = PendingIntent.getService(
+            this, 2, previousIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val nextIntent = Intent(this, PlaybackService::class.java).setAction(ACTION_NEXT)
+        val nextPending = PendingIntent.getService(
+            this, 3, nextIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val playPauseIntent = Intent(this, PlaybackService::class.java).setAction(ACTION_PLAY_PAUSE)
         val playPausePending = PendingIntent.getService(
-            this, 1,
-            playPauseIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            this, 1, playPauseIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+
         val playPauseAction = Notification.Action.Builder(
             if (isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
             if (isPlaying) "Pause" else "Play",
@@ -134,7 +162,9 @@ class PlaybackService : MediaSessionService() {
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setShowWhen(false)
+            .addAction(Notification.Action.Builder(android.R.drawable.ic_media_previous, "Previous", previousPending).build())
             .addAction(playPauseAction)
+            .addAction(Notification.Action.Builder(android.R.drawable.ic_media_next, "Next", nextPending).build())
             .build()
     }
 
@@ -162,6 +192,8 @@ class PlaybackService : MediaSessionService() {
         private const val NOTIFICATION_CHANNEL_ID = "playback"
         private const val NOTIFICATION_ID = 1
         private const val ACTION_PLAY_PAUSE = "com.roundsalmon4.phonetube.action.PLAY_PAUSE"
+        private const val ACTION_PREVIOUS = "com.roundsalmon4.phonetube.action.PREVIOUS"
+        private const val ACTION_NEXT = "com.roundsalmon4.phonetube.action.NEXT"
 
         @Volatile
         var playerController: PlayerEngineController? = null
