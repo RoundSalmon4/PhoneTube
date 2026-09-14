@@ -63,6 +63,7 @@ jobs:
           grep -q "setDurationMs(first.getDurationMs())" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/rss/RssService.kt || { echo "ERROR: RssService patch missing"; exit 1; }
           grep -q "formatInfo == null || formatInfo.isUnplayable()" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeMediaItemService.java || { echo "ERROR: innertube fallback patch missing"; exit 1; }
           grep -q '"User-Agent", USER_AGENT_BROWSER' youtubeapi/src/main/java/com/liskovsoft/youtubeapi/app/nsigsolver/common/InfoExtractor.kt || { echo "ERROR: browser User-Agent patch missing"; exit 1; }
+          grep -q "switchNextFormat(boolean force)" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/V2/VideoInfoService.java || { echo "ERROR: switchNextFormat signature patch missing"; exit 1; }
           # Skip the rebuild when the result is content-identical to the current branch,
           # so an unchanged upstream doesn't generate a new commit SHA and a no-op PR.
           if git diff --quiet origin/phonetube-patches -- mediaserviceinterfaces youtubeapi; then
