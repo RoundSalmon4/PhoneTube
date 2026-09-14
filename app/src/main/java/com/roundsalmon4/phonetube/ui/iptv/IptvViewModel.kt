@@ -7,6 +7,7 @@ import com.roundsalmon4.phonetube.core.database.IptvChannelDao
 import com.roundsalmon4.phonetube.core.database.IptvDao
 import com.roundsalmon4.phonetube.core.database.IptvFavoriteDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
+import com.roundsalmon4.phonetube.core.database.entity.IptvChannel
 import com.roundsalmon4.phonetube.core.database.entity.IptvFavorite
 import com.roundsalmon4.phonetube.core.database.entity.IptvProvider
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
