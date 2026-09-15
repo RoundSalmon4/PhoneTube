@@ -686,6 +686,16 @@ class PlayerViewModel @Inject constructor(
         playerController.togglePlayPause()
     }
 
+    fun pausePlayback() {
+        if (playerController.exoPlayer.isPlaying) {
+            playerController.exoPlayer.pause()
+        }
+    }
+
+    fun resumePlayback() {
+        playerController.exoPlayer.play()
+    }
+
     fun seekTo(positionMs: Long) {
         playerController.seekTo(positionMs)
     }

@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
@@ -73,6 +74,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
@@ -123,6 +125,7 @@ fun SettingsScreen(
             FeedsSection(uiState, viewModel)
             SearchSection(uiState, viewModel)
             AppearanceSection(uiState, viewModel)
+            CastSection(viewModel)
             DataSection(viewModel, importResult)
             AboutSection(
                 onLicenseClick = onLicenseClick,
@@ -893,6 +896,115 @@ private fun ColorSwatchGrid(
 }
 
 private fun Color.luminance(): Float = 0.299f * red + 0.587f * green + 0.114f * blue
+
+@Composable
+private fun CastSection(viewModel: SettingsViewModel) {
+    val devices by viewModel.castDevices.collectAsState()
+    var showAddDialog by remember { mutableStateOf(false) }
+    var name by remember { mutableStateOf("") }
+    var host by remember { mutableStateOf("") }
+    var port by remember { mutableStateOf("8484") }
+
+    Column {
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        SettingsCategory("Cast (PhoneTV)")
+
+        devices.forEach { device ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(device.name.ifBlank { device.host }, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "${device.host}:${device.port}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                TextButton(onClick = { viewModel.removeCastDevice(device.host) }) {
+                    Text("Remove")
+                }
+            }
+        }
+
+        if (devices.isEmpty()) {
+            Text(
+                text = "No cast devices paired. Tap \"Add\" to pair a TV running the PhoneTV app.",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        TextButton(onClick = { showAddDialog = true }, modifier = Modifier.padding(horizontal = 16.dp)) {
+            Text("Add Cast Device")
+        }
+    }
+
+    if (showAddDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showAddDialog = false
+                name = ""
+                host = ""
+                port = "8484"
+            },
+            title = { Text("Add Cast Device") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        "Open PhoneTV on your TV and enter the IP address shown on screen.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Name (optional)") },
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = host,
+                        onValueChange = { host = it },
+                        label = { Text("IP address") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                    OutlinedTextField(
+                        value = port,
+                        onValueChange = { port = it.filter(Char::isDigit).take(5) },
+                        label = { Text("Port") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.addCastDevice(name, host, port.toIntOrNull() ?: 8484)
+                        showAddDialog = false
+                        name = ""
+                        host = ""
+                        port = "8484"
+                    },
+                    enabled = host.isNotBlank()
+                ) { Text("Add") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showAddDialog = false
+                    name = ""
+                    host = ""
+                    port = "8484"
+                }) { Text("Cancel") }
+            }
+        )
+    }
+}
 
 @Composable
 private fun DataSection(

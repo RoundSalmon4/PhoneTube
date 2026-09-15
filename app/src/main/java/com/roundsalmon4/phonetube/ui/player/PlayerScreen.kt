@@ -2,6 +2,7 @@ package com.roundsalmon4.phonetube.ui.player
 
 import android.app.Activity
 import android.app.PictureInPictureParams
+import android.util.Log
 import android.util.Rational
 import android.content.pm.ActivityInfo
 import androidx.activity.compose.BackHandler
@@ -52,7 +53,10 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 
+import com.roundsalmon4.phonetube.core.engine.model.StreamInfo
+import com.roundsalmon4.phonetube.ui.cast.CastViewModel
 import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
+import com.roundsalmon4.phonetube.ui.components.CastDeviceDialog
 import com.roundsalmon4.phonetube.ui.components.WebViewDialog
 import com.roundsalmon4.phonetube.ui.components.formatDuration
 import com.roundsalmon4.phonetube.ui.components.openLink
@@ -98,6 +102,22 @@ fun PlayerScreen(
     val pipEnabled by viewModel.pipEnabled.collectAsStateWithLifecycle()
     val volume by viewModel.volume.collectAsStateWithLifecycle()
     val muted by viewModel.muted.collectAsStateWithLifecycle()
+
+    // Casting to a companion PhoneTV receiver over WebSocket
+    val castViewModel: CastViewModel = hiltViewModel()
+    val castDevices by castViewModel.devices.collectAsStateWithLifecycle()
+    val castConnection by castViewModel.connectionState.collectAsStateWithLifecycle()
+    val isCasting by castViewModel.isCasting.collectAsStateWithLifecycle()
+    var showCastDialog by remember { mutableStateOf(false) }
+
+    // Mirrors local transport actions to the TV while casting.
+    val mirrorTogglePlayPause: () -> Unit = {
+        val wasPlaying = playbackState.isPlaying
+        viewModel.togglePlayPause()
+        if (isCasting) {
+            if (wasPlaying) castViewModel.pause() else castViewModel.resume()
+        }
+    }
 
     // PiP button available while actively playing (or rebuffering). Reused for
     // both orientations; null hides the button.
@@ -239,9 +259,9 @@ fun PlayerScreen(
                             sponsorSegments = sponsorSegments,
                             chapters = chapters,
                             onBackClick = onBackClick,
-                            onTogglePlayPause = { viewModel.togglePlayPause() },
-                            onSeekTo = { viewModel.seekTo(it) },
-                            onSeekBy = { viewModel.seekBy(it) },
+                            onTogglePlayPause = mirrorTogglePlayPause,
+                            onSeekTo = { viewModel.seekTo(it); if (isCasting) castViewModel.seekTo(it) },
+                            onSeekBy = { viewModel.seekBy(it); if (isCasting) castViewModel.seekTo(playbackState.currentPosition + it) },
                             onSpeedClick = if (state.streamInfo.isLive || state.streamInfo.isLiveContent) null else ({ viewModel.showSpeedPicker() }),
                             onQualityClick = { viewModel.showQualityPicker() },
                             onPipClick = onPipClick,
@@ -254,6 +274,8 @@ fun PlayerScreen(
                             onAddToPlaylistClick = { viewModel.showAddToPlaylist() },
                             onChannelClick = state.streamInfo.channelId.takeIf { it.isNotBlank() }
                                 ?.let { channelId -> onChannelClick?.let { { it(channelId) } } },
+                            onCastClick = { showCastDialog = true },
+                            isCasting = isCasting,
                             visible = controlsVisible,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -298,10 +320,10 @@ PlayerControls(
                             sponsorSegments = sponsorSegments,
                             chapters = chapters,
                             onBackClick = onBackClick,
-                            onTogglePlayPause = { viewModel.togglePlayPause() },
-                            onSeekTo = { viewModel.seekTo(it) },
-                            onSeekBy = { viewModel.seekBy(it) },
-onSpeedClick = if (state.streamInfo.isLive || state.streamInfo.isLiveContent) null else ({ viewModel.showSpeedPicker() }),
+                            onTogglePlayPause = mirrorTogglePlayPause,
+                            onSeekTo = { viewModel.seekTo(it); if (isCasting) castViewModel.seekTo(it) },
+                            onSeekBy = { viewModel.seekBy(it); if (isCasting) castViewModel.seekTo(playbackState.currentPosition + it) },
+                            onSpeedClick = if (state.streamInfo.isLive || state.streamInfo.isLiveContent) null else ({ viewModel.showSpeedPicker() }),
                             onQualityClick = { viewModel.showQualityPicker() },
                             onPipClick = onPipClick,
                             volume = volume,
@@ -310,6 +332,8 @@ onSpeedClick = if (state.streamInfo.isLive || state.streamInfo.isLiveContent) nu
                             onToggleMute = { viewModel.toggleMute() },
                             onSubtitleClick = { viewModel.showSubtitlePicker() },
                             onAudioClick = { viewModel.showAudioPicker() },
+                            onCastClick = { showCastDialog = true },
+                            isCasting = isCasting,
                             visible = controlsVisible,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -485,6 +509,34 @@ onSpeedClick = if (state.streamInfo.isLive || state.streamInfo.isLiveContent) nu
         )
     }
 
+    if (showCastDialog) {
+        CastDeviceDialog(
+            devices = castDevices,
+            connectionState = castConnection,
+            onConnect = { device ->
+                val readyState = viewModel.uiState.value as? PlayerUiState.Ready
+                val info = readyState?.streamInfo
+                val url = info?.let { pickCastUrl(it) }
+                if (url != null) {
+                    Log.d("CastScreen", "Casting '${info.title}' from ${device.name}")
+                    viewModel.pausePlayback()
+                    castViewModel.startCast(device, url, info.title, playbackState.currentPosition)
+                }
+                showCastDialog = false
+            },
+            onDisconnect = {
+                val tvPos = castViewModel.tvStatus.value.position
+                if (tvPos > 0L) viewModel.seekTo(tvPos)
+                viewModel.resumePlayback()
+                castViewModel.stopCasting()
+                showCastDialog = false
+            },
+            onAddDevice = { name, host, port -> castViewModel.addDevice(name, host, port) },
+            onRemoveDevice = { host -> castViewModel.removeDevice(host) },
+            onDismiss = { showCastDialog = false }
+        )
+    }
+
     webViewUrl?.let { url ->
         WebViewDialog(
             url = url,
@@ -565,4 +617,17 @@ private fun DescriptionSection(
             }
         }
     }
+}
+
+// Picks the best direct playable URL for the TV to mirror local playback,
+// following the same priority used by the local player (live HLS first,
+// then DASH, then HLS, then a direct progressive URL).
+private fun pickCastUrl(info: StreamInfo): String? {
+    if (info.isLive || info.isLiveContent) {
+        info.hlsManifestUrl?.let { return it }
+    }
+    info.dashManifestUrl?.let { return it }
+    info.hlsManifestUrl?.let { return it }
+    info.urlFormats.firstOrNull { !it.url.isNullOrBlank() }?.let { return it.url }
+    return null
 }

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
@@ -75,6 +76,8 @@ fun PlayerControls(
     onAudioClick: () -> Unit,
     onAddToPlaylistClick: (() -> Unit)? = null,
     onChannelClick: (() -> Unit)? = null,
+    onCastClick: (() -> Unit)? = null,
+    isCasting: Boolean = false,
     visible: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -211,6 +214,20 @@ fun PlayerControls(
                                     indication = null,
                                     interactionSource = remember { MutableInteractionSource() }
                                 ) { onAudioClick() }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
+                    }
+                    // Cast button (hidden when not available)
+                    if (onCastClick != null) {
+                        Icon(
+                            imageVector = Icons.Default.Cast,
+                            contentDescription = "Cast",
+                            tint = if (isCasting) MaterialTheme.colorScheme.primary else Color.White,
+                            modifier = Modifier
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { onCastClick() }
                                 .padding(horizontal = 12.dp, vertical = 8.dp)
                         )
                     }

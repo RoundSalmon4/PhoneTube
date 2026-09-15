@@ -17,6 +17,8 @@ import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.core.database.InvidiousDao
 import com.roundsalmon4.phonetube.core.database.IptvDao
 import com.roundsalmon4.phonetube.core.database.IptvFavoriteDao
+import com.roundsalmon4.phonetube.core.cast.CastDevice
+import com.roundsalmon4.phonetube.core.cast.CastRepository
 import com.roundsalmon4.phonetube.core.database.entity.InvidiousInstance
 import com.roundsalmon4.phonetube.core.database.entity.IptvFavorite
 import com.roundsalmon4.phonetube.core.database.entity.IptvProvider
@@ -42,7 +44,8 @@ class SettingsViewModel @Inject constructor(
     private val engine: YouTubeEngine,
     private val invidiousDao: InvidiousDao,
     private val iptvDao: IptvDao,
-    private val iptvFavoriteDao: IptvFavoriteDao
+    private val iptvFavoriteDao: IptvFavoriteDao,
+    private val castRepository: CastRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PreferencesUiState())
@@ -457,6 +460,16 @@ class SettingsViewModel @Inject constructor(
 
     fun setFeedInvidious(enabled: Boolean) = viewModelScope.launch {
         playerPreferences.setFeedInvidious(enabled)
+    }
+
+    val castDevices: StateFlow<List<CastDevice>> = castRepository.devices
+
+    fun addCastDevice(name: String, host: String, port: Int) {
+        castRepository.addDevice(CastDevice(name = name, host = host, port = port))
+    }
+
+    fun removeCastDevice(host: String) {
+        castRepository.removeDevice(host)
     }
 
     fun addPeerTubeInstance(host: String, name: String) = viewModelScope.launch {
