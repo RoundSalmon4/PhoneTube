@@ -1,6 +1,7 @@
 package com.roundsalmon4.phonetube
 
 import android.app.Application
+import android.util.Log
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.SingletonImageLoader
@@ -13,6 +14,8 @@ import dagger.hilt.android.HiltAndroidApp
 class PhoneTubeApp : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
+        Log.i(TAG, "App build: v${BuildConfig.VERSION_NAME} (code ${BuildConfig.VERSION_CODE}) " +
+            "buildType=${BuildConfig.BUILD_TYPE} commit=${BuildConfig.GIT_HASH} pkg=${BuildConfig.APPLICATION_ID}")
         RxHelper.setupGlobalErrorHandler()
     }
 
@@ -24,5 +27,9 @@ class PhoneTubeApp : Application(), SingletonImageLoader.Factory {
                 ))
             }
             .build()
+    }
+
+    private companion object {
+        const val TAG = "PhoneTubeApp"
     }
 }

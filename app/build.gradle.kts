@@ -15,6 +15,15 @@ val appVersionMajor: Int by extra
 val appVersionMinor: Int by extra
 val appVersionPatch: Int by extra
 
+val gitHash = try {
+    providers.exec {
+        commandLine("git", "rev-parse", "--short", "HEAD")
+    }.standardOutput.asText.get().trim()
+} catch (e: Exception) {
+    "unknown"
+}
+gitHash.let { logger.lifecycle("PhoneTube build from commit: $it") }
+
 android {
     namespace = "com.roundsalmon4.phonetube"
     compileSdk = 35
@@ -73,6 +82,11 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    defaultConfig {
+        buildConfigField("String", "GIT_HASH", "\"$gitHash\"")
     }
 
     kotlinOptions {

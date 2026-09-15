@@ -62,11 +62,11 @@ class PlayerViewModel @Inject constructor(
     companion object {
         private const val TAG = "PlayerVM"
 
-        // https://v.redd.it/<id>/DASH_720.mp4 (or packaged-media.redd.it/.../DASH_720.mp4).
-        // Captures everything up to the DASH_<res>.mp4 filename so the audio
-        // sibling can be located next to it.
-        private val REDDIT_DASH_URL =
-            Regex("""^(https?://(?:v\.redd\.it|packaged-media\.redd\.it)/.*?)DASH_\d+(?:_[^\s?#]+)?\.mp4(?:\?.*)?$""")
+        // Reddit serves video from these hosts (video-only renditions plus a
+        // sibling audio file). Matches any v.redd.it / packaged-media.redd.it
+        // media URL so the audio sibling can be located next to it.
+        private val REDDIT_MEDIA_URL =
+            Regex("""^https?://(?:v\.redd\.it|packaged-media\.redd\.it)/""")
     }
 
     private val videoId: String = savedStateHandle["videoId"]!!
@@ -257,6 +257,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     private suspend fun loadDirectMedia(url: String) {
+        Log.d(TAG, "loadDirectMedia: url=$url")
         val redditAudioUrl = resolveRedditAudio(url)
         if (redditAudioUrl != null) {
             Log.d(TAG, "loadDirectMedia: reddit DASH video, merging audio from $redditAudioUrl")
@@ -296,32 +297,76 @@ class PlayerViewModel @Inject constructor(
     }
 
     /**
-     * Reddit serves its DASH renditions as separate files: the video-only
-     * DASH_<res>.mp4 plus a sibling DASH_audio.mp4. When the shared URL is a
-     * Reddit DASH video file, check whether the matching audio file exists so
-     * the player can mux both. Returns null for every other media URL.
+     * Reddit serves its videos as separate files: a video-only rendition plus
+     * a sibling audio file (DASH_audio.mp4, audio.mp4 or DASH_AUDIO_64.mp4).
+     * When the shared URL is hosted on Reddit's media servers, locate the
+     * matching audio file so the player can mux both. Returns null for any
+     * other media URL or when no audio sibling exists (silent posts).
      */
     private suspend fun resolveRedditAudio(url: String): String? {
         val normalized = url.trim()
-        val match = REDDIT_DASH_URL.matchEntire(normalized) ?: return null
-        val audioUrl = match.groupValues[1] + "DASH_audio.mp4"
-        Log.d(TAG, "resolveRedditAudio: probing $audioUrl")
-        val exists = withContext(Dispatchers.IO) {
-            try {
-                val connection = java.net.URL(audioUrl).openConnection() as java.net.HttpURLConnection
-                connection.requestMethod = "HEAD"
-                connection.connectTimeout = 8_000
-                connection.readTimeout = 8_000
-                connection.instanceFollowRedirects = true
-                val code = connection.responseCode
-                connection.disconnect()
-                code in 200..399
-            } catch (e: Exception) {
-                Log.w(TAG, "resolveRedditAudio: probe failed for $audioUrl", e)
-                false
+        if (!REDDIT_MEDIA_URL.containsMatchIn(normalized)) {
+            Log.d(TAG, "resolveRedditAudio: not reddit media, skipping")
+            return null
+        }
+        val dir = normalized.substringBeforeLast('/', normalized).plus('/')
+        val candidates = listOf(
+            dir + "DASH_audio.mp4",
+            dir + "audio.mp4",
+            dir + "DASH_AUDIO_64.mp4"
+        )
+        for (candidate in candidates) {
+            val exists = redditFileExists(candidate)
+            Log.d(TAG, "resolveRedditAudio: candidate=$candidate exists=$exists")
+            if (exists) {
+                return candidate
             }
         }
-        return if (exists) audioUrl else null
+        Log.d(TAG, "resolveRedditAudio: no audio sibling found for $normalized")
+        return null
+    }
+
+    /**
+     * Quick reachability check for a Reddit media file. Prefers HEAD, and
+     * falls back to a 1-byte range GET when the server rejects HEAD.
+     */
+    private suspend fun redditFileExists(url: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val head = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            head.requestMethod = "HEAD"
+            head.connectTimeout = 8_000
+            head.readTimeout = 8_000
+            head.instanceFollowRedirects = true
+            val headCode = head.responseCode
+            head.disconnect()
+            if (headCode != 405) {
+                headCode in 200..399
+            } else {
+                redditRangeProbe(url)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "redditFileExists: probe failed for $url", e)
+            false
+        }
+    }
+
+    private fun redditRangeProbe(url: String): Boolean {
+        val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+        return try {
+            connection.requestMethod = "GET"
+            connection.setRequestProperty("Range", "bytes=0-0")
+            connection.connectTimeout = 8_000
+            connection.readTimeout = 8_000
+            connection.instanceFollowRedirects = true
+            val code = connection.responseCode
+            connection.inputStream.readBytes().take(1)
+            connection.disconnect()
+            code in 200..299
+        } catch (e: Exception) {
+            try { connection.disconnect() } catch (_: Exception) {}
+            Log.w(TAG, "redditRangeProbe: failed for $url", e)
+            false
+        }
     }
 
     private fun loadPeerTube() {
