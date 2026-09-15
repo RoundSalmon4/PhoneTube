@@ -166,25 +166,6 @@ private val trackSelector = DefaultTrackSelector(context, adaptiveTrackSelection
         play(buildMediaItem(url, mimeType, title, artist), subtitles)
     }
 
-    /**
-     * Plays video and audio delivered as two separate progressive files at the
-     * same time. Reddit's v.redd.it DASH files are video-only with the sound
-     * in a sibling DASH_audio.mp4, so a single MediaItem is always silent.
-     */
-    fun playMerged(
-        videoUrl: String,
-        audioUrl: String,
-        title: String? = null,
-        artist: String? = null
-    ) {
-        val factory = DefaultMediaSourceFactory(dataSourceFactory)
-        val videoSource = factory.createMediaSource(buildMediaItem(videoUrl, "video/mp4", title, artist))
-        val audioSource = factory.createMediaSource(buildMediaItem(audioUrl, "audio/mp4", title, artist))
-        exoPlayer.setMediaSource(MergingMediaSource(videoSource, audioSource))
-        exoPlayer.prepare()
-        exoPlayer.playWhenReady = true
-    }
-
     private fun buildMediaItem(
         uri: String,
         mimeType: String?,

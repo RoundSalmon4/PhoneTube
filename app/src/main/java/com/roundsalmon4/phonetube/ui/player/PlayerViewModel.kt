@@ -258,10 +258,10 @@ class PlayerViewModel @Inject constructor(
 
     private suspend fun loadDirectMedia(url: String) {
         Log.d(TAG, "loadDirectMedia: url=$url")
-        val redditAudioUrl = resolveRedditAudio(url)
-        if (redditAudioUrl != null) {
-            Log.d(TAG, "loadDirectMedia: reddit DASH video, merging audio from $redditAudioUrl")
-        }
+        // Reddit ships its DASH/CMAF renditions as separate video and audio
+        // files, so the shared video file alone is silent. Its HLS playlist
+        // bundles both tracks, so prefer that when it exists next to the file.
+        val redditPlaylist = findRedditHlsPlaylist(url)
         val info = StreamInfo(
             title = "Direct media",
             author = "",
@@ -277,13 +277,12 @@ class PlayerViewModel @Inject constructor(
                     height = 0,
                     bitrate = null,
                     fps = null,
-                    qualityLabel = null,
-                    audioUrl = redditAudioUrl
+                    qualityLabel = null
                 )
             ),
             subtitles = emptyList(),
             dashManifestUrl = null,
-            hlsManifestUrl = null,
+            hlsManifestUrl = redditPlaylist,
             isUnplayable = false,
             playabilityReason = null
         )
@@ -297,33 +296,23 @@ class PlayerViewModel @Inject constructor(
     }
 
     /**
-     * Reddit serves its videos as separate files: a video-only rendition plus
-     * a sibling audio file (DASH_audio.mp4, audio.mp4 or DASH_AUDIO_64.mp4).
-     * When the shared URL is hosted on Reddit's media servers, locate the
-     * matching audio file so the player can mux both. Returns null for any
-     * other media URL or when no audio sibling exists (silent posts).
+     * Reddit serves its videos as separate video and audio files (DASH/CMAF),
+     * so a shared video rendition is always silent. Reddit also publishes an
+     * HLS playlist next to the renditions that references both video and audio
+     * tracks. When the shared URL is hosted on Reddit's media servers, locate
+     * that playlist so it can be played as HLS. Returns null otherwise.
      */
-    private suspend fun resolveRedditAudio(url: String): String? {
+    private suspend fun findRedditHlsPlaylist(url: String): String? {
         val normalized = url.trim()
         if (!REDDIT_MEDIA_URL.containsMatchIn(normalized)) {
-            Log.d(TAG, "resolveRedditAudio: not reddit media, skipping")
+            Log.d(TAG, "findRedditHlsPlaylist: not reddit media, skipping")
             return null
         }
         val dir = normalized.substringBeforeLast('/', normalized).plus('/')
-        val candidates = listOf(
-            dir + "DASH_audio.mp4",
-            dir + "audio.mp4",
-            dir + "DASH_AUDIO_64.mp4"
-        )
-        for (candidate in candidates) {
-            val exists = redditFileExists(candidate)
-            Log.d(TAG, "resolveRedditAudio: candidate=$candidate exists=$exists")
-            if (exists) {
-                return candidate
-            }
-        }
-        Log.d(TAG, "resolveRedditAudio: no audio sibling found for $normalized")
-        return null
+        val playlist = dir + "HLSPlaylist.m3u8"
+        val exists = redditFileExists(playlist)
+        Log.d(TAG, "findRedditHlsPlaylist: $playlist exists=$exists")
+        return if (exists) playlist else null
     }
 
     /**
@@ -603,11 +592,7 @@ class PlayerViewModel @Inject constructor(
             info.urlFormats.isNotEmpty() -> {
                 val best = info.urlFormats.firstOrNull { it.url != null }
                 if (best != null) {
-                    if (!best.audioUrl.isNullOrBlank()) {
-                        playerController.playMerged(best.url!!, best.audioUrl!!, info.title, info.author)
-                    } else {
-                        playerController.playUrl(best.url!!, best.mimeType, info.subtitles, info.title, info.author)
-                    }
+                    playerController.playUrl(best.url!!, best.mimeType, info.subtitles, info.title, info.author)
                 } else {
                     _uiState.value = PlayerUiState.Error("No playable format found")
                 }
