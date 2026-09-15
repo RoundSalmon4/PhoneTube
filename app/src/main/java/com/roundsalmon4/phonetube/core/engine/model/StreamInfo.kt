@@ -23,7 +23,8 @@ data class StreamFormat(
     val height: Int,
     val bitrate: String?,
     val fps: String?,
-    val qualityLabel: String?
+    val qualityLabel: String?,
+    val audioUrl: String? = null
 )
 
 data class SubtitleTrack(

@@ -61,6 +61,12 @@ class PlayerViewModel @Inject constructor(
 
     companion object {
         private const val TAG = "PlayerVM"
+
+        // https://v.redd.it/<id>/DASH_720.mp4 (or packaged-media.redd.it/.../DASH_720.mp4).
+        // Captures everything up to the DASH_<res>.mp4 filename so the audio
+        // sibling can be located next to it.
+        private val REDDIT_DASH_URL =
+            Regex("""^(https?://(?:v\.redd\.it|packaged-media\.redd\.it)/.*?)DASH_\d+(?:_[^\s?#]+)?\.mp4(?:\?.*)?$""")
     }
 
     private val videoId: String = savedStateHandle["videoId"]!!
@@ -250,7 +256,11 @@ class PlayerViewModel @Inject constructor(
         startPlayback(info)
     }
 
-    private fun loadDirectMedia(url: String) {
+    private suspend fun loadDirectMedia(url: String) {
+        val redditAudioUrl = resolveRedditAudio(url)
+        if (redditAudioUrl != null) {
+            Log.d(TAG, "loadDirectMedia: reddit DASH video, merging audio from $redditAudioUrl")
+        }
         val info = StreamInfo(
             title = "Direct media",
             author = "",
@@ -266,7 +276,8 @@ class PlayerViewModel @Inject constructor(
                     height = 0,
                     bitrate = null,
                     fps = null,
-                    qualityLabel = null
+                    qualityLabel = null,
+                    audioUrl = redditAudioUrl
                 )
             ),
             subtitles = emptyList(),
@@ -282,6 +293,35 @@ class PlayerViewModel @Inject constructor(
             thumbnailUrl = ""
         )
         startPlayback(info)
+    }
+
+    /**
+     * Reddit serves its DASH renditions as separate files: the video-only
+     * DASH_<res>.mp4 plus a sibling DASH_audio.mp4. When the shared URL is a
+     * Reddit DASH video file, check whether the matching audio file exists so
+     * the player can mux both. Returns null for every other media URL.
+     */
+    private suspend fun resolveRedditAudio(url: String): String? {
+        val normalized = url.trim()
+        val match = REDDIT_DASH_URL.matchEntire(normalized) ?: return null
+        val audioUrl = match.groupValues[1] + "DASH_audio.mp4"
+        Log.d(TAG, "resolveRedditAudio: probing $audioUrl")
+        val exists = withContext(Dispatchers.IO) {
+            try {
+                val connection = java.net.URL(audioUrl).openConnection() as java.net.HttpURLConnection
+                connection.requestMethod = "HEAD"
+                connection.connectTimeout = 8_000
+                connection.readTimeout = 8_000
+                connection.instanceFollowRedirects = true
+                val code = connection.responseCode
+                connection.disconnect()
+                code in 200..399
+            } catch (e: Exception) {
+                Log.w(TAG, "resolveRedditAudio: probe failed for $audioUrl", e)
+                false
+            }
+        }
+        return if (exists) audioUrl else null
     }
 
     private fun loadPeerTube() {
@@ -518,7 +558,11 @@ class PlayerViewModel @Inject constructor(
             info.urlFormats.isNotEmpty() -> {
                 val best = info.urlFormats.firstOrNull { it.url != null }
                 if (best != null) {
-                    playerController.playUrl(best.url!!, best.mimeType, info.subtitles, info.title, info.author)
+                    if (!best.audioUrl.isNullOrBlank()) {
+                        playerController.playMerged(best.url!!, best.audioUrl!!, info.title, info.author)
+                    } else {
+                        playerController.playUrl(best.url!!, best.mimeType, info.subtitles, info.title, info.author)
+                    }
                 } else {
                     _uiState.value = PlayerUiState.Error("No playable format found")
                 }
