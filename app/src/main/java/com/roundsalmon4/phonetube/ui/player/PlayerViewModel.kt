@@ -631,22 +631,45 @@ class PlayerViewModel @Inject constructor(
             val castUrl = info.bestCastUrl()
             if (castUrl != null) {
                 Log.d(TAG, "startPlayback: casting '${info.title}' to TV: $castUrl")
+                val resumeMs = if (videoId == lastCastVideoId) {
+                    castRepository.tvStatus.value.position.coerceAtLeast(0L)
+                } else {
+                    0L
+                }
+                lastCastVideoId = videoId
                 viewModelScope.launch {
                     val prefs = playerPreferences.uiState.first()
-                    val speed = if (info.isLive || info.isLiveContent) 1f else prefs.playbackSpeed
+                    val live = info.isLive || info.isLiveContent
+                    val speed = if (live) 1f else playerController.exoPlayer.playbackParameters.speed
                     val qualityHint = if (prefs.defaultQuality == "AUTO") null
                         else prefs.defaultQuality.removeSuffix("p").toIntOrNull()
                     castRepository.sendPlay(
                         url = castUrl,
                         title = info.title,
-                        position = 0L,
+                        position = resumeMs,
                         subtitles = info.subtitles.takeIf { it.isNotEmpty() }?.toCastSubtitles(),
                         quality = qualityHint,
                         speed = speed,
                         activeSubtitleIndex = activeCastSubtitleIndex(info.subtitles)
                     )
                 }
-                playerController.stop()
+                // Keep the media on the local player (paused) so the phone can
+                // act as a remote: the CC picker still reads real tracks and
+                // disconnecting can resume instantly without reloading.
+                when {
+                    live && info.hlsManifestUrl != null ->
+                        playerController.preparePaused(info.hlsManifestUrl, "application/x-mpegURL", info.subtitles, info.title, info.author)
+                    info.dashManifestUrl != null ->
+                        playerController.preparePaused(info.dashManifestUrl, "application/dash+xml", info.subtitles, info.title, info.author)
+                    info.hlsManifestUrl != null ->
+                        playerController.preparePaused(info.hlsManifestUrl, "application/x-mpegURL", info.subtitles, info.title, info.author)
+                    else -> {
+                        val direct = info.urlFormats.firstOrNull { !it.url.isNullOrBlank() }
+                        if (direct != null) {
+                            playerController.preparePaused(direct.url!!, direct.mimeType, info.subtitles, info.title, info.author)
+                        }
+                    }
+                }
                 _uiState.value = PlayerUiState.Ready(info)
                 return
             }
@@ -864,9 +887,11 @@ class PlayerViewModel @Inject constructor(
         if (subtitle == null) {
             playerController.setSubtitleEnabled(false)
             activeSubtitleUrl = null
+            subtitleExplicitlyDisabled = true
         } else {
             playerController.selectSubtitleTrack(subtitle)
             activeSubtitleUrl = resolveSubtitleUrl(subtitle.name)
+            subtitleExplicitlyDisabled = false
         }
         mirrorSubtitleToTv()
     }
@@ -882,6 +907,15 @@ class PlayerViewModel @Inject constructor(
     // with the play command. Track the active one by its (normalized) URL so
     // we can mirror selections made before or during a cast session.
     private var activeSubtitleUrl: String? = null
+    private var subtitleExplicitlyDisabled = false
+
+    // Tracks which video is currently on the TV so returning to the same video
+    // (e.g. via the mini player) resumes at the TV position instead of 0.
+    private var lastCastVideoId: String? = null
+
+    fun markCurrentVideoCasted() {
+        lastCastVideoId = videoId
+    }
 
     private fun resolveSubtitleUrl(name: String?): String? {
         val subs = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.subtitles ?: return null
@@ -889,19 +923,55 @@ class PlayerViewModel @Inject constructor(
             ?.let { listOf(it).toCastSubtitles().first().url }
     }
 
+    /**
+     * Returns the label/language of the text track the local player currently
+     * has selected, so a handoff can mirror an auto-selected subtitle too.
+     */
+    private fun currentlySelectedSubtitle(): Pair<String?, String?>? {
+        val groups = playerController.exoPlayer.currentTracks.groups
+        for (group in groups) {
+            if (group.type != androidx.media3.common.C.TRACK_TYPE_TEXT) continue
+            for (i in 0 until group.length) {
+                if (group.isTrackSelected(i)) {
+                    val format = group.getTrackFormat(i)
+                    return format.label to format.language
+                }
+            }
+        }
+        return null
+    }
+
     fun activeCastSubtitleIndex(subtitles: List<SubtitleTrack>): Int? {
+        if (subtitleExplicitlyDisabled) return -1
         val castList = subtitles.toCastSubtitles()
-        val url = activeSubtitleUrl ?: return null
-        return castList.indexOfFirst { it.url == url }.let { if (it < 0) null else it }
+        val url = activeSubtitleUrl
+        val index = if (url != null) castList.indexOfFirst { it.url == url } else {
+            // Fall back to whatever the local player auto-selected.
+            currentlySelectedSubtitle()?.let { (label, lang) ->
+                castList.indexOfFirst {
+                    it.name.equals(label, ignoreCase = true) ||
+                        (lang != null && it.languageCode.equals(lang, ignoreCase = true))
+                }
+            } ?: -1
+        }
+        return if (index < 0) null else index
     }
 
     private fun mirrorSubtitleToTv() {
         if (!isCasting) return
         val castList = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.subtitles?.toCastSubtitles()
             ?: return
-        val index = if (activeSubtitleUrl == null) -1
-            else castList.indexOfFirst { it.url == activeSubtitleUrl }.let { if (it < 0) -1 else it }
-        castRepository.sendSubtitle(index)
+        val index = when {
+            subtitleExplicitlyDisabled -> -1
+            activeSubtitleUrl != null -> castList.indexOfFirst { it.url == activeSubtitleUrl }
+            else -> currentlySelectedSubtitle()?.let { (label, lang) ->
+                castList.indexOfFirst {
+                    it.name.equals(label, ignoreCase = true) ||
+                        (lang != null && it.languageCode.equals(lang, ignoreCase = true))
+                }
+            } ?: -1
+        }
+        castRepository.sendSubtitle(if (index < 0) -1 else index)
     }
 
     fun showSpeedPicker() { _showSpeedPicker.value = true }

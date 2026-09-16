@@ -183,6 +183,45 @@ private val trackSelector = DefaultTrackSelector(context, adaptiveTrackSelection
         return builder.build()
     }
 
+    /**
+     * Loads media on the local player but leaves it paused. Used while casting
+     * so the phone keeps the same stream (subtitle tracks included) available
+     * as a remote/navigator: the CC picker can read tracks and disconnecting
+     * can resume instantly instead of needing a fresh load.
+     */
+    fun preparePaused(
+        url: String,
+        mimeType: String?,
+        subtitles: List<SubtitleTrack> = emptyList(),
+        title: String? = null,
+        artist: String? = null
+    ) {
+        if (subtitles.isEmpty()) {
+            exoPlayer.setMediaItem(buildMediaItem(url, mimeType, title, artist))
+        } else {
+            val mainSource = DefaultMediaSourceFactory(dataSourceFactory)
+                .createMediaSource(buildMediaItem(url, mimeType, title, artist))
+            val textSources = subtitles.map { subtitle ->
+                val useVtt = subtitle.mimeType.contains("ttml")
+                val subtitleUrl = if (useVtt) subtitle.baseUrl.replace("fmt=ttml", "fmt=vtt") else subtitle.baseUrl
+                val subtitleMime = if (useVtt) "text/vtt" else subtitle.mimeType.ifBlank { "text/vtt" }
+                val subtitleConfiguration = MediaItem.SubtitleConfiguration.Builder(
+                    Uri.parse(subtitleUrl)
+                )
+                    .setMimeType(subtitleMime)
+                    .setLanguage(subtitle.languageCode.ifBlank { null })
+                    .setLabel(subtitle.name.ifBlank { subtitle.languageCode })
+                    .build()
+                SingleSampleMediaSource.Factory(dataSourceFactory)
+                    .createMediaSource(subtitleConfiguration, C.TIME_UNSET)
+            }
+            exoPlayer.setMediaSource(MergingMediaSource(mainSource, *textSources.toTypedArray()))
+        }
+        exoPlayer.prepare()
+        exoPlayer.playWhenReady = false
+        exoPlayer.seekTo(0)
+    }
+
     private fun play(mediaItem: MediaItem, subtitles: List<SubtitleTrack>) {
         if (subtitles.isEmpty()) {
             exoPlayer.setMediaItem(mediaItem)

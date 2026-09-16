@@ -552,6 +552,7 @@ PlayerControls(
                 if (url != null) {
                     Log.d("CastScreen", "Casting '${info.title}' from ${device.name}")
                     viewModel.pausePlayback()
+                    viewModel.markCurrentVideoCasted()
                     castScope.launch {
                         castViewModel.startCast(
                             device = device,
