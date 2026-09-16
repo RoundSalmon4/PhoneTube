@@ -22,6 +22,7 @@ import com.roundsalmon4.phonetube.core.engine.XtreamClient
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
 import com.roundsalmon4.phonetube.core.engine.model.SponsorSegment
 import com.roundsalmon4.phonetube.core.engine.model.StreamFormat
+import com.roundsalmon4.phonetube.core.engine.model.SubtitleTrack
 import com.roundsalmon4.phonetube.core.engine.model.bestCastUrl
 import com.roundsalmon4.phonetube.core.engine.model.StreamInfo
 import com.roundsalmon4.phonetube.core.engine.model.VideoChapter
