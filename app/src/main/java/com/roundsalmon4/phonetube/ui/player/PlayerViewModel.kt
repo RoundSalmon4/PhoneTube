@@ -7,6 +7,8 @@ import androidx.media3.common.C
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import com.roundsalmon4.phonetube.core.cast.CastConnectionState
+import com.roundsalmon4.phonetube.core.cast.CastRepository
 import com.roundsalmon4.phonetube.core.database.HistoryDao
 import com.roundsalmon4.phonetube.core.database.IptvDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
@@ -56,7 +58,8 @@ class PlayerViewModel @Inject constructor(
     private val iptvDao: IptvDao,
     private val xtreamClient: XtreamClient,
     val playerController: PlayerEngineController,
-    private val playerStateManager: PlayerStateManager
+    private val playerStateManager: PlayerStateManager,
+    private val castRepository: CastRepository
 ) : AndroidViewModel(application) {
 
     companion object {
@@ -575,6 +578,22 @@ class PlayerViewModel @Inject constructor(
         Log.d(TAG, "startPlayback: isUnplayable=${info.isUnplayable}, playabilityReason=${info.playabilityReason}, " +
             "dash=${info.dashManifestUrl != null}, hls=${info.hlsManifestUrl != null}, " +
             "urlFormats=${info.urlFormats.size}, isLive=$isLive")
+
+        // While a cast session is active, new videos hand off to the TV instead
+        // of playing locally, so the phone works purely as a remote/navigator.
+        val castTarget = castRepository.connectionState.value as? CastConnectionState.Connected
+        if (castTarget != null) {
+            val castUrl = info.bestCastUrl()
+            if (castUrl != null) {
+                Log.d(TAG, "startPlayback: casting '${info.title}' to ${castTarget.device.name}: $castUrl")
+                castRepository.sendPlay(castUrl, info.title, 0L)
+                playerController.stop()
+                _uiState.value = PlayerUiState.Ready(info)
+                return
+            }
+            Log.w(TAG, "startPlayback: casting active but no playable URL found, falling back to local")
+        }
+
         when {
             info.isUnplayable -> {
                 Log.w(TAG, "Video is unplayable: ${info.playabilityReason}")

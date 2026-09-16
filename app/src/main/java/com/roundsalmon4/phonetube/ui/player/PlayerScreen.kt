@@ -53,7 +53,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 
-import com.roundsalmon4.phonetube.core.engine.model.StreamInfo
+import com.roundsalmon4.phonetube.core.engine.model.bestCastUrl
 import com.roundsalmon4.phonetube.ui.cast.CastViewModel
 import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
 import com.roundsalmon4.phonetube.ui.components.CastDeviceDialog
@@ -109,6 +109,18 @@ fun PlayerScreen(
     val castConnection by castViewModel.connectionState.collectAsStateWithLifecycle()
     val isCasting by castViewModel.isCasting.collectAsStateWithLifecycle()
     var showCastDialog by remember { mutableStateOf(false) }
+
+    // If the TV ends the cast (e.g. via its remote), pick playback back up
+    // on the phone from where the TV stopped.
+    var wasCasting by remember { mutableStateOf(isCasting) }
+    LaunchedEffect(isCasting) {
+        if (wasCasting && !isCasting) {
+            val tvPos = castViewModel.tvStatus.value.position
+            if (tvPos > 0L) viewModel.seekTo(tvPos)
+            viewModel.resumePlayback()
+        }
+        wasCasting = isCasting
+    }
 
     // Mirrors local transport actions to the TV while casting.
     val mirrorTogglePlayPause: () -> Unit = {
@@ -516,7 +528,7 @@ PlayerControls(
             onConnect = { device ->
                 val readyState = viewModel.uiState.value as? PlayerUiState.Ready
                 val info = readyState?.streamInfo
-                val url = info?.let { pickCastUrl(it) }
+                val url = info?.bestCastUrl()
                 if (url != null) {
                     Log.d("CastScreen", "Casting '${info.title}' from ${device.name}")
                     viewModel.pausePlayback()
@@ -617,17 +629,4 @@ private fun DescriptionSection(
             }
         }
     }
-}
-
-// Picks the best direct playable URL for the TV to mirror local playback,
-// following the same priority used by the local player (live HLS first,
-// then DASH, then HLS, then a direct progressive URL).
-private fun pickCastUrl(info: StreamInfo): String? {
-    if (info.isLive || info.isLiveContent) {
-        info.hlsManifestUrl?.let { return it }
-    }
-    info.dashManifestUrl?.let { return it }
-    info.hlsManifestUrl?.let { return it }
-    info.urlFormats.firstOrNull { !it.url.isNullOrBlank() }?.let { return it.url }
-    return null
 }

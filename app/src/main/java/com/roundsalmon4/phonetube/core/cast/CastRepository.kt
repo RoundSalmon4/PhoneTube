@@ -152,31 +152,48 @@ class CastRepository @Inject constructor(
             request,
             object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {
-                    Log.i(TAG, "onOpen: connected to ${device.name}")
-                    _connectionState.value = CastConnectionState.Connected(device)
+                    if (this@CastRepository.webSocket === webSocket) {
+                        Log.i(TAG, "onOpen: connected to ${device.name}")
+                        _connectionState.value = CastConnectionState.Connected(device)
+                    }
                 }
 
                 override fun onMessage(webSocket: WebSocket, text: String) {
+                    if (this@CastRepository.webSocket !== webSocket) return
                     try {
                         val status = json.decodeFromString<TvCastStatus>(text)
-                        _tvStatus.value = status
+                        if (status.type == "stopped") {
+                            Log.i(TAG, "onMessage: TV stopped playback, ending cast session")
+                            webSocket.close(1000, "tv stopped")
+                            this@CastRepository.webSocket = null
+                            _connectionState.value = CastConnectionState.Disconnected
+                            // Keep the last position so the phone can resume
+                            // playback where the TV stopped.
+                            _tvStatus.value = _tvStatus.value.copy(state = "idle")
+                        } else {
+                            _tvStatus.value = status
+                        }
                     } catch (e: Exception) {
                         Log.w(TAG, "onMessage: bad status payload: $text")
                     }
                 }
 
                 override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                    Log.w(TAG, "onFailure: ${t.message}")
-                    this@CastRepository.webSocket = null
-                    _connectionState.value = CastConnectionState.Disconnected
-                    _tvStatus.value = TvCastStatus()
+                    if (this@CastRepository.webSocket === webSocket) {
+                        Log.w(TAG, "onFailure: ${t.message}")
+                        this@CastRepository.webSocket = null
+                        _connectionState.value = CastConnectionState.Disconnected
+                        _tvStatus.value = TvCastStatus()
+                    }
                 }
 
                 override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                    Log.i(TAG, "onClosed: $code $reason")
-                    this@CastRepository.webSocket = null
-                    _connectionState.value = CastConnectionState.Disconnected
-                    _tvStatus.value = TvCastStatus()
+                    if (this@CastRepository.webSocket === webSocket) {
+                        Log.i(TAG, "onClosed: $code $reason")
+                        this@CastRepository.webSocket = null
+                        _connectionState.value = CastConnectionState.Disconnected
+                        _tvStatus.value = TvCastStatus()
+                    }
                 }
             }
         )

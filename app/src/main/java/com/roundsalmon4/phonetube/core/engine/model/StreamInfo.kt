@@ -32,3 +32,19 @@ data class SubtitleTrack(
     val name: String,
     val mimeType: String
 )
+
+/**
+ * Picks the best playable URL for the TV, following the same priority as the
+ * local player (live HLS first, then DASH, then HLS, then a progressive URL).
+ * Used both when starting a cast and when handing off a new video while a
+ * cast session is active.
+ */
+fun StreamInfo.bestCastUrl(): String? {
+    if (isLive || isLiveContent) {
+        hlsManifestUrl?.let { return it }
+    }
+    dashManifestUrl?.let { return it }
+    hlsManifestUrl?.let { return it }
+    urlFormats.firstOrNull { !it.url.isNullOrBlank() }?.let { return it.url }
+    return null
+}
