@@ -90,6 +90,10 @@ class CastRepository @Inject constructor(
     val tvStatus: StateFlow<TvCastStatus> = _tvStatus.asStateFlow()
 
     private var webSocket: WebSocket? = null
+    // OkHttp 3.x drops frames sent before the socket finishes opening, so
+    // commands issued right after connect() (e.g. the initial play) must be
+    // held until onOpen and flushed there.
+    private var pendingCommand: CastCommand? = null
 
     init {
         scope.launch {
@@ -155,6 +159,12 @@ class CastRepository @Inject constructor(
                     if (this@CastRepository.webSocket === webSocket) {
                         Log.i(TAG, "onOpen: connected to ${device.name}")
                         _connectionState.value = CastConnectionState.Connected(device)
+                        pendingCommand?.let { command ->
+                            Log.d(TAG, "onOpen: flushing pending ${command.type}")
+                            if (webSocket.send(json.encodeToString(command))) {
+                                pendingCommand = null
+                            }
+                        }
                     }
                 }
 
@@ -182,6 +192,7 @@ class CastRepository @Inject constructor(
                     if (this@CastRepository.webSocket === webSocket) {
                         Log.w(TAG, "onFailure: ${t.message}")
                         this@CastRepository.webSocket = null
+                        pendingCommand = null
                         _connectionState.value = CastConnectionState.Disconnected
                         _tvStatus.value = TvCastStatus()
                     }
@@ -191,6 +202,7 @@ class CastRepository @Inject constructor(
                     if (this@CastRepository.webSocket === webSocket) {
                         Log.i(TAG, "onClosed: $code $reason")
                         this@CastRepository.webSocket = null
+                        pendingCommand = null
                         _connectionState.value = CastConnectionState.Disconnected
                         _tvStatus.value = TvCastStatus()
                     }
@@ -203,6 +215,7 @@ class CastRepository @Inject constructor(
         Log.i(TAG, "disconnect")
         webSocket?.close(1000, "user disconnect")
         webSocket = null
+        pendingCommand = null
         _connectionState.value = CastConnectionState.Disconnected
         _tvStatus.value = TvCastStatus()
     }
@@ -226,12 +239,16 @@ class CastRepository @Inject constructor(
     private fun send(command: CastCommand) {
         val socket = webSocket
         if (socket == null) {
-            Log.w(TAG, "send(${command.type}): no active cast connection")
+            // A connect() may be in flight; OkHttp 3.x drops frames sent
+            // before onOpen, so hold the command to flush on open.
+            Log.d(TAG, "send(${command.type}): holding until socket opens")
+            pendingCommand = command
             return
         }
         val sent = socket.send(json.encodeToString(command))
         if (!sent) {
-            Log.w(TAG, "send(${command.type}): socket rejected frame")
+            Log.d(TAG, "send(${command.type}): socket not ready, holding")
+            pendingCommand = command
         }
     }
 }
