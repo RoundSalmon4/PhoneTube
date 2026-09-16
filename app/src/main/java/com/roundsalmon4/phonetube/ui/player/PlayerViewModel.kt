@@ -195,6 +195,9 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun loadStreamInfo() {
+        // A video was opened directly, so drop any stale continue-playing
+        // navigation that could otherwise hijack this new player screen.
+        _navigateToVideo.value = null
         _uiState.value = PlayerUiState.Loading
         viewModelScope.launch {
             if (videoId.startsWith("streamable:")) {
