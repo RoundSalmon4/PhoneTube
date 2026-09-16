@@ -631,6 +631,7 @@ class PlayerViewModel @Inject constructor(
             val castUrl = info.bestCastUrl()
             if (castUrl != null) {
                 Log.d(TAG, "startPlayback: casting '${info.title}' to TV: $castUrl")
+                val live = info.isLive || info.isLiveContent
                 val resumeMs = if (videoId == lastCastVideoId) {
                     castRepository.tvStatus.value.position.coerceAtLeast(0L)
                 } else {
@@ -639,7 +640,6 @@ class PlayerViewModel @Inject constructor(
                 lastCastVideoId = videoId
                 viewModelScope.launch {
                     val prefs = playerPreferences.uiState.first()
-                    val live = info.isLive || info.isLiveContent
                     val speed = if (live) 1f else playerController.exoPlayer.playbackParameters.speed
                     val qualityHint = if (prefs.defaultQuality == "AUTO") null
                         else prefs.defaultQuality.removeSuffix("p").toIntOrNull()
