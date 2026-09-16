@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.roundsalmon4.phonetube.core.engine.model.SubtitleTrack
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -42,8 +43,33 @@ data class CastCommand(
     val title: String? = null,
     val position: Long? = null,
     val volume: Float? = null,
-    val speed: Float? = null
+    val speed: Float? = null,
+    val subtitles: List<CastSubtitle>? = null,
+    val quality: Int? = null
 )
+
+@Serializable
+data class CastSubtitle(
+    val url: String,
+    val languageCode: String,
+    val name: String,
+    val mimeType: String
+)
+
+/**
+ * Maps the app's subtitle tracks into the cast protocol, converting TTML to
+ * WebVTT the same way the local player does so the TV renders them reliably.
+ */
+fun List<SubtitleTrack>.toCastSubtitles(): List<CastSubtitle> =
+    map { track ->
+        val useVtt = track.mimeType.contains("ttml")
+        CastSubtitle(
+            url = if (useVtt) track.baseUrl.replace("fmt=ttml", "fmt=vtt") else track.baseUrl,
+            languageCode = track.languageCode,
+            name = track.name,
+            mimeType = if (useVtt) "text/vtt" else track.mimeType.ifBlank { "text/vtt" }
+        )
+    }
 
 @Serializable
 data class TvCastStatus(
@@ -220,8 +246,14 @@ class CastRepository @Inject constructor(
         _tvStatus.value = TvCastStatus()
     }
 
-    fun sendPlay(url: String, title: String?, position: Long? = null) {
-        send(CastCommand(type = "play", url = url, title = title, position = position))
+    fun sendPlay(
+        url: String,
+        title: String?,
+        position: Long? = null,
+        subtitles: List<CastSubtitle>? = null,
+        quality: Int? = null
+    ) {
+        send(CastCommand(type = "play", url = url, title = title, position = position, subtitles = subtitles, quality = quality))
     }
 
     fun sendPause() = send(CastCommand(type = "pause"))

@@ -32,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +47,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.ui.compose.PlayerSurface
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.SpanStyle
@@ -54,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 
 import com.roundsalmon4.phonetube.core.engine.model.bestCastUrl
+import com.roundsalmon4.phonetube.core.cast.toCastSubtitles
 import com.roundsalmon4.phonetube.ui.cast.CastViewModel
 import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
 import com.roundsalmon4.phonetube.ui.components.CastDeviceDialog
@@ -109,6 +112,7 @@ fun PlayerScreen(
     val castConnection by castViewModel.connectionState.collectAsStateWithLifecycle()
     val isCasting by castViewModel.isCasting.collectAsStateWithLifecycle()
     var showCastDialog by remember { mutableStateOf(false) }
+    val castScope = rememberCoroutineScope()
 
     // If the TV ends the cast (e.g. via its remote), pick playback back up
     // on the phone from where the TV stopped.
@@ -532,7 +536,16 @@ PlayerControls(
                 if (url != null) {
                     Log.d("CastScreen", "Casting '${info.title}' from ${device.name}")
                     viewModel.pausePlayback()
-                    castViewModel.startCast(device, url, info.title, playbackState.currentPosition)
+                    castScope.launch {
+                        castViewModel.startCast(
+                            device = device,
+                            url = url,
+                            title = info.title,
+                            positionMs = playbackState.currentPosition,
+                            subtitles = info.subtitles.takeIf { it.isNotEmpty() }?.toCastSubtitles(),
+                            quality = viewModel.defaultQualityHeight()
+                        )
+                    }
                 }
                 showCastDialog = false
             },

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.cast.CastConnectionState
 import com.roundsalmon4.phonetube.core.cast.CastDevice
 import com.roundsalmon4.phonetube.core.cast.CastRepository
+import com.roundsalmon4.phonetube.core.cast.CastSubtitle
 import com.roundsalmon4.phonetube.core.cast.TvCastStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,9 +37,16 @@ class CastViewModel @Inject constructor(
 
     fun disconnect() = repository.disconnect()
 
-    fun startCast(device: CastDevice, url: String, title: String?, positionMs: Long?) {
+    fun startCast(
+        device: CastDevice,
+        url: String,
+        title: String?,
+        positionMs: Long?,
+        subtitles: List<CastSubtitle>? = null,
+        quality: Int? = null
+    ) {
         repository.connect(device)
-        repository.sendPlay(url, title, positionMs)
+        repository.sendPlay(url, title, positionMs, subtitles, quality)
     }
 
     fun stopCasting() = repository.disconnect()

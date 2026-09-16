@@ -9,6 +9,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.cast.CastConnectionState
 import com.roundsalmon4.phonetube.core.cast.CastRepository
+import com.roundsalmon4.phonetube.core.cast.toCastSubtitles
 import com.roundsalmon4.phonetube.core.database.HistoryDao
 import com.roundsalmon4.phonetube.core.database.IptvDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
@@ -162,12 +163,35 @@ class PlayerViewModel @Inject constructor(
         loadPlaylists()
         loadPipEnabledPreference()
         startPeriodicHistorySave()
+        setupCastEndedAdvance()
         if (!isExternalVideo) {
             loadSponsorSegments()
             loadDescription()
             startAutoSkip()
             setupContinuePlaying()
         }
+    }
+
+    // When a casted video ends on the TV, advance the same way local playback
+    // does: explicit queue first, then continue-playing suggestions.
+    private fun setupCastEndedAdvance() {
+        viewModelScope.launch {
+            var wasEnded = false
+            castRepository.tvStatus.collect { status ->
+                val ended = status.state == "ended" &&
+                    castRepository.connectionState.value is CastConnectionState.Connected
+                if (ended && !wasEnded) {
+                    advanceToNextVideo()
+                }
+                wasEnded = ended
+            }
+        }
+    }
+
+    suspend fun defaultQualityHeight(): Int? {
+        val prefs = playerPreferences.uiState.first()
+        if (prefs.defaultQuality == "AUTO") return null
+        return prefs.defaultQuality.removeSuffix("p").toIntOrNull()
     }
 
     private fun loadStreamInfo() {
@@ -601,7 +625,18 @@ class PlayerViewModel @Inject constructor(
             val castUrl = info.bestCastUrl()
             if (castUrl != null) {
                 Log.d(TAG, "startPlayback: casting '${info.title}' to ${castTarget.device.name}: $castUrl")
-                castRepository.sendPlay(castUrl, info.title, 0L)
+                viewModelScope.launch {
+                    val prefs = playerPreferences.uiState.first()
+                    val qualityHint = if (prefs.defaultQuality == "AUTO") null
+                        else prefs.defaultQuality.removeSuffix("p").toIntOrNull()
+                    castRepository.sendPlay(
+                        url = castUrl,
+                        title = info.title,
+                        position = 0L,
+                        subtitles = info.subtitles.takeIf { it.isNotEmpty() }?.toCastSubtitles(),
+                        quality = qualityHint
+                    )
+                }
                 playerController.stop()
                 _uiState.value = PlayerUiState.Ready(info)
                 return
@@ -957,29 +992,36 @@ class PlayerViewModel @Inject constructor(
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) {
-                    viewModelScope.launch {
-                        // Advance through an explicit queue (e.g. Play All) first
-                        if (queue.isNotEmpty()) {
-                            val nextId = queue.first()
-                            _navigateToVideo.value = NextVideoToPlay(nextId, queue.drop(1))
-                            return@launch
-                        }
-                        val prefs = playerPreferences.uiState.first()
-                        if (!prefs.continuePlaying) return@launch
-                        try {
-                            val meta = engine.getMetadata(videoId).firstOrNull()
-                            val next = meta?.suggestions?.firstOrNull()
-                            if (next != null) {
-                                Log.d(TAG, "Continue playing: loading next video ${next.videoId}")
-                                _navigateToVideo.value = NextVideoToPlay(next.videoId, emptyList())
-                            }
-                        } catch (_: Exception) { }
-                    }
+                    viewModelScope.launch { advanceToNextVideo() }
                 }
             }
         }
         continuePlayingListener = listener
         playerController.exoPlayer.addListener(listener)
+    }
+
+    /**
+     * Shared by local end-of-video and casted-video end: advance through an
+     * explicit queue (e.g. Play All) first, otherwise the next suggested video
+     * when continue-playing is enabled.
+     */
+    private suspend fun advanceToNextVideo() {
+        if (queue.isNotEmpty()) {
+            val nextId = queue.first()
+            Log.d(TAG, "Advancing queue: next video $nextId")
+            _navigateToVideo.value = NextVideoToPlay(nextId, queue.drop(1))
+            return
+        }
+        val prefs = playerPreferences.uiState.first()
+        if (!prefs.continuePlaying) return
+        try {
+            val meta = engine.getMetadata(videoId).firstOrNull()
+            val next = meta?.suggestions?.firstOrNull()
+            if (next != null) {
+                Log.d(TAG, "Continue playing: loading next video ${next.videoId}")
+                _navigateToVideo.value = NextVideoToPlay(next.videoId, emptyList())
+            }
+        } catch (_: Exception) { }
     }
 }
 
