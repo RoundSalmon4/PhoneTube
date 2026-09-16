@@ -111,8 +111,23 @@ fun PlayerScreen(
     val castDevices by castViewModel.devices.collectAsStateWithLifecycle()
     val castConnection by castViewModel.connectionState.collectAsStateWithLifecycle()
     val isCasting by castViewModel.isCasting.collectAsStateWithLifecycle()
+    val tvStatus by castViewModel.tvStatus.collectAsStateWithLifecycle()
     var showCastDialog by remember { mutableStateOf(false) }
     val castScope = rememberCoroutineScope()
+
+    // While casting, the phone UI mirrors the TV's playback (position,
+    // duration, playing state) so the timeline stays in sync even when the TV
+    // is controlled from its own remote.
+    val displayState = if (isCasting) {
+        playbackState.copy(
+            currentPosition = tvStatus.position,
+            duration = tvStatus.duration,
+            isPlaying = tvStatus.state == "playing",
+            isBuffering = tvStatus.state == "buffering"
+        )
+    } else {
+        playbackState
+    }
 
     // If the TV ends the cast (e.g. via its remote), pick playback back up
     // on the phone from where the TV stopped.
@@ -128,7 +143,7 @@ fun PlayerScreen(
 
     // Mirrors local transport actions to the TV while casting.
     val mirrorTogglePlayPause: () -> Unit = {
-        val wasPlaying = playbackState.isPlaying
+        val wasPlaying = displayState.isPlaying
         viewModel.togglePlayPause()
         if (isCasting) {
             if (wasPlaying) castViewModel.pause() else castViewModel.resume()
@@ -270,14 +285,14 @@ fun PlayerScreen(
                             )
                         }
                         PlayerControls(
-                            state = playbackState,
+                            state = displayState,
                             title = state.streamInfo.title,
                             sponsorSegments = sponsorSegments,
                             chapters = chapters,
                             onBackClick = onBackClick,
                             onTogglePlayPause = mirrorTogglePlayPause,
                             onSeekTo = { viewModel.seekTo(it); if (isCasting) castViewModel.seekTo(it) },
-                            onSeekBy = { viewModel.seekBy(it); if (isCasting) castViewModel.seekTo(playbackState.currentPosition + it) },
+                            onSeekBy = { viewModel.seekBy(it); if (isCasting) castViewModel.seekTo(displayState.currentPosition + it) },
                             onSpeedClick = if (state.streamInfo.isLive || state.streamInfo.isLiveContent) null else ({ viewModel.showSpeedPicker() }),
                             onQualityClick = { viewModel.showQualityPicker() },
                             onPipClick = onPipClick,
@@ -331,14 +346,14 @@ fun PlayerScreen(
                                 )
                             }
 PlayerControls(
-                            state = playbackState,
+                            state = displayState,
                             title = state.streamInfo.title,
                             sponsorSegments = sponsorSegments,
                             chapters = chapters,
                             onBackClick = onBackClick,
                             onTogglePlayPause = mirrorTogglePlayPause,
                             onSeekTo = { viewModel.seekTo(it); if (isCasting) castViewModel.seekTo(it) },
-                            onSeekBy = { viewModel.seekBy(it); if (isCasting) castViewModel.seekTo(playbackState.currentPosition + it) },
+                            onSeekBy = { viewModel.seekBy(it); if (isCasting) castViewModel.seekTo(displayState.currentPosition + it) },
                             onSpeedClick = if (state.streamInfo.isLive || state.streamInfo.isLiveContent) null else ({ viewModel.showSpeedPicker() }),
                             onQualityClick = { viewModel.showQualityPicker() },
                             onPipClick = onPipClick,
@@ -409,7 +424,7 @@ PlayerControls(
                                 ) {
                                     items(chapters) { chapter ->
                                         AssistChip(
-                                            onClick = { viewModel.seekTo(chapter.startMs) },
+                                            onClick = { viewModel.seekTo(chapter.startMs); if (isCasting) castViewModel.seekTo(chapter.startMs) },
                                             label = {
                                                 Text(
                                                     text = "${chapter.title} • ${formatDuration(chapter.startMs)}",
@@ -430,6 +445,7 @@ PlayerControls(
                                     onToggleExpand = { expanded = !expanded },
                                     onTimestampClick = { seconds ->
                                         viewModel.seekTo(seconds * 1000)
+                                        if (isCasting) castViewModel.seekTo(seconds * 1000)
                                     },
                                     onUrlClick = { url ->
                                         openLink(url, openLinksIn, context) { u, title ->
@@ -543,7 +559,9 @@ PlayerControls(
                             title = info.title,
                             positionMs = playbackState.currentPosition,
                             subtitles = info.subtitles.takeIf { it.isNotEmpty() }?.toCastSubtitles(),
-                            quality = viewModel.defaultQualityHeight()
+                            quality = viewModel.defaultQualityHeight(),
+                            speed = viewModel.playerController.exoPlayer.playbackParameters.speed,
+                            activeSubtitleIndex = viewModel.activeCastSubtitleIndex(info.subtitles)
                         )
                     }
                 }

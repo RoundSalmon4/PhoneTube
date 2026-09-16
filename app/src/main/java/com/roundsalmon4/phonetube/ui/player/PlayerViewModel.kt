@@ -618,15 +618,18 @@ class PlayerViewModel @Inject constructor(
             "dash=${info.dashManifestUrl != null}, hls=${info.hlsManifestUrl != null}, " +
             "urlFormats=${info.urlFormats.size}, isLive=$isLive")
 
-        // While a cast session is active, new videos hand off to the TV instead
-        // of playing locally, so the phone works purely as a remote/navigator.
-        val castTarget = castRepository.connectionState.value as? CastConnectionState.Connected
-        if (castTarget != null) {
+        // While a cast session is active (or connecting), new videos hand off to the
+        // TV instead of playing locally, so the phone works purely as a remote.
+        val castState = castRepository.connectionState.value
+        val castActive = castState is CastConnectionState.Connected ||
+            castState is CastConnectionState.Connecting
+        if (castActive) {
             val castUrl = info.bestCastUrl()
             if (castUrl != null) {
-                Log.d(TAG, "startPlayback: casting '${info.title}' to ${castTarget.device.name}: $castUrl")
+                Log.d(TAG, "startPlayback: casting '${info.title}' to TV: $castUrl")
                 viewModelScope.launch {
                     val prefs = playerPreferences.uiState.first()
+                    val speed = if (info.isLive || info.isLiveContent) 1f else prefs.playbackSpeed
                     val qualityHint = if (prefs.defaultQuality == "AUTO") null
                         else prefs.defaultQuality.removeSuffix("p").toIntOrNull()
                     castRepository.sendPlay(
@@ -634,7 +637,9 @@ class PlayerViewModel @Inject constructor(
                         title = info.title,
                         position = 0L,
                         subtitles = info.subtitles.takeIf { it.isNotEmpty() }?.toCastSubtitles(),
-                        quality = qualityHint
+                        quality = qualityHint,
+                        speed = speed,
+                        activeSubtitleIndex = activeCastSubtitleIndex(info.subtitles)
                     )
                 }
                 playerController.stop()
@@ -854,13 +859,45 @@ class PlayerViewModel @Inject constructor(
     fun selectSubtitle(subtitle: SubtitleTrackInfo?) {
         if (subtitle == null) {
             playerController.setSubtitleEnabled(false)
+            activeSubtitleUrl = null
         } else {
             playerController.selectSubtitleTrack(subtitle)
+            activeSubtitleUrl = resolveSubtitleUrl(subtitle.name)
         }
+        mirrorSubtitleToTv()
     }
 
     fun selectVideoTrack(height: Int, fps: Int) {
         playerController.selectVideoTrack(height, fps)
+        if (isCasting) {
+            castRepository.sendQuality(height)
+        }
+    }
+
+    // The cast protocol identifies a subtitle by its index in the list sent
+    // with the play command. Track the active one by its (normalized) URL so
+    // we can mirror selections made before or during a cast session.
+    private var activeSubtitleUrl: String? = null
+
+    private fun resolveSubtitleUrl(name: String?): String? {
+        val subs = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.subtitles ?: return null
+        return subs.firstOrNull { it.name.equals(name, ignoreCase = true) }
+            ?.let { listOf(it).toCastSubtitles().first().url }
+    }
+
+    fun activeCastSubtitleIndex(subtitles: List<SubtitleTrack>): Int? {
+        val castList = subtitles.toCastSubtitles()
+        val url = activeSubtitleUrl ?: return null
+        return castList.indexOfFirst { it.url == url }.let { if (it < 0) null else it }
+    }
+
+    private fun mirrorSubtitleToTv() {
+        if (!isCasting) return
+        val castList = (uiState.value as? PlayerUiState.Ready)?.streamInfo?.subtitles?.toCastSubtitles()
+            ?: return
+        val index = if (activeSubtitleUrl == null) -1
+            else castList.indexOfFirst { it.url == activeSubtitleUrl }.let { if (it < 0) -1 else it }
+        castRepository.sendSubtitle(index)
     }
 
     fun showSpeedPicker() { _showSpeedPicker.value = true }

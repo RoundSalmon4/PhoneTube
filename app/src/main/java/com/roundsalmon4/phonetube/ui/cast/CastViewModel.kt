@@ -43,10 +43,12 @@ class CastViewModel @Inject constructor(
         title: String?,
         positionMs: Long?,
         subtitles: List<CastSubtitle>? = null,
-        quality: Int? = null
+        quality: Int? = null,
+        speed: Float? = null,
+        activeSubtitleIndex: Int? = null
     ) {
         repository.connect(device)
-        repository.sendPlay(url, title, positionMs, subtitles, quality)
+        repository.sendPlay(url, title, positionMs, subtitles, quality, speed, activeSubtitleIndex)
     }
 
     fun stopCasting() = repository.disconnect()
@@ -60,4 +62,8 @@ class CastViewModel @Inject constructor(
     fun setVolume(volume: Float) = repository.sendVolume(volume)
 
     fun setSpeed(speed: Float) = repository.sendSpeed(speed)
+
+    fun setQuality(qualityHeight: Int) = repository.sendQuality(qualityHeight)
+
+    fun setSubtitle(castSubtitleIndex: Int?) = repository.sendSubtitle(castSubtitleIndex)
 }

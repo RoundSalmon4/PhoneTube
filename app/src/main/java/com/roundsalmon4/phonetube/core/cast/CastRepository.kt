@@ -45,7 +45,9 @@ data class CastCommand(
     val volume: Float? = null,
     val speed: Float? = null,
     val subtitles: List<CastSubtitle>? = null,
-    val quality: Int? = null
+    val quality: Int? = null,
+    val activeSubtitleIndex: Int? = null,
+    val subtitleIndex: Int? = null
 )
 
 @Serializable
@@ -251,9 +253,30 @@ class CastRepository @Inject constructor(
         title: String?,
         position: Long? = null,
         subtitles: List<CastSubtitle>? = null,
-        quality: Int? = null
+        quality: Int? = null,
+        speed: Float? = null,
+        activeSubtitleIndex: Int? = null
     ) {
-        send(CastCommand(type = "play", url = url, title = title, position = position, subtitles = subtitles, quality = quality))
+        send(
+            CastCommand(
+                type = "play",
+                url = url,
+                title = title,
+                position = position,
+                speed = speed,
+                subtitles = subtitles,
+                quality = quality,
+                activeSubtitleIndex = activeSubtitleIndex
+            )
+        )
+    }
+
+    fun sendQuality(qualityHeight: Int) {
+        send(CastCommand(type = "set_quality", quality = qualityHeight))
+    }
+
+    fun sendSubtitle(castSubtitleIndex: Int?) {
+        send(CastCommand(type = "set_subtitle", subtitleIndex = castSubtitleIndex))
     }
 
     fun sendPause() = send(CastCommand(type = "pause"))
