@@ -279,8 +279,8 @@ fun PlayerScreen(
                             onPipClick = onPipClick,
                             volume = volume,
                             muted = muted,
-                            onVolumeChange = { viewModel.setVolume(it) },
-                            onToggleMute = { viewModel.toggleMute() },
+                            onVolumeChange = { viewModel.setVolume(it); if (isCasting) castViewModel.setVolume(it) },
+                            onToggleMute = { viewModel.toggleMute(); if (isCasting) castViewModel.setVolume(if (muted) volume else 0f) },
                             onSubtitleClick = { viewModel.showSubtitlePicker() },
                             onAudioClick = { viewModel.showAudioPicker() },
                             onAddToPlaylistClick = { viewModel.showAddToPlaylist() },
@@ -340,8 +340,8 @@ PlayerControls(
                             onPipClick = onPipClick,
                             volume = volume,
                             muted = muted,
-                            onVolumeChange = { viewModel.setVolume(it) },
-                            onToggleMute = { viewModel.toggleMute() },
+                            onVolumeChange = { viewModel.setVolume(it); if (isCasting) castViewModel.setVolume(it) },
+                            onToggleMute = { viewModel.toggleMute(); if (isCasting) castViewModel.setVolume(if (muted) volume else 0f) },
                             onSubtitleClick = { viewModel.showSubtitlePicker() },
                             onAudioClick = { viewModel.showAudioPicker() },
                             onCastClick = { showCastDialog = true },
@@ -467,7 +467,7 @@ PlayerControls(
     if (showSpeedPicker) {
         SpeedPickerSheet(
             currentSpeed = playbackState.playbackSpeed,
-            onSpeedSelected = { viewModel.setPlaybackSpeed(it) },
+            onSpeedSelected = { speed -> viewModel.setPlaybackSpeed(speed); if (isCasting) castViewModel.setSpeed(speed) },
             onDismiss = { viewModel.hideSpeedPicker() }
         )
     }
@@ -476,7 +476,7 @@ PlayerControls(
         ChapterPickerSheet(
             chapters = chapters,
             currentPositionMs = playbackState.currentPosition,
-            onChapterSelected = { viewModel.seekTo(it.startMs) },
+            onChapterSelected = { chapter -> viewModel.seekTo(chapter.startMs); if (isCasting) castViewModel.seekTo(chapter.startMs) },
             onDismiss = { viewModel.hideChapterPicker() }
         )
     }

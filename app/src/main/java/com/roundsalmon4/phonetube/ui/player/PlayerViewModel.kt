@@ -76,6 +76,9 @@ class PlayerViewModel @Inject constructor(
     private val videoId: String = savedStateHandle["videoId"]!!
     private val queue: List<String> = savedStateHandle["queue"] ?: emptyList()
 
+    private val isCasting: Boolean
+        get() = castRepository.connectionState.value is CastConnectionState.Connected
+
     private val _uiState = MutableStateFlow<PlayerUiState>(PlayerUiState.Loading)
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
@@ -519,14 +522,25 @@ class PlayerViewModel @Inject constructor(
                 if (streamInfo != null && !streamInfo.isLive && !streamInfo.isLiveContent) {
                     val segments = _sponsorSegments.value
                     if (segments.isNotEmpty()) {
-                        val positionMs = playerController.exoPlayer.currentPosition
+                        // While casting the phone's player is paused, so watch
+                        // the TV's reported position and seek the TV instead.
+                        val casting = isCasting
+                        val positionMs = if (casting) {
+                            castRepository.tvStatus.value.position
+                        } else {
+                            playerController.exoPlayer.currentPosition
+                        }
                         val skipAction = sponsorBlockService.checkForSkip(
                             positionMs, segments, prefs.sponsorBlockCategories
                         )
                         if (skipAction != null) {
                             Log.d(TAG, "Auto-skipping ${skipAction.segment.category} " +
-                                "at ${skipAction.segment.startMs}ms -> ${skipAction.seekToMs}ms")
-                            playerController.seekTo(skipAction.seekToMs)
+                                "at ${skipAction.segment.startMs}ms -> ${skipAction.seekToMs}ms (cast=$casting)")
+                            if (casting) {
+                                castRepository.sendSeek(skipAction.seekToMs)
+                            } else {
+                                playerController.seekTo(skipAction.seekToMs)
+                            }
                             if (skipAction.showToast) {
                                 _toastMessage.value = "Skipped ${skipAction.segment.category}"
                             }
