@@ -640,7 +640,7 @@ class PlayerViewModel @Inject constructor(
                 Log.d(TAG, "startPlayback: casting '${info.title}' to TV: $castUrl resume=$resumeMs")
                 viewModelScope.launch {
                     val prefs = playerPreferences.uiState.first()
-                    val speed = if (live) 1f else playerController.exoPlayer.playbackParameters.speed
+                    val speed = if (live) 1f else sessionSpeed
                     val qualityHint = if (prefs.defaultQuality == "AUTO") null
                         else prefs.defaultQuality.removeSuffix("p").toIntOrNull()
                     val subIdx = activeCastSubtitleIndex(info.subtitles)
@@ -727,8 +727,10 @@ class PlayerViewModel @Inject constructor(
             // IPTV is always 1x; the global playback speed preference must not
             // apply to live streams (and must not race the 1x force in loadIptv).
             if (videoId.startsWith("iptv:")) {
+                sessionSpeed = 1f
                 playerController.setPlaybackSpeed(1f)
             } else {
+                sessionSpeed = savedSpeed
                 playerController.setPlaybackSpeed(savedSpeed)
             }
         }
@@ -882,6 +884,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun setPlaybackSpeed(speed: Float) {
+        sessionSpeed = speed
         playerController.setPlaybackSpeed(speed)
     }
 
@@ -910,6 +913,10 @@ class PlayerViewModel @Inject constructor(
     // we can mirror selections made before or during a cast session.
     private var activeSubtitleUrl: String? = null
     private var subtitleExplicitlyDisabled = false
+
+    // The user's chosen playback speed for this session, kept independent of
+    // the local player's transient state so cast handoffs always mirror it.
+    private var sessionSpeed: Float = 1.0f
 
     fun markCurrentVideoCasted() {
         castRepository.lastCastVideoId = videoId
