@@ -340,8 +340,11 @@ class SettingsViewModel @Inject constructor(
                 }
 
                 _importResult.value = "Import complete"
-            } catch (e: Exception) {
-                _importResult.value = "Import failed: ${e.message?.take(100)}"
+            } catch (t: Throwable) {
+                Log.w(TAG, "importFromJson: failed to import", t)
+                // A user-picked file can be anything; never crash on it. Empty
+                // message hides technical noise while still being informative.
+                _importResult.value = "Import failed: that file isn't a valid PhoneTube backup"
             }
         }
     }

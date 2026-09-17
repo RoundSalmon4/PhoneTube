@@ -1040,13 +1040,26 @@ private fun DataSection(
     ) { uri ->
         if (uri != null) {
             scope.launch {
-                try {
-                    val json = context.contentResolver.openInputStream(uri)?.bufferedReader()?.readText()
-                    if (json != null) {
-                        viewModel.importFromJson(json)
+                val json = try {
+                    val input = context.contentResolver.openInputStream(uri)
+                    if (input == null) {
+                        Toast.makeText(context, "Import failed: could not open that file", Toast.LENGTH_SHORT).show()
+                        null
+                    } else {
+                        val bytes = readFileWithLimit(input, MAX_IMPORT_BYTES)
+                        if (bytes == null) {
+                            Toast.makeText(context, "Import failed: file is too large (over 25 MB)", Toast.LENGTH_SHORT).show()
+                            null
+                        } else {
+                            String(bytes, Charsets.UTF_8)
+                        }
                     }
-                } catch (e: Exception) {
-                    Toast.makeText(context, "Import failed: ${e.message?.take(100)}", Toast.LENGTH_SHORT).show()
+                } catch (t: Throwable) {
+                    Toast.makeText(context, "Import failed: could not read that file", Toast.LENGTH_SHORT).show()
+                    null
+                }
+                if (json != null) {
+                    viewModel.importFromJson(json)
                 }
             }
         }
@@ -1316,3 +1329,20 @@ private fun SwitchItem(
         }
     )
 }
+
+// Bounded file read so a huge or random file can't exhaust memory on import.
+private fun readFileWithLimit(stream: java.io.InputStream, limit: Int): ByteArray? {
+    val buffer = java.io.ByteArrayOutputStream()
+    val chunk = ByteArray(8192)
+    var total = 0
+    while (true) {
+        val n = stream.read(chunk)
+        if (n < 0) break
+        total += n
+        if (total > limit) return null
+        buffer.write(chunk, 0, n)
+    }
+    return buffer.toByteArray()
+}
+
+private const val MAX_IMPORT_BYTES = 25 * 1024 * 1024

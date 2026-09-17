@@ -141,14 +141,20 @@ fun PlayerScreen(
         wasCasting = isCasting
     }
 
-    // Mirrors local transport actions to the TV while casting.
-    val mirrorTogglePlayPause: () -> Unit = {
-        val wasPlaying = displayState.isPlaying
-        viewModel.togglePlayPause()
-        if (isCasting) {
-            if (wasPlaying) castViewModel.pause() else castViewModel.resume()
+// Mirrors transport actions to the TV while casting: the phone's own player
+// stays paused (it's only primed for resume), so a tap toggles the TV only.
+val mirrorTogglePlayPause: () -> Unit = {
+    if (isCasting) {
+        if (tvStatus.state == "playing") {
+            castViewModel.pause()
+            viewModel.pausePlayback()
+        } else {
+            castViewModel.resume()
         }
+    } else {
+        viewModel.togglePlayPause()
     }
+}
 
     // PiP button available while actively playing (or rebuffering). Reused for
     // both orientations; null hides the button.

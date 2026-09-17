@@ -630,19 +630,21 @@ class PlayerViewModel @Inject constructor(
         if (castActive) {
             val castUrl = info.bestCastUrl()
             if (castUrl != null) {
-                Log.d(TAG, "startPlayback: casting '${info.title}' to TV: $castUrl")
                 val live = info.isLive || info.isLiveContent
-                val resumeMs = if (videoId == lastCastVideoId) {
+                val resumeMs = if (videoId == castRepository.lastCastVideoId) {
                     castRepository.tvStatus.value.position.coerceAtLeast(0L)
                 } else {
                     0L
                 }
-                lastCastVideoId = videoId
+                castRepository.lastCastVideoId = videoId
+                Log.d(TAG, "startPlayback: casting '${info.title}' to TV: $castUrl resume=$resumeMs")
                 viewModelScope.launch {
                     val prefs = playerPreferences.uiState.first()
                     val speed = if (live) 1f else playerController.exoPlayer.playbackParameters.speed
                     val qualityHint = if (prefs.defaultQuality == "AUTO") null
                         else prefs.defaultQuality.removeSuffix("p").toIntOrNull()
+                    val subIdx = activeCastSubtitleIndex(info.subtitles)
+                    Log.d(TAG, "startPlayback: sending speed=$speed quality=$qualityHint subtitle=$subIdx")
                     castRepository.sendPlay(
                         url = castUrl,
                         title = info.title,
@@ -650,7 +652,7 @@ class PlayerViewModel @Inject constructor(
                         subtitles = info.subtitles.takeIf { it.isNotEmpty() }?.toCastSubtitles(),
                         quality = qualityHint,
                         speed = speed,
-                        activeSubtitleIndex = activeCastSubtitleIndex(info.subtitles)
+                        activeSubtitleIndex = subIdx
                     )
                 }
                 // Keep the media on the local player (paused) so the phone can
@@ -909,12 +911,8 @@ class PlayerViewModel @Inject constructor(
     private var activeSubtitleUrl: String? = null
     private var subtitleExplicitlyDisabled = false
 
-    // Tracks which video is currently on the TV so returning to the same video
-    // (e.g. via the mini player) resumes at the TV position instead of 0.
-    private var lastCastVideoId: String? = null
-
     fun markCurrentVideoCasted() {
-        lastCastVideoId = videoId
+        castRepository.lastCastVideoId = videoId
     }
 
     private fun resolveSubtitleUrl(name: String?): String? {

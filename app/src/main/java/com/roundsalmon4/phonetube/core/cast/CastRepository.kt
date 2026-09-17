@@ -123,6 +123,14 @@ class CastRepository @Inject constructor(
     // held until onOpen and flushed there.
     private var pendingCommand: CastCommand? = null
 
+    /**
+     * Which video is currently on the TV. Lives on the singleton so it
+     * survives player-screen navigation: returning to the same video (e.g.
+     * via the mini player) resumes at the TV position instead of restarting.
+     */
+    @Volatile
+    var lastCastVideoId: String? = null
+
     init {
         scope.launch {
             context.castDataStore.data
@@ -257,6 +265,7 @@ class CastRepository @Inject constructor(
         speed: Float? = null,
         activeSubtitleIndex: Int? = null
     ) {
+        Log.d(TAG, "sendPlay: position=$position quality=$quality speed=$speed subtitle=$activeSubtitleIndex subs=${subtitles?.size}")
         send(
             CastCommand(
                 type = "play",
@@ -272,10 +281,12 @@ class CastRepository @Inject constructor(
     }
 
     fun sendQuality(qualityHeight: Int) {
+        Log.d(TAG, "sendQuality: $qualityHeight")
         send(CastCommand(type = "set_quality", quality = qualityHeight))
     }
 
     fun sendSubtitle(castSubtitleIndex: Int?) {
+        Log.d(TAG, "sendSubtitle: $castSubtitleIndex")
         send(CastCommand(type = "set_subtitle", subtitleIndex = castSubtitleIndex))
     }
 
