@@ -22,6 +22,7 @@ class CastViewModel @Inject constructor(
     val devices: StateFlow<List<CastDevice>> = repository.devices
     val connectionState: StateFlow<CastConnectionState> = repository.connectionState
     val tvStatus: StateFlow<TvCastStatus> = repository.tvStatus
+    val lastError: StateFlow<String?> = repository.lastError
 
     val isCasting: StateFlow<Boolean> = connectionState
         .map { it is CastConnectionState.Connected }
@@ -36,6 +37,8 @@ class CastViewModel @Inject constructor(
     fun connect(device: CastDevice) = repository.connect(device)
 
     fun disconnect() = repository.disconnect()
+
+    fun consumeError() = repository.consumeError()
 
     fun startCast(
         device: CastDevice,

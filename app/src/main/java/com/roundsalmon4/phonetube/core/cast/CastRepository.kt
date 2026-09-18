@@ -10,6 +10,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -97,6 +98,8 @@ class CastRepository @Inject constructor(
     private companion object {
         const val TAG = "CastRepository"
         val DEVICES_KEY = stringPreferencesKey("cast_devices")
+        const val MAX_CONNECT_ATTEMPTS = 3
+        const val RETRY_DELAY_MS = 2000L
     }
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -130,6 +133,20 @@ class CastRepository @Inject constructor(
      */
     @Volatile
     var lastCastVideoId: String? = null
+
+    // Connection guard: the phone's path to the TV can flap transiently, so a
+    // failed connect is retried briefly with backoff instead of giving up on
+    // the first 10s timeout.
+    private var connectAttempts = 0
+    private var userDisconnected = true
+    private val retryScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private val _lastError = MutableStateFlow<String?>(null)
+    val lastError: StateFlow<String?> = _lastError.asStateFlow()
+
+    fun consumeError() {
+        _lastError.value = null
+    }
 
     init {
         scope.launch {
@@ -182,18 +199,26 @@ class CastRepository @Inject constructor(
             webSocket?.close(1000, "reconnect")
             webSocket = null
         }
+        userDisconnected = false
+        connectAttempts = 0
+        _lastError.value = null
+        openSocket(device)
+    }
+
+    private fun openSocket(device: CastDevice) {
         _connectionState.value = CastConnectionState.Connecting(device)
         _tvStatus.value = TvCastStatus()
 
         val wsUrl = "ws://${device.host}:${device.port}"
         val request = Request.Builder().url(wsUrl).build()
-        Log.i(TAG, "connect: opening $wsUrl")
+        Log.i(TAG, "connect: opening $wsUrl (attempt ${connectAttempts + 1})")
         webSocket = client.newWebSocket(
             request,
             object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {
                     if (this@CastRepository.webSocket === webSocket) {
                         Log.i(TAG, "onOpen: connected to ${device.name}")
+                        connectAttempts = 0
                         _connectionState.value = CastConnectionState.Connected(device)
                         pendingCommand?.let { command ->
                             Log.d(TAG, "onOpen: flushing pending ${command.type}")
@@ -212,6 +237,8 @@ class CastRepository @Inject constructor(
                             Log.i(TAG, "onMessage: TV stopped playback, ending cast session")
                             webSocket.close(1000, "tv stopped")
                             this@CastRepository.webSocket = null
+                            userDisconnected = true
+                            pendingCommand = null
                             _connectionState.value = CastConnectionState.Disconnected
                             // Keep the last position so the phone can resume
                             // playback where the TV stopped.
@@ -225,36 +252,66 @@ class CastRepository @Inject constructor(
                 }
 
                 override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                    if (this@CastRepository.webSocket === webSocket) {
-                        Log.w(TAG, "onFailure: ${t.message}")
-                        this@CastRepository.webSocket = null
-                        pendingCommand = null
+                    if (this@CastRepository.webSocket !== webSocket) return
+                    Log.w(TAG, "onFailure: ${t.message}")
+                    this@CastRepository.webSocket = null
+                    pendingCommand = null
+                    _tvStatus.value = TvCastStatus()
+                    if (!handleFailure(device, t)) {
                         _connectionState.value = CastConnectionState.Disconnected
-                        _tvStatus.value = TvCastStatus()
                     }
                 }
 
                 override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                    if (this@CastRepository.webSocket === webSocket) {
-                        Log.i(TAG, "onClosed: $code $reason")
-                        this@CastRepository.webSocket = null
-                        pendingCommand = null
+                    if (this@CastRepository.webSocket !== webSocket) return
+                    Log.i(TAG, "onClosed: $code $reason")
+                    this@CastRepository.webSocket = null
+                    pendingCommand = null
+                    _tvStatus.value = TvCastStatus()
+                    if (code == 1006 && !isCasting && !handleFailure(device, null)) {
                         _connectionState.value = CastConnectionState.Disconnected
-                        _tvStatus.value = TvCastStatus()
                     }
                 }
             }
         )
     }
 
+    /**
+     * Retries the cast connection with backoff while the network path may be
+     * transiently flapping. Returns true when a retry was scheduled.
+     */
+    private fun handleFailure(device: CastDevice, error: Throwable?): Boolean {
+        if (userDisconnected) return false
+        if (connectAttempts >= MAX_CONNECT_ATTEMPTS - 1) {
+            _lastError.value = "Couldn't reach ${device.name}. Check that both devices are on the same network and that your VPN allows local connections."
+            _connectionState.value = CastConnectionState.Disconnected
+            return false
+        }
+        connectAttempts++
+        val attempt = connectAttempts
+        Log.i(TAG, "connect: retrying (${attempt + 1}/$MAX_CONNECT_ATTEMPTS) after failure: ${error?.message}")
+        retryScope.launch {
+            delay(RETRY_DELAY_MS)
+            if (!userDisconnected && webSocket == null) {
+                openSocket(device)
+            }
+        }
+        return true
+    }
+
     fun disconnect() {
         Log.i(TAG, "disconnect")
+        userDisconnected = true
+        connectAttempts = 0
         webSocket?.close(1000, "user disconnect")
         webSocket = null
         pendingCommand = null
         _connectionState.value = CastConnectionState.Disconnected
         _tvStatus.value = TvCastStatus()
     }
+
+    private val isCasting: Boolean
+        get() = _connectionState.value is CastConnectionState.Connected
 
     fun sendPlay(
         url: String,

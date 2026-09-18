@@ -141,6 +141,15 @@ fun PlayerScreen(
         wasCasting = isCasting
     }
 
+    // Surface a cast connection problem (e.g. the phone's VPN/network blocking
+    // the local path to the TV) instead of failing silently.
+    LaunchedEffect(castViewModel.lastError.value) {
+        castViewModel.lastError.value?.let { message ->
+            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
+            castViewModel.consumeError()
+        }
+    }
+
 // Mirrors transport actions to the TV while casting: the phone's own player
 // stays paused (it's only primed for resume), so a tap toggles the TV only.
 val mirrorTogglePlayPause: () -> Unit = {
