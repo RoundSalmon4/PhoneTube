@@ -11,18 +11,18 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 | Home Feed | Browse YouTube recommendations, subscriptions, trending, music, sports, live, news, gaming, and kids content |
 | Search | Search YouTube with autocomplete suggestions and configurable result limits. Long press video to add to playlist or go to channel. Channel results include subscribe button |
 | Video Playback | Play videos with DASH and HLS streaming, quality picker, subtitle support, and audio track selection. View count, like count, and subscriber count are shown below the title. Keeps the screen awake while playing |
-| Cast to TV (PhoneTV) | Cast to the companion [PhoneTV](https://github.com/RoundSalmon4/PhoneTV) receiver over a direct local connection. While casting, the phone works as a remote/navigator: playing another video, or changing speed, quality, captions, chapters, or volume mirrors to the TV. Opening a casted video again resumes at the TV position; the TV's Back button ends the cast and playback picks back up on the phone. Connect attempts retry automatically when the network path is flaky |
+| Cast to TV (PhoneTV) | Cast to the companion [PhoneTV](https://github.com/RoundSalmon4/PhoneTV) receiver over a direct local connection. While casting, the phone works as a remote/navigator: playing another video, or changing speed, quality, captions, chapters, or volume mirrors to the TV. SponsorBlock skips are applied on the TV and their notice is shown on the TV's screen. Opening a casted video again resumes at the TV position; the TV's Back button ends the cast and playback picks back up on the phone. Connect attempts retry automatically when the network path is flaky |
 | Background Play | Continue listening with a persistent notification (with Previous, Play/Pause, and Next controls) and mini player controls. Playback stops when the app is swiped away from recents |
 | Picture-in-Picture | Floating video window when leaving the player during playback (Android 8+), with a dedicated PiP button in the player controls and reliable auto-entry when leaving the app mid-playback |
 | Mini Player | Persistent playback bar with play/pause, rewind, forward, close, and progress bar |
 | Continue Playing | Automatically plays the next suggested video when one ends (optional) |
 | Description | Expand/collapse video description with clickable timestamps and URL links |
 | Video Chapters | Timestamped chapters parsed from the description. Chapter chips seek directly, a Chapters list highlights the current chapter, and the playbar is segmented with chapter boundaries |
-| SponsorBlock | Skip sponsor segments and other interruptions automatically with per-category skip/toast/none controls |
+| SponsorBlock | Skip sponsor segments and other interruptions automatically with per-category skip/toast/none controls. Skip notices also appear on the TV while casting |
 | Local Playlists | Create and manage playlists without a Google account, add from home feed, player screen, or watch history. Drag-to-reorder videos within a playlist |
 | YouTube Playlist Viewer | Browse YouTube playlists from search, channel pages, or playlist links, with Play All and save-to-library. Play All queues the full playlist and advances through it automatically |
 | Saved Playlist Indicator | Playlists already in your library show a "Saved" state. Save again for a duplicate with a configurable confirmation prompt |
-| Import/Export | Backup and restore settings, playlists, subscriptions, PeerTube instances, IPTV providers, and IPTV favorites to/from JSON files |
+| Import/Export | Backup and restore settings, playlists, subscriptions, PeerTube instances, IPTV providers, IPTV favorites, and cast devices to/from JSON files |
 | Local Subscriptions | Subscribe to channels locally. Latest videos appear on the home feed. Subscribe directly from search results |
 | Watch History | Your watch history is saved locally with resume position, playback speed, and progress indicators |
 | Channel Pages | Browse channel videos and playlists with subscriber count display, save them locally, and subscribe |
@@ -57,7 +57,7 @@ Pair with the [PhoneTV](https://github.com/RoundSalmon4/PhoneTV) app on an Andro
 While a cast is active:
 
 - The phone becomes a remote: open any video and it plays on the TV, with the phone's own player kept ready (paused) so controls respond and disconnecting resumes instantly from where the TV was
-- Speed, quality, subtitles, chapters, volume, and SponsorBlock all mirror to the TV
+- Speed, quality, subtitles, chapters, volume, and SponsorBlock all mirror to the TV (SponsorBlock skips run on the TV and its notice is shown there)
 - Browsing away and returning to the same video resumes at the TV's position instead of restarting
 
 The cast relies on a direct connection to the TV on your local network, so a phone VPN needs local-network access enabled ("local network traffic", with VPN lockdown off). If the connection fails, PhoneTube retries a couple of times and then explains what to check.
