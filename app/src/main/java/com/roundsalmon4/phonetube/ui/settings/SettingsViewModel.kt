@@ -178,9 +178,10 @@ class SettingsViewModel @Inject constructor(
                     iconUrl = favorite.iconUrl,
                     addedAt = favorite.addedAt
                 )
-            }
+            },
+            castDevices = castRepository.devices.value
         )
-        Log.d(TAG, "buildExportJson: exporting ${invidiousInstances.size} peertube instances, ${iptvProviders.size} iptv providers, ${iptvFavorites.size} iptv favorites")
+        Log.d(TAG, "buildExportJson: exporting ${invidiousInstances.size} peertube instances, ${iptvProviders.size} iptv providers, ${iptvFavorites.size} iptv favorites, ${exportData.castDevices?.size ?: 0} cast devices")
 
         return withContext(Dispatchers.IO) {
             Json { prettyPrint = true }.encodeToString(ExportData.serializer(), exportData)
@@ -337,6 +338,11 @@ class SettingsViewModel @Inject constructor(
                     if (skipped > 0) {
                         Log.d(TAG, "importFromJson: skipped $skipped favorites without a matching provider")
                     }
+                }
+
+                if (data.castDevices != null) {
+                    Log.d(TAG, "importFromJson: importing ${data.castDevices.size} cast devices")
+                    castRepository.replaceDevices(data.castDevices)
                 }
 
                 _importResult.value = "Import complete"

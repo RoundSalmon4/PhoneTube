@@ -1,5 +1,6 @@
 package com.roundsalmon4.phonetube.core.database
 
+import com.roundsalmon4.phonetube.core.cast.CastDevice
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import kotlinx.serialization.Serializable
 
@@ -12,7 +13,8 @@ data class ExportData(
     val subscriptions: List<LocalSubscriptionExport>? = null,
     val invidiousInstances: List<InvidiousInstanceExport>? = null,
     val iptvProviders: List<IptvProviderExport>? = null,
-    val iptvFavorites: List<IptvFavoriteExport>? = null
+    val iptvFavorites: List<IptvFavoriteExport>? = null,
+    val castDevices: List<CastDevice>? = null
 )
 
 @Serializable

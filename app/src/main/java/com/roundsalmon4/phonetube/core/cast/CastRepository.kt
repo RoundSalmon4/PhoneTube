@@ -194,6 +194,26 @@ class CastRepository @Inject constructor(
         Log.i(TAG, "removeDevice: $host (devices=${updated.size})")
     }
 
+    /** Replaces the whole saved device list (used by data import). */
+    fun replaceDevices(devices: List<CastDevice>) {
+        val cleaned = devices.map { device ->
+            device.copy(
+                name = device.name.trim().ifBlank { device.host },
+                host = device.host
+                    .trim()
+                    .removePrefix("ws://")
+                    .removePrefix("http://")
+                    .removePrefix("https://")
+                    .trimEnd('/', ' ')
+            )
+        }.filter { it.host.isNotBlank() }
+        _devices.value = cleaned
+        scope.launch {
+            context.castDataStore.edit { it[DEVICES_KEY] = json.encodeToString(cleaned) }
+        }
+        Log.i(TAG, "replaceDevices: ${cleaned.size} device(s)")
+    }
+
     fun connect(device: CastDevice) {
         if (webSocket != null) {
             Log.d(TAG, "connect: closing existing socket first")
