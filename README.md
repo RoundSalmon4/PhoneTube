@@ -11,6 +11,7 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 | Home Feed | Browse YouTube recommendations, subscriptions, trending, music, sports, live, news, gaming, and kids content |
 | Search | Search YouTube with autocomplete suggestions and configurable result limits. Long press video to add to playlist or go to channel. Channel results include subscribe button |
 | Video Playback | Play videos with DASH and HLS streaming, quality picker, subtitle support, and audio track selection. View count, like count, and subscriber count are shown below the title. Keeps the screen awake while playing |
+| Cast to TV (PhoneTV) | Cast to the companion [PhoneTV](https://github.com/RoundSalmon4/PhoneTV) receiver over a direct local connection. While casting, the phone works as a remote/navigator: playing another video, or changing speed, quality, captions, chapters, or volume mirrors to the TV. Opening a casted video again resumes at the TV position; the TV's Back button ends the cast and playback picks back up on the phone. Connect attempts retry automatically when the network path is flaky |
 | Background Play | Continue listening with a persistent notification (with Previous, Play/Pause, and Next controls) and mini player controls. Playback stops when the app is swiped away from recents |
 | Picture-in-Picture | Floating video window when leaving the player during playback (Android 8+), with a dedicated PiP button in the player controls and reliable auto-entry when leaving the app mid-playback |
 | Mini Player | Persistent playback bar with play/pause, rewind, forward, close, and progress bar |
@@ -48,6 +49,18 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 | Customization | Choose theme colors, enable AMOLED dark mode, or use your wallpaper colors on Android 12+. Picture-in-Picture, landscape lock, screen protection, and incognito mode toggles |
 | Privacy | Screen protection blocks screenshots and screen recording. Incognito mode skips watch history. No Persistent Visitor mode clears YouTube visitor data on each launch. Clear Cached Images button |
 | Settings | Configure playback defaults, SponsorBlock categories, search limits, feed order, link opening mode, duplicate playlist warning, data import/export, and privacy options |
+
+## Casting to TV (PhoneTV)
+
+Pair with the [PhoneTV](https://github.com/RoundSalmon4/PhoneTV) app on an Android TV or Fire TV from **Settings -> Cast (PhoneTV)** (or the cast icon in the player). In **Settings** you can add / removed saved devices.
+
+While a cast is active:
+
+- The phone becomes a remote: open any video and it plays on the TV, with the phone's own player kept ready (paused) so controls respond and disconnecting resumes instantly from where the TV was
+- Speed, quality, subtitles, chapters, volume, and SponsorBlock all mirror to the TV
+- Browsing away and returning to the same video resumes at the TV's position instead of restarting
+
+The cast relies on a direct connection to the TV on your local network, so a phone VPN needs local-network access enabled ("local network traffic", with VPN lockdown off). If the connection fails, PhoneTube retries a couple of times and then explains what to check.
 
 ## Installation
 
