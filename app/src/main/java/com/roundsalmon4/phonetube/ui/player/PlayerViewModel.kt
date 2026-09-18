@@ -570,7 +570,11 @@ class PlayerViewModel @Inject constructor(
                                 playerController.seekTo(skipAction.seekToMs)
                             }
                             if (skipAction.showToast) {
-                                _toastMessage.value = "Skipped ${skipAction.segment.category}"
+                                val text = "Skipped ${skipAction.segment.category}"
+                                _toastMessage.value = text
+                                // Mirror the notice to the TV so the viewer sees
+                                // why playback jumped.
+                                if (casting) castRepository.sendToast(text)
                             }
                         }
                     }

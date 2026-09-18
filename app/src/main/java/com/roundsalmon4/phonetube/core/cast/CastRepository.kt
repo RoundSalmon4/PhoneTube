@@ -48,7 +48,8 @@ data class CastCommand(
     val subtitles: List<CastSubtitle>? = null,
     val quality: Int? = null,
     val activeSubtitleIndex: Int? = null,
-    val subtitleIndex: Int? = null
+    val subtitleIndex: Int? = null,
+    val message: String? = null
 )
 
 @Serializable
@@ -345,6 +346,12 @@ class CastRepository @Inject constructor(
     fun sendSubtitle(castSubtitleIndex: Int?) {
         Log.d(TAG, "sendSubtitle: $castSubtitleIndex")
         send(CastCommand(type = "set_subtitle", subtitleIndex = castSubtitleIndex))
+    }
+
+    /** Mirrors a transient notice (e.g. a SponsorBlock skip) to the TV. */
+    fun sendToast(text: String) {
+        Log.d(TAG, "sendToast: $text")
+        send(CastCommand(type = "toast", message = text))
     }
 
     fun sendPause() = send(CastCommand(type = "pause"))
