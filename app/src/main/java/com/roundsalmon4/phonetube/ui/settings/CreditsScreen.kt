@@ -55,8 +55,8 @@ private val credits = listOf(
     ),
     CreditEntry(
         name = "MediaServiceCore",
-        description = "YouTube API engine (git submodule)",
-        url = "https://github.com/yuliskov/MediaServiceCore",
+        description = "YouTube API engine (patched fork, git submodule)",
+        url = "https://github.com/RoundSalmon4/MediaServiceCore",
         license = "MIT"
     ),
     CreditEntry(
@@ -207,7 +207,7 @@ private val credits = listOf(
         name = "DNSJava",
         description = "DNS lookup library",
         url = "https://github.com/dnsjava/dnsjava",
-        license = "LGPL-2.0"
+        license = "BSD-2-Clause"
     ),
     CreditEntry(
         name = "Florianingerl Regex",
