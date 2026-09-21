@@ -57,7 +57,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run Android lint
-        run: ./gradlew lintDebug --no-daemon
+        run: ./gradlew :app:lintDebug --no-daemon
 
       - name: Upload lint report
         if: always()
@@ -97,7 +97,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run unit tests
-        run: ./gradlew testDebugUnitTest --no-daemon
+        run: ./gradlew :app:testDebugUnitTest --no-daemon
 
       - name: Upload test results
         if: always()
