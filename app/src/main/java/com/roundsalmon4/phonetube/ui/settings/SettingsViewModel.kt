@@ -23,6 +23,7 @@ import com.roundsalmon4.phonetube.core.database.entity.InvidiousInstance
 import com.roundsalmon4.phonetube.core.database.entity.IptvFavorite
 import com.roundsalmon4.phonetube.core.database.entity.IptvProvider
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
+import com.roundsalmon4.phonetube.core.engine.VideoIdParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -347,9 +348,7 @@ class SettingsViewModel @Inject constructor(
                     Log.d(TAG, "importFromJson: importing ${data.iptvFavorites.size} iptv favorites")
                     var skipped = 0
                     for (favorite in data.iptvFavorites) {
-                        // Provider ids are "host|username" and hosts may include
-                        // a port, so cut at the LAST colon, not the first.
-                        val providerKey = favorite.videoId.removePrefix("iptv:").substringBeforeLast(":")
+                        val providerKey = VideoIdParser.parseIptv(favorite.videoId)?.first.orEmpty()
                         if (iptvDao.getById(providerKey) == null) {
                             skipped++
                             Log.w(TAG, "importFromJson: skipping favorite ${favorite.videoId} (provider $providerKey not found)")

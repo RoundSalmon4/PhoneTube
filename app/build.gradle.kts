@@ -85,6 +85,9 @@ android {
     lint {
         abortOnError = false
         checkReleaseBuilds = false
+        // Committed baseline so CI can flag only NEW lint issues. Generated via
+        // ./gradlew :app:updateLintBaseline.
+        baseline = file("lint-baseline.xml")
     }
 
     buildFeatures {

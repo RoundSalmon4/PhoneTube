@@ -13,19 +13,47 @@ data class YouTubeLink(
 
 object YouTubeUrlParser {
 
-    fun parse(uri: Uri): YouTubeLink {
-        val scheme = uri.scheme?.lowercase()
+    fun parse(uri: Uri): YouTubeLink = parseRaw(uri.toString())
+
+    /**
+     * Parses the link text directly so the logic can run in plain JVM unit
+     * tests without Android's Uri implementation. Kept in sync with [parse],
+     * which just delegates here.
+     */
+    internal fun parseRaw(raw: String): YouTubeLink {
+        val noFragment = raw.substringBefore('#')
+        val queryPart = noFragment.substringAfter('?', "")
+        val withoutQuery = noFragment.substringBefore('?')
+
+        // Scheme is everything up to the first ':' and may be followed by "://"
+        // (normal URLs) or by an opaque scheme-specific part (vnd.youtube:ID).
+        val colonIdx = withoutQuery.indexOf(':')
+        val scheme = if (colonIdx > 0) withoutQuery.substring(0, colonIdx).lowercase() else ""
+        val afterColon = if (colonIdx >= 0) withoutQuery.substring(colonIdx + 1) else withoutQuery
+        val afterScheme = if (scheme.isNotEmpty() && afterColon.startsWith("//")) {
+            afterColon.substring(2)
+        } else {
+            afterColon
+        }
+
+        val pathIdx = afterScheme.indexOf('/')
+        val authority = if (pathIdx >= 0) afterScheme.substring(0, pathIdx) else afterScheme
+        val path = if (pathIdx >= 0) afterScheme.substring(pathIdx) else ""
+
+        var host = authority
+        val atIdx = host.lastIndexOf('@')
+        if (atIdx >= 0) host = host.substring(atIdx + 1)
+        host = host.substringBefore(':').lowercase()
 
         // vnd.youtube:VIDEO_ID or vnd.youtube.launch:VIDEO_ID (opaque URIs with no host)
         if (scheme == "vnd.youtube" || scheme == "vnd.youtube.launch") {
-            val videoId = uri.schemeSpecificPart?.substringBefore('?')?.trim()
-            if (!videoId.isNullOrEmpty()) {
+            val videoId = afterScheme.substringBefore('?').trim()
+            if (videoId.isNotEmpty()) {
                 return YouTubeLink(YouTubeLink.Type.VIDEO, videoId)
             }
         }
 
-        val host = uri.host?.lowercase() ?: return YouTubeLink(YouTubeLink.Type.UNKNOWN, "")
-        val path = uri.path ?: ""
+        if (host.isEmpty()) return YouTubeLink(YouTubeLink.Type.UNKNOWN, "")
         val isYouTubeLike = host.contains("youtube.com") || host == "youtu.be"
 
         // youtu.be/VIDEO_ID (short links)
@@ -42,18 +70,18 @@ object YouTubeUrlParser {
 
             // Bare-host form (e.g. m.youtube.com/?v=...) carries the id in the
             // query regardless of path, so resolve it first.
-            uri.getQueryParameter("v")?.takeIf { it.isNotEmpty() }?.let { videoId ->
+            query("v", queryPart)?.takeIf { it.isNotEmpty() }?.let { videoId ->
                 return YouTubeLink(YouTubeLink.Type.VIDEO, videoId)
             }
 
             // /watch?v=VIDEO_ID
             if (pathLower.startsWith("/watch")) {
-                val videoId = uri.getQueryParameter("v")
+                val videoId = query("v", queryPart)
                 if (!videoId.isNullOrEmpty()) {
                     return YouTubeLink(YouTubeLink.Type.VIDEO, videoId)
                 }
                 // Could be a playlist: /watch?list=PLAYLIST_ID
-                val listId = uri.getQueryParameter("list")
+                val listId = query("list", queryPart)
                 if (!listId.isNullOrEmpty()) {
                     return YouTubeLink(YouTubeLink.Type.PLAYLIST, listId)
                 }
@@ -61,7 +89,7 @@ object YouTubeUrlParser {
 
             // /playlist?list=PLAYLIST_ID
             if (pathLower.startsWith("/playlist")) {
-                val listId = uri.getQueryParameter("list")
+                val listId = query("list", queryPart)
                 if (!listId.isNullOrEmpty()) {
                     return YouTubeLink(YouTubeLink.Type.PLAYLIST, listId)
                 }
@@ -69,14 +97,14 @@ object YouTubeUrlParser {
 
             // /attribution_link?a=...&v=VIDEO_ID (YouTube share redirects)
             if (pathLower.startsWith("/attribution_link")) {
-                val videoId = uri.getQueryParameter("v")
+                val videoId = query("v", queryPart)
                 if (!videoId.isNullOrEmpty()) {
                     return YouTubeLink(YouTubeLink.Type.VIDEO, videoId)
                 }
-                val uParam = uri.getQueryParameter("u")
+                val uParam = query("u", queryPart)
                 if (!uParam.isNullOrEmpty()) {
-                    val decoded = Uri.decode(uParam)
-                    Uri.parse(decoded).getQueryParameter("v")?.takeIf { it.isNotEmpty() }?.let {
+                    val decoded = urlDecode(uParam)
+                    queryV(decoded)?.takeIf { it.isNotEmpty() }?.let {
                         return YouTubeLink(YouTubeLink.Type.VIDEO, it)
                     }
                 }
@@ -114,9 +142,9 @@ object YouTubeUrlParser {
                 }
             }
 
-            // /@CHANNEL_HANDLE (may carry a tab segment, e.g. /@handle/live); keep only
-            // the first segment and preserve the @ prefix, which the innertube
-            // channel browse expects (a bare name returns no channel).
+            // /@CHANNEL_HANDLE (may carry a tab segment, e.g. /@handle/live); keep
+            // only the first segment and preserve the @ prefix, which the
+            // innertube channel browse expects (a bare name returns no channel).
             if (pathLower.startsWith("/@")) {
                 val handle = path.removePrefix("/@").trim('/').substringBefore('/')
                 if (handle.isNotEmpty()) {
@@ -144,4 +172,29 @@ object YouTubeUrlParser {
         return YouTubeLink(YouTubeLink.Type.UNKNOWN, "")
     }
 
+    private fun query(name: String, queryPart: String): String? {
+        for (pair in queryPart.split('&')) {
+            if (pair.startsWith("$name=")) return urlDecode(pair.substring(name.length + 1))
+            if (pair == name) return ""
+        }
+        return null
+    }
+
+    /** Extracts just the v= param from an arbitrary query string (used after
+     *  decoding an attribution 'u' redirect). */
+    private fun queryV(raw: String): String? {
+        val queryPart = raw.substringAfter('?', "")
+        for (pair in queryPart.split('&')) {
+            if (pair.startsWith("v=")) return urlDecode(pair.substring(2))
+            if (pair == "v") return ""
+        }
+        return null
+    }
+
+    private fun urlDecode(value: String): String =
+        try {
+            java.net.URLDecoder.decode(value, Charsets.UTF_8.name())
+        } catch (_: Exception) {
+            value
+        }
 }

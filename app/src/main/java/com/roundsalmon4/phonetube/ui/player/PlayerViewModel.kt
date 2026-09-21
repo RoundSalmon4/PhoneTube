@@ -22,6 +22,7 @@ import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.engine.XtreamClient
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
+import com.roundsalmon4.phonetube.core.engine.VideoIdParser
 import com.roundsalmon4.phonetube.core.engine.model.SponsorSegment
 import com.roundsalmon4.phonetube.core.engine.model.StreamFormat
 import com.roundsalmon4.phonetube.core.engine.model.SubtitleTrack
@@ -432,17 +433,14 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun loadIptv() {
-        // The video id is "iptv:<providerId>:<streamId>" and the provider id is
-        // "host|username". Hosts may include a port ("host:8080|username"), so
-        // the stream id is everything after the LAST colon, never the first.
-        val rest = videoId.removePrefix("iptv:")
-        val providerId = rest.substringBeforeLast(':')
-        val streamId = rest.substringAfterLast(':')
-        if (providerId.isBlank() || streamId.isBlank()) {
+        val parsed = VideoIdParser.parseIptv(videoId)
+        if (parsed == null) {
             Log.e(TAG, "loadIptv: malformed iptv videoId: '$videoId'")
             _uiState.value = PlayerUiState.Error("Invalid IPTV stream link")
             return
         }
+        val providerId = parsed.first
+        val streamId = parsed.second
         Log.d(TAG, "loadIptv: providerKey=$providerId streamId=$streamId")
         viewModelScope.launch {
             try {
