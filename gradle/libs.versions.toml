@@ -2,7 +2,6 @@
 agp = "8.7.3"
 kotlin = "2.2.21"
 ksp = "2.2.21-2.0.5"
-detekt = "2.0.0-alpha.6"
 
 # AndroidX
 core-ktx = "1.15.0"
@@ -207,4 +206,3 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 room = { id = "androidx.room", version.ref = "room" }
-detekt = { id = "dev.detekt", version.ref = "detekt" }
