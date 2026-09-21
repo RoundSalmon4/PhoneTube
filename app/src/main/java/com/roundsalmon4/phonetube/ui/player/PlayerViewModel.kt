@@ -1,6 +1,9 @@
 package com.roundsalmon4.phonetube.ui.player
 
 import android.app.Application
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
 import androidx.media3.common.C
 import androidx.lifecycle.AndroidViewModel
@@ -625,7 +628,42 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private fun startPlayback(info: StreamInfo) {
+    /**
+     * Entry point for playback start. When the device is on mobile data and the
+     * warning is enabled, the UI is asked to confirm first (like AntennaPod's
+     * mobile-data prompt) instead of silently streaming.
+     */
+    fun startPlayback(info: StreamInfo) {
+        viewModelScope.launch {
+            val prefs = playerPreferences.uiState.first()
+            if (prefs.warnMobilePlayback && isOnMobileData()) {
+                _uiState.value = PlayerUiState.MobileDataConfirm(info)
+                return@launch
+            }
+            beginPlayback(info)
+        }
+    }
+
+    fun confirmMobilePlayback() {
+        val info = (_uiState.value as? PlayerUiState.MobileDataConfirm)?.streamInfo ?: return
+        beginPlayback(info)
+    }
+
+    fun disableMobileWarning() {
+        viewModelScope.launch {
+            playerPreferences.setWarnMobilePlayback(false)
+        }
+    }
+
+    private fun isOnMobileData(): Boolean {
+        val cm = getApplication<Application>()
+            .getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+        return caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+    }
+
+    private fun beginPlayback(info: StreamInfo) {
+        _uiState.value = PlayerUiState.Ready(info)
         continuePlayingController.onPlaybackStarted(videoId, queue)
         val isLive = info.isLive || info.isLiveContent
         Log.d(TAG, "startPlayback: isUnplayable=${info.isUnplayable}, playabilityReason=${info.playabilityReason}, " +
@@ -1129,6 +1167,7 @@ sealed interface PlayerUiState {
     data object Loading : PlayerUiState
     data class Error(val message: String) : PlayerUiState
     data class Ready(val streamInfo: StreamInfo) : PlayerUiState
+    data class MobileDataConfirm(val streamInfo: StreamInfo) : PlayerUiState
 }
 
 /**

@@ -56,6 +56,7 @@ private object Keys {
     val DUPLICATE_PLAYLIST_WARNING = booleanPreferencesKey("duplicate_playlist_warning")
     val SCREEN_PROTECTION = booleanPreferencesKey("screen_protection")
     val INCOGNITO_MODE = booleanPreferencesKey("incognito_mode")
+    val WARN_MOBILE_PLAYBACK = booleanPreferencesKey("warn_mobile_playback")
     val FEED_INVIDIOUS = booleanPreferencesKey("feed_invidious")
 }
 
@@ -94,7 +95,8 @@ data class PreferencesUiState(
     val duplicatePlaylistWarning: Boolean = true,
     val screenProtection: Boolean = false,
     val incognitoMode: Boolean = false,
-    val feedInvidious: Boolean = false
+    val feedInvidious: Boolean = false,
+    val warnMobilePlayback: Boolean = true
 )
 
 @Singleton
@@ -138,7 +140,8 @@ class PlayerPreferences @Inject constructor(
             duplicatePlaylistWarning = prefs[Keys.DUPLICATE_PLAYLIST_WARNING] ?: true,
             screenProtection = prefs[Keys.SCREEN_PROTECTION] ?: false,
             incognitoMode = prefs[Keys.INCOGNITO_MODE] ?: false,
-            feedInvidious = prefs[Keys.FEED_INVIDIOUS] ?: false
+            feedInvidious = prefs[Keys.FEED_INVIDIOUS] ?: false,
+            warnMobilePlayback = prefs[Keys.WARN_MOBILE_PLAYBACK] ?: true
         )
     }
 
@@ -286,6 +289,11 @@ class PlayerPreferences @Inject constructor(
 
     suspend fun setIncognitoMode(enabled: Boolean) {
         context.playerDataStore.edit { it[Keys.INCOGNITO_MODE] = enabled }
+    }
+
+    suspend fun setWarnMobilePlayback(enabled: Boolean) {
+        Log.d(TAG, "setWarnMobilePlayback: $enabled")
+        context.playerDataStore.edit { it[Keys.WARN_MOBILE_PLAYBACK] = enabled }
     }
 
     /**

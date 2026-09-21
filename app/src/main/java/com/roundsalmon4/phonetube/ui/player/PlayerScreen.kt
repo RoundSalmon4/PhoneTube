@@ -22,7 +22,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -272,6 +274,16 @@ val mirrorTogglePlayPause: () -> Unit = {
                         color = MaterialTheme.colorScheme.error
                     )
                 }
+            }
+            is PlayerUiState.MobileDataConfirm -> {
+                MobileDataWarningDialog(
+                    onPlay = { viewModel.confirmMobilePlayback() },
+                    onDontAskAgain = {
+                        viewModel.disableMobileWarning()
+                        viewModel.confirmMobilePlayback()
+                    },
+                    onCancel = onBackClick
+                )
             }
             is PlayerUiState.Ready -> {
                 val player = viewModel.playerController.exoPlayer
@@ -658,4 +670,40 @@ private fun DescriptionSection(
             }
         }
     }
+}
+
+@Composable
+private fun MobileDataWarningDialog(
+    onPlay: () -> Unit,
+    onDontAskAgain: () -> Unit,
+    onCancel: () -> Unit
+) {
+    var dontAskAgain by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text("Mobile data") },
+        text = {
+            Column {
+                Text("Playing over mobile data can use a lot of your data plan.")
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { dontAskAgain = !dontAskAgain }
+                        .padding(top = 12.dp)
+                ) {
+                    Checkbox(checked = dontAskAgain, onCheckedChange = { dontAskAgain = it })
+                    Text("Don't ask again")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { if (dontAskAgain) onDontAskAgain() else onPlay() }) {
+                Text("Play")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) { Text("Cancel") }
+        }
+    )
 }

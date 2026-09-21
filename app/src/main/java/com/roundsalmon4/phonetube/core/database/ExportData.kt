@@ -54,6 +54,7 @@ data class PreferencesExport(
     val duplicatePlaylistWarning: Boolean = true,
     val screenProtection: Boolean = false,
     val incognitoMode: Boolean = false,
+    val warnMobilePlayback: Boolean = true,
     val clearVisitorOnExit: Boolean = false
 )
 

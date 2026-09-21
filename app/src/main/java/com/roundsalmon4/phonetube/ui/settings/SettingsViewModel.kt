@@ -126,6 +126,7 @@ class SettingsViewModel @Inject constructor(
                 screenProtection = prefs.screenProtection,
                 incognitoMode = prefs.incognitoMode,
                 feedInvidious = prefs.feedInvidious,
+                warnMobilePlayback = prefs.warnMobilePlayback,
                 clearVisitorOnExit = clearVisitorOnExit
             ),
             playlists = playlists.map { playlist ->
@@ -240,6 +241,7 @@ class SettingsViewModel @Inject constructor(
                     playerPreferences.setDuplicatePlaylistWarning(p.duplicatePlaylistWarning)
                     playerPreferences.setScreenProtection(p.screenProtection)
                     playerPreferences.setIncognitoMode(p.incognitoMode)
+                    playerPreferences.setWarnMobilePlayback(p.warnMobilePlayback)
 
                     val visitorPrefs = context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
                     visitorPrefs.edit().putBoolean("clear_visitor_on_exit", p.clearVisitorOnExit).apply()
@@ -481,6 +483,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setIncognitoMode(enabled: Boolean) = viewModelScope.launch {
         playerPreferences.setIncognitoMode(enabled)
+    }
+
+    fun setWarnMobilePlayback(enabled: Boolean) = viewModelScope.launch {
+        playerPreferences.setWarnMobilePlayback(enabled)
     }
 
     private val _clearVisitorOnExit = kotlinx.coroutines.flow.MutableStateFlow(

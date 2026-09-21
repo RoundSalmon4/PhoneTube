@@ -314,6 +314,13 @@ private fun PlayerSection(uiState: PreferencesUiState, viewModel: SettingsViewMo
             onCheckedChange = { viewModel.setIncognitoMode(it) }
         )
 
+        SwitchItem(
+            name = "Warn on Mobile Data",
+            description = "Confirm before playing videos over mobile data",
+            checked = uiState.warnMobilePlayback,
+            onCheckedChange = { viewModel.setWarnMobilePlayback(it) }
+        )
+
         val clearVisitorOnExit by viewModel.clearVisitorOnExit.collectAsState()
 
         SwitchItem(
