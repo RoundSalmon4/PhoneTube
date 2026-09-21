@@ -33,8 +33,14 @@ jobs:
             exit 0
           fi
           echo "MediaServiceCore upstream has new commits: $LOCAL -> $REMOTE"
-          # start from upstream/master
-          git checkout -b auto/update-mediaservicecore upstream/master
+          # KNOWN-GOOD upstream base: 9df453a0 is the last upstream tip that
+          # compiles standalone. Later commits (59795dfe, 8b4a884b) reference
+          # generated constants that do not exist in the repo, so syncing to the
+          # head would push a broken core. Bump KNOWN_GOOD_CORE_REF only after
+          # a CI debug build has verified a newer upstream commit compiles.
+          KNOWN_GOOD_CORE_REF=9df453a0b13d593452b4817d778645916b978236
+          # start from the known-good upstream base
+          git checkout -b auto/update-mediaservicecore $KNOWN_GOOD_CORE_REF
           # copy our patched files from the `patches` branch
           # To add/remove pinned files: edit the list below, then update the
           # patches branch by rebuilding phonetube-patches and pushing:
