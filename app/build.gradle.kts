@@ -68,6 +68,13 @@ android {
             isShrinkResources = false
             signingConfig = signingConfigs.getByName("fromKeystore")
         }
+        debug {
+            // Side-by-side installs: debug builds get their own application id
+            // so a debug APK can be installed while the released app is still
+            // on the device.
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
     }
 
     compileOptions {
