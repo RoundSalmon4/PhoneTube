@@ -24,6 +24,7 @@ import androidx.media3.common.Player
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.core.engine.YouTubeInitializer
+import com.roundsalmon4.phonetube.player.ContinuePlayingController
 import com.roundsalmon4.phonetube.player.PlayerEngineController
 import com.roundsalmon4.phonetube.player.PlayerStateManager
 import com.roundsalmon4.phonetube.ui.navigation.AppNavigation
@@ -48,6 +49,9 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var playerController: PlayerEngineController
+
+    @Inject
+    lateinit var continuePlayingController: ContinuePlayingController
 
     val deepLinkUri = MutableStateFlow<Uri?>(null)
 
@@ -87,6 +91,7 @@ class MainActivity : ComponentActivity() {
                     playerStateManager = playerStateManager,
                     playerController = playerController,
                     playerPreferences = playerPreferences,
+                    continuePlayingController = continuePlayingController,
                     deepLinkUri = deepLinkUri
                 )
             }

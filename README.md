@@ -35,7 +35,7 @@ A YouTube phone app built on [SmartTube](https://github.com/yuliskov/SmartTube)'
 | IPTV Favorites | Star channels to save them to a Favorites list. Favorites are stored locally and included in Import/Export |
 | IPTV Playback | Live channels play via HLS through the existing player. Live playback always runs at 1x (speed controls are hidden) and keeps the screen awake while playing |
 | Video Card Dates | Video cards show when the video was published across home feeds, search, and channel pages |
-| Speed Control | Adjust playback speed from 0.25x to 3.0x, persisted across videos |
+| Speed Control | Adjust playback speed from 0.25x to 3.0x. The Default Speed setting applies to every video; changing speed in the player lasts only for that video |
 | Volume & Mute | Per-video volume slider with a mute toggle in the player controls |
 | Quality Picker | Choose video quality from available formats with current resolution shown |
 | Smart Quality (AUTO) | AUTO starts from a realistic bandwidth estimate, enforces a 360p floor, and uses tuned adaptive thresholds so quality stays stable across the video. A specific Default Quality setting is honored reliably on both DASH and HLS streams |

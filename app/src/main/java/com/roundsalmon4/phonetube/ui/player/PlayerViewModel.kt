@@ -2,7 +2,6 @@ package com.roundsalmon4.phonetube.ui.player
 
 import android.app.Application
 import android.util.Log
-import androidx.media3.common.Player
 import androidx.media3.common.C
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
@@ -27,6 +26,7 @@ import com.roundsalmon4.phonetube.core.engine.model.bestCastUrl
 import com.roundsalmon4.phonetube.core.engine.model.StreamInfo
 import com.roundsalmon4.phonetube.core.engine.model.VideoChapter
 import com.roundsalmon4.phonetube.player.AudioTrackInfo
+import com.roundsalmon4.phonetube.player.ContinuePlayingController
 import com.roundsalmon4.phonetube.player.PlayerEngineController
 import com.roundsalmon4.phonetube.player.PlayerPlaybackSnapshot
 import com.roundsalmon4.phonetube.player.PlayerStateManager
@@ -62,7 +62,8 @@ class PlayerViewModel @Inject constructor(
     private val xtreamClient: XtreamClient,
     val playerController: PlayerEngineController,
     private val playerStateManager: PlayerStateManager,
-    private val castRepository: CastRepository
+    private val castRepository: CastRepository,
+    private val continuePlayingController: ContinuePlayingController
 ) : AndroidViewModel(application) {
 
     companion object {
@@ -144,13 +145,9 @@ class PlayerViewModel @Inject constructor(
     private val _playlists = MutableStateFlow<List<LocalPlaylist>>(emptyList())
     val playlists: StateFlow<List<LocalPlaylist>> = _playlists.asStateFlow()
 
-    private val _navigateToVideo = MutableStateFlow<NextVideoToPlay?>(null)
-    val navigateToVideo: StateFlow<NextVideoToPlay?> = _navigateToVideo.asStateFlow()
-
     val playbackState: StateFlow<PlayerPlaybackSnapshot> = playerController.playbackState
 
     private val historyMutex = Mutex()
-    private var continuePlayingListener: Player.Listener? = null
     private val isExternalVideo: Boolean
         get() = videoId.startsWith("streamable:") || videoId.startsWith("media:") || videoId.startsWith("peertube:") || videoId.startsWith("iptv:")
 
@@ -169,7 +166,6 @@ class PlayerViewModel @Inject constructor(
             loadSponsorSegments()
             loadDescription()
             startAutoSkip()
-            setupContinuePlaying()
         }
     }
 
@@ -182,7 +178,7 @@ class PlayerViewModel @Inject constructor(
                 val ended = status.state == "ended" &&
                     castRepository.connectionState.value is CastConnectionState.Connected
                 if (ended && !wasEnded) {
-                    advanceToNextVideo()
+                    continuePlayingController.onCastEnded()
                 }
                 wasEnded = ended
             }
@@ -196,9 +192,6 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun loadStreamInfo() {
-        // A video was opened directly, so drop any stale continue-playing
-        // navigation that could otherwise hijack this new player screen.
-        _navigateToVideo.value = null
         _uiState.value = PlayerUiState.Loading
         viewModelScope.launch {
             if (videoId.startsWith("streamable:")) {
@@ -343,7 +336,16 @@ class PlayerViewModel @Inject constructor(
             Log.d(TAG, "findRedditHlsPlaylist: not reddit media, skipping")
             return null
         }
-        val dir = normalized.substringBeforeLast('/', normalized).plus('/')
+        // A bare post link (v.redd.it/<id>) is the media directory itself,
+        // while a rendition URL (.../<id>/CMAF_720.mp4) carries its file name
+        // in the last segment. Find the directory either way so the sibling
+        // HLSPlaylist.m3u8 probe hits the right folder.
+        val lastSegment = normalized.substringAfterLast('/')
+        val dir = when {
+            lastSegment.isEmpty() -> normalized
+            lastSegment.contains('.') -> normalized.substringBeforeLast('/').plus('/')
+            else -> normalized.plus('/')
+        }
         val playlist = dir + "HLSPlaylist.m3u8"
         val exists = redditFileExists(playlist)
         Log.d(TAG, "findRedditHlsPlaylist: $playlist exists=$exists")
@@ -624,6 +626,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun startPlayback(info: StreamInfo) {
+        continuePlayingController.onPlaybackStarted(videoId, queue)
         val isLive = info.isLive || info.isLiveContent
         Log.d(TAG, "startPlayback: isUnplayable=${info.isUnplayable}, playabilityReason=${info.playabilityReason}, " +
             "dash=${info.dashManifestUrl != null}, hls=${info.hlsManifestUrl != null}, " +
@@ -1049,12 +1052,9 @@ class PlayerViewModel @Inject constructor(
 
     fun clearToast() { _toastMessage.value = null }
 
-    fun clearNavigateToVideo() { _navigateToVideo.value = null }
-
     override fun onCleared() {
         super.onCleared()
         playerStateManager.isPlayerScreenVisible = false
-        continuePlayingListener?.let { playerController.exoPlayer.removeListener(it) }
         try {
             val positionMs = currentHistoryPositionMs()
             if (positionMs > 0) {
@@ -1123,42 +1123,6 @@ class PlayerViewModel @Inject constructor(
             }
         }
     }
-
-    private fun setupContinuePlaying() {
-        val listener = object : Player.Listener {
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED) {
-                    viewModelScope.launch { advanceToNextVideo() }
-                }
-            }
-        }
-        continuePlayingListener = listener
-        playerController.exoPlayer.addListener(listener)
-    }
-
-    /**
-     * Shared by local end-of-video and casted-video end: advance through an
-     * explicit queue (e.g. Play All) first, otherwise the next suggested video
-     * when continue-playing is enabled.
-     */
-    private suspend fun advanceToNextVideo() {
-        if (queue.isNotEmpty()) {
-            val nextId = queue.first()
-            Log.d(TAG, "Advancing queue: next video $nextId")
-            _navigateToVideo.value = NextVideoToPlay(nextId, queue.drop(1))
-            return
-        }
-        val prefs = playerPreferences.uiState.first()
-        if (!prefs.continuePlaying) return
-        try {
-            val meta = engine.getMetadata(videoId).firstOrNull()
-            val next = meta?.suggestions?.firstOrNull()
-            if (next != null) {
-                Log.d(TAG, "Continue playing: loading next video ${next.videoId}")
-                _navigateToVideo.value = NextVideoToPlay(next.videoId, emptyList())
-            }
-        } catch (_: Exception) { }
-    }
 }
 
 sealed interface PlayerUiState {
@@ -1166,11 +1130,6 @@ sealed interface PlayerUiState {
     data class Error(val message: String) : PlayerUiState
     data class Ready(val streamInfo: StreamInfo) : PlayerUiState
 }
-
-data class NextVideoToPlay(
-    val videoId: String,
-    val queue: List<String>
-)
 
 /**
  * Turns YouTube's raw playability reason into something actionable for an app

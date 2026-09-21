@@ -32,6 +32,7 @@ import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
 import com.roundsalmon4.phonetube.core.engine.YouTubeLink
 import com.roundsalmon4.phonetube.core.engine.YouTubeUrlParser
+import com.roundsalmon4.phonetube.player.ContinuePlayingController
 import com.roundsalmon4.phonetube.player.PlayerEngineController
 import com.roundsalmon4.phonetube.player.PlayerStateManager
 import com.roundsalmon4.phonetube.player.service.PlaybackService
@@ -67,6 +68,7 @@ fun AppNavigation(
     playerStateManager: PlayerStateManager,
     playerController: PlayerEngineController,
     playerPreferences: PlayerPreferences,
+    continuePlayingController: ContinuePlayingController,
     deepLinkUri: kotlinx.coroutines.flow.MutableStateFlow<Uri?>
 ) {
     val navController = rememberNavController()
@@ -85,6 +87,7 @@ fun AppNavigation(
     val miniPlayerState by playerStateManager.miniPlayerState.collectAsState()
     val prefs by playerPreferences.uiState.collectAsState(initial = PreferencesUiState())
     val currentDeepLink by deepLinkUri.collectAsState()
+    val nextVideo by continuePlayingController.nextVideo.collectAsState()
 
     LaunchedEffect(currentDeepLink) {
         currentDeepLink?.let { uri ->
@@ -122,6 +125,18 @@ fun AppNavigation(
         // Reset so the identical link can be opened again later; StateFlow
         // conflates equal values, so a repeat link would otherwise never emit.
         deepLinkUri.value = null
+    }
+
+    // Continue playing: the next video is announced here (app-wide) so it
+    // advances from the mini player or any screen, not just the player screen.
+    LaunchedEffect(nextVideo) {
+        nextVideo?.let { next ->
+            continuePlayingController.consume()
+            if (currentDestination?.route?.contains("Player") == true) {
+                navController.popBackStack()
+            }
+            navController.navigate(Route.Player(next.videoId, next.queue))
+        }
     }
 
     Scaffold(
@@ -199,10 +214,6 @@ fun AppNavigation(
                         onBackClick = { navController.popBackStack() },
                         onChannelClick = { channelId ->
                             navController.navigate(Route.Channel(channelId))
-                        },
-                        onVideoPlayNext = { nextVideoId, nextQueue ->
-                            navController.popBackStack()
-                            navController.navigate(Route.Player(nextVideoId, nextQueue))
                         }
                     )
                 }
