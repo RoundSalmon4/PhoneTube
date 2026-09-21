@@ -40,6 +40,7 @@ jobs:
           # patches branch by rebuilding phonetube-patches and pushing:
           #   git push origin phonetube-patches:patches
           git checkout FETCH_HEAD -- \
+            LICENSE \
             mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java \
             youtubeapi/src/main/AndroidManifest.xml \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseApiHelper.kt \
@@ -55,6 +56,7 @@ jobs:
           # also copy CommonHelper.kt
           curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/patches/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
           # verify every patch made it into the working tree
+          grep -q "2025-present RoundSalmon4" LICENSE || { echo "ERROR: MIT LICENSE missing"; exit 1; }
           grep -q "getPlaylist" mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java || { echo "ERROR: ContentService patch missing"; exit 1; }
           grep -q "fun getPlaylist" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt || { echo "ERROR: BrowseService2 patch missing"; exit 1; }
           grep -q "continueGroupObserve" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeContentService.java || { echo "ERROR: YouTubeContentService patch missing"; exit 1; }
@@ -66,7 +68,7 @@ jobs:
           grep -q "switchNextFormat(boolean force)" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/V2/VideoInfoService.java || { echo "ERROR: switchNextFormat signature patch missing"; exit 1; }
           # Skip the rebuild when the result is content-identical to the current branch,
           # so an unchanged upstream doesn't generate a new commit SHA and a no-op PR.
-          if git diff --quiet origin/phonetube-patches -- mediaserviceinterfaces youtubeapi; then
+          if git diff --quiet origin/phonetube-patches -- LICENSE mediaserviceinterfaces youtubeapi; then
             echo "Rebuilt state matches phonetube-patches; no update needed"
             git checkout -f origin/phonetube-patches
           else
