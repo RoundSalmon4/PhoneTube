@@ -152,7 +152,10 @@ class MainActivity : ComponentActivity() {
         newConfig: android.content.res.Configuration
     ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
-        playerStateManager.isPlayerScreenVisible = isInPictureInPictureMode
+        // The player screen is visible whenever we are NOT in the PiP window
+        // (it stays composed under the PiP). Re-arming it on exit keeps a
+        // second "leave the app" able to trigger auto-PiP again.
+        playerStateManager.isPlayerScreenVisible = !isInPictureInPictureMode
     }
 
     private fun handleIntent(intent: Intent) {

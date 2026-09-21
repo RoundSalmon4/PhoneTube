@@ -87,7 +87,8 @@ data class IptvFavoriteExport(
 data class LocalPlaylistExport(
     val name: String,
     val createdAt: Long,
-    val videos: List<PlaylistVideoExport>
+    val videos: List<PlaylistVideoExport>,
+    val sourcePlaylistId: String? = null
 )
 
 @Serializable

@@ -15,6 +15,12 @@ interface PlaylistDao {
     @Query("SELECT * FROM playlists ORDER BY createdAt DESC")
     fun getAllPlaylists(): Flow<List<LocalPlaylist>>
 
+    @Query("SELECT * FROM playlists")
+    suspend fun getAllPlaylistsSync(): List<LocalPlaylist>
+
+    @Query("SELECT * FROM playlists WHERE sourcePlaylistId = :sourceId LIMIT 1")
+    suspend fun getPlaylistBySourceId(sourceId: String): LocalPlaylist?
+
     @Query("SELECT sourcePlaylistId FROM playlists WHERE sourcePlaylistId IS NOT NULL")
     fun getSavedPlaylistIds(): Flow<List<String>>
 

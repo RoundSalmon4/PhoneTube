@@ -427,14 +427,17 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun loadIptv() {
-        val parts = videoId.removePrefix("iptv:").split(":", limit = 2)
-        if (parts.size != 2 || parts[0].isBlank() || parts[1].isBlank()) {
+        // The video id is "iptv:<providerId>:<streamId>" and the provider id is
+        // "host|username". Hosts may include a port ("host:8080|username"), so
+        // the stream id is everything after the LAST colon, never the first.
+        val rest = videoId.removePrefix("iptv:")
+        val providerId = rest.substringBeforeLast(':')
+        val streamId = rest.substringAfterLast(':')
+        if (providerId.isBlank() || streamId.isBlank()) {
             Log.e(TAG, "loadIptv: malformed iptv videoId: '$videoId'")
             _uiState.value = PlayerUiState.Error("Invalid IPTV stream link")
             return
         }
-        val providerId = parts[0]
-        val streamId = parts[1]
         Log.d(TAG, "loadIptv: providerKey=$providerId streamId=$streamId")
         viewModelScope.launch {
             try {
@@ -718,8 +721,11 @@ class PlayerViewModel @Inject constructor(
 
         if (!isExternalVideo) {
             viewModelScope.launch {
-                withContext(Dispatchers.IO) {
-                    engine.reportWatchProgress(videoId, 0f)
+                val incognito = playerPreferences.uiState.first().incognitoMode
+                if (!incognito) {
+                    withContext(Dispatchers.IO) {
+                        engine.reportWatchProgress(videoId, 0f)
+                    }
                 }
             }
         }
@@ -843,6 +849,7 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val prefs = playerPreferences.uiState.first()
+                if (prefs.incognitoMode) return@launch
                 if (!prefs.resumePlayback) return@launch
 
                 val entry = historyDao.getById(videoId) ?: return@launch
@@ -1049,9 +1056,10 @@ class PlayerViewModel @Inject constructor(
         playerStateManager.isPlayerScreenVisible = false
         continuePlayingListener?.let { playerController.exoPlayer.removeListener(it) }
         try {
-            val positionMs = playerController.exoPlayer.currentPosition
+            val positionMs = currentHistoryPositionMs()
             if (positionMs > 0) {
                 kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+                    if (playerPreferences.uiState.first().incognitoMode) return@runBlocking
                     val current = historyDao.getById(videoId)
                     if (current != null) {
                         historyDao.upsert(current.copy(
@@ -1067,11 +1075,19 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    private fun currentHistoryPositionMs(): Long =
+        // While casting the local player is a paused preview at 0, so the TV's
+        // reported position is the real one for history purposes.
+        if (isCasting) castRepository.tvStatus.value.position.coerceAtLeast(0L)
+        else playerController.exoPlayer.currentPosition.coerceAtLeast(0L)
+
     private fun saveCurrentPosition() {
         viewModelScope.launch {
+            val incognito = playerPreferences.uiState.first().incognitoMode
+            if (incognito) return@launch
             historyMutex.withLock {
                 try {
-                    val positionMs = playerController.exoPlayer.currentPosition
+                    val positionMs = currentHistoryPositionMs()
                     val current = historyDao.getById(videoId)
                     if (current != null) {
                         historyDao.upsert(current.copy(
@@ -1097,7 +1113,7 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             while (isActive) {
                 delay(POSITION_SAVE_INTERVAL_MS)
-                val positionMs = playerController.exoPlayer.currentPosition
+                val positionMs = currentHistoryPositionMs()
                 if (positionMs > 0) {
                     val isLive = playerController.exoPlayer.isCurrentMediaItemLive
                     if (!isLive) {

@@ -67,7 +67,7 @@ fun AppNavigation(
     playerStateManager: PlayerStateManager,
     playerController: PlayerEngineController,
     playerPreferences: PlayerPreferences,
-    deepLinkUri: kotlinx.coroutines.flow.StateFlow<Uri?>
+    deepLinkUri: kotlinx.coroutines.flow.MutableStateFlow<Uri?>
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
@@ -119,6 +119,9 @@ fun AppNavigation(
                 }
             }
         }
+        // Reset so the identical link can be opened again later; StateFlow
+        // conflates equal values, so a repeat link would otherwise never emit.
+        deepLinkUri.value = null
     }
 
     Scaffold(

@@ -142,7 +142,8 @@ class SettingsViewModel @Inject constructor(
                             durationMs = v.durationMs,
                             position = v.position
                         )
-                    }
+                    },
+                    sourcePlaylistId = playlist.sourcePlaylistId
                 )
             },
             subscriptions = subscriptions.map { sub ->
@@ -258,11 +259,28 @@ class SettingsViewModel @Inject constructor(
                 }
 
                 if (data.playlists != null) {
+                    // Restore is idempotent: match existing playlists by their
+                    // saved source id (YouTube playlists) or by name (free-form),
+                    // merge their videos, and keep one copy instead of duplicating
+                    // the whole list on a repeat import.
+                    val existingPlaylists = playlistDao.getAllPlaylistsSync()
+                    var imported = 0
+                    var merged = 0
                     for (playlistData in data.playlists) {
-                        val id = playlistDao.insertPlaylist(
-                            LocalPlaylist(name = playlistData.name, createdAt = playlistData.createdAt)
+                        val existing = playlistData.sourcePlaylistId
+                            ?.let { source -> existingPlaylists.firstOrNull { it.sourcePlaylistId == source } }
+                            ?: existingPlaylists.firstOrNull { it.sourcePlaylistId == null && it.name == playlistData.name }
+                        val createdAt = existing?.createdAt ?: playlistData.createdAt
+                        val id = existing?.id ?: playlistDao.insertPlaylist(
+                            LocalPlaylist(
+                                name = playlistData.name,
+                                createdAt = createdAt,
+                                sourcePlaylistId = playlistData.sourcePlaylistId
+                            )
                         )
+                        val known = playlistDao.getPlaylistVideosSync(id).mapTo(HashSet()) { it.videoId }
                         for (video in playlistData.videos) {
+                            if (video.videoId in known) continue
                             playlistDao.insertVideo(
                                 com.roundsalmon4.phonetube.core.database.entity.PlaylistVideo(
                                     playlistId = id,
@@ -275,10 +293,22 @@ class SettingsViewModel @Inject constructor(
                                 )
                             )
                         }
+                        val allVideos = playlistDao.getPlaylistVideosSync(id)
                         playlistDao.updatePlaylist(
-                            LocalPlaylist(id = id, name = playlistData.name, createdAt = playlistData.createdAt, videoCount = playlistData.videos.size)
+                            LocalPlaylist(
+                                id = id,
+                                name = playlistData.name,
+                                createdAt = createdAt,
+                                sourcePlaylistId = playlistData.sourcePlaylistId,
+                                videoCount = allVideos.size
+                            )
                         )
+                        allVideos.forEachIndexed { index, v ->
+                            playlistDao.updateVideoPosition(id, v.videoId, index)
+                        }
+                        if (existing != null) merged++ else imported++
                     }
+                    Log.d(TAG, "importFromJson: playlists imported=$imported merged=$merged")
                 }
 
                 if (data.invidiousInstances != null) {
@@ -315,7 +345,9 @@ class SettingsViewModel @Inject constructor(
                     Log.d(TAG, "importFromJson: importing ${data.iptvFavorites.size} iptv favorites")
                     var skipped = 0
                     for (favorite in data.iptvFavorites) {
-                        val providerKey = favorite.videoId.removePrefix("iptv:").substringBefore(":")
+                        // Provider ids are "host|username" and hosts may include
+                        // a port, so cut at the LAST colon, not the first.
+                        val providerKey = favorite.videoId.removePrefix("iptv:").substringBeforeLast(":")
                         if (iptvDao.getById(providerKey) == null) {
                             skipped++
                             Log.w(TAG, "importFromJson: skipping favorite ${favorite.videoId} (provider $providerKey not found)")
