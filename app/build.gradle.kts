@@ -85,13 +85,6 @@ android {
     lint {
         abortOnError = false
         checkReleaseBuilds = false
-        // androidx.lifecycle's NonNullableMutableLiveDataDetector crashes on
-        // Kotlin 2.2 metadata under AGP 8.7's lint (IncompatibleClassChangeError),
-        // so skip that one check until the toolchain is aligned.
-        disable += "NullSafeMutableLiveData"
-        // Committed baseline so CI can flag only NEW lint issues. Generated via
-        // ./gradlew :app:updateLintBaseline.
-        baseline = file("lint-baseline.xml")
     }
 
     buildFeatures {
