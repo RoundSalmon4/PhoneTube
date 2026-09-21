@@ -288,11 +288,6 @@ class PlayerPreferences @Inject constructor(
         context.playerDataStore.edit { it[Keys.INCOGNITO_MODE] = enabled }
     }
 
-    suspend fun setFeedInvidious(enabled: Boolean) {
-        Log.d(TAG, "setFeedInvidious: $enabled")
-        context.playerDataStore.edit { it[Keys.FEED_INVIDIOUS] = enabled }
-    }
-
     /**
      * Atomically writes all feed-related preferences in a single DataStore
      * transaction.  During import this prevents intermediate states from

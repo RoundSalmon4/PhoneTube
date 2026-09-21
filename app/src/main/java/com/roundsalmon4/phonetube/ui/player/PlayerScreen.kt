@@ -70,7 +70,6 @@ fun PlayerScreen(
     onBackClick: () -> Unit,
     onChannelClick: ((String) -> Unit)? = null,
     onVideoPlayNext: ((String, List<String>) -> Unit)? = null,
-    source: String? = null,
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -411,14 +410,6 @@ PlayerControls(
                                 color = Color.White.copy(alpha = 0.7f),
                                 modifier = Modifier.padding(top = 4.dp)
                             )
-                            if (source != null) {
-                                Text(
-                                    text = "via $source",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color(0xFF8BC34A),
-                                    modifier = Modifier.padding(top = 2.dp)
-                                )
-                            }
                             val stats = listOfNotNull(
                                 viewCount?.takeIf { it.isNotBlank() },
                                 likeCount?.takeIf { it.isNotBlank() },

@@ -7,8 +7,7 @@ sealed interface Route {
     @Serializable data object Home : Route
     @Serializable data class Player(
         val videoId: String,
-        val queue: List<String> = emptyList(),
-        val source: String? = null
+        val queue: List<String> = emptyList()
     ) : Route
     @Serializable data object Search : Route
     @Serializable data class Channel(val channelId: String) : Route

@@ -380,8 +380,6 @@ class CastRepository @Inject constructor(
 
     fun sendSeek(positionMs: Long) = send(CastCommand(type = "seek", position = positionMs))
 
-    fun sendStop() = send(CastCommand(type = "stop"))
-
     fun sendVolume(volume: Float) = send(CastCommand(type = "set_volume", volume = volume))
 
     fun sendSpeed(speed: Float) = send(CastCommand(type = "set_speed", speed = speed))

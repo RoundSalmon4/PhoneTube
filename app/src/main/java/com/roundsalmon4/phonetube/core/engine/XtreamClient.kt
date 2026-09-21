@@ -43,7 +43,6 @@ class XtreamClient @Inject constructor() {
                 XtreamAuthInfo(
                     auth = userInfo?.optInt("auth", 0) == 1,
                     status = userInfo?.optString("status", "").orEmpty(),
-                    expDate = userInfo?.optLong("exp_date", 0L) ?: 0L,
                     serverName = serverUrl.ifBlank { null } ?: host,
                     scheme = scheme,
                     timezone = serverInfo?.optString("timezone", "").orEmpty().ifBlank { null }
@@ -97,8 +96,7 @@ class XtreamClient @Inject constructor() {
             IptvLiveStream(
                 streamId = streamId,
                 name = name,
-                iconUrl = obj.optString("stream_icon", "").ifBlank { null },
-                categoryId = obj.optString("category_id", "")
+                iconUrl = obj.optString("stream_icon", "").ifBlank { null }
             )
         }.sortedBy { it.name }
     }

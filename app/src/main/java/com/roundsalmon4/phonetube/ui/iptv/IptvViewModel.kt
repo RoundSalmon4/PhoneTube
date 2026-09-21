@@ -391,7 +391,7 @@ class IptvViewModel @Inject constructor(
         val displayName = name.ifBlank { auth.serverName?.takeIf { it.isNotBlank() } ?: normalized }
         val scheme = auth.scheme?.takeIf { it == "http" || it == "https" } ?: "https"
         val timezone = auth.timezone.orEmpty()
-        Log.d(TAG, "addProvider: '$normalized' validated OK (auth=${auth.auth}, status=${auth.status}, exp=${auth.expDate}, scheme=$scheme, tz=$timezone)")
+        Log.d(TAG, "addProvider: '$normalized' validated OK (auth=${auth.auth}, status=${auth.status}, scheme=$scheme, tz=$timezone)")
         Log.d(TAG, "addProvider: saving '$displayName' ($normalized) as $id")
         iptvDao.insert(
             IptvProvider(

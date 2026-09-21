@@ -200,8 +200,7 @@ fun AppNavigation(
                         onVideoPlayNext = { nextVideoId, nextQueue ->
                             navController.popBackStack()
                             navController.navigate(Route.Player(nextVideoId, nextQueue))
-                        },
-                        source = route.source
+                        }
                     )
                 }
 

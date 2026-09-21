@@ -262,7 +262,7 @@ class SettingsViewModel @Inject constructor(
                         val id = playlistDao.insertPlaylist(
                             LocalPlaylist(name = playlistData.name, createdAt = playlistData.createdAt)
                         )
-                        for ((index, video) in playlistData.videos.withIndex()) {
+                        for (video in playlistData.videos) {
                             playlistDao.insertVideo(
                                 com.roundsalmon4.phonetube.core.database.entity.PlaylistVideo(
                                     playlistId = id,
@@ -292,10 +292,6 @@ class SettingsViewModel @Inject constructor(
                             )
                         )
                     }
-                    val allHosts = invidiousDao.getAll().first().joinToString(",") { it.host }
-                    Log.d(TAG, "importFromJson: syncing peertube hosts pref: '$allHosts'")
-                    context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
-                        .edit().putString("invidious_hosts", allHosts).apply()
                 }
 
                 if (data.iptvProviders != null) {
@@ -467,10 +463,6 @@ class SettingsViewModel @Inject constructor(
         _clearVisitorOnExit.value = enabled
     }
 
-    fun setFeedInvidious(enabled: Boolean) = viewModelScope.launch {
-        playerPreferences.setFeedInvidious(enabled)
-    }
-
     val castDevices: StateFlow<List<CastDevice>> = castRepository.devices
 
     fun addCastDevice(name: String, host: String, port: Int) {
@@ -486,7 +478,6 @@ class SettingsViewModel @Inject constructor(
         if (normalized.isNotBlank()) {
             Log.d(TAG, "addPeerTubeInstance: adding '$normalized' (name='$name')")
             invidiousDao.insert(InvidiousInstance(host = normalized, name = name.ifBlank { normalized }))
-            syncPeerTubeHostsPref()
         } else {
             Log.w(TAG, "addPeerTubeInstance: empty host after normalization (input='$host')")
         }
@@ -537,21 +528,11 @@ class SettingsViewModel @Inject constructor(
     fun removePeerTubeInstance(host: String) = viewModelScope.launch {
         Log.d(TAG, "removePeerTubeInstance: removing '$host'")
         invidiousDao.delete(host)
-        syncPeerTubeHostsPref()
     }
 
     fun setPeerTubeEnabled(host: String, enabled: Boolean) = viewModelScope.launch {
         Log.d(TAG, "setPeerTubeEnabled: '$host' -> $enabled")
         invidiousDao.setEnabled(host, enabled)
-        syncPeerTubeHostsPref()
-    }
-
-    private fun syncPeerTubeHostsPref() {
-        val enabledHosts = invidiousInstances.value.filter { it.enabled }.map { it.host }
-        val hosts = enabledHosts.joinToString(",")
-        Log.d(TAG, "syncPeerTubeHostsPref: ${enabledHosts.size} enabled hosts: $enabledHosts")
-        context.getSharedPreferences("phonetube_prefs", android.content.Context.MODE_PRIVATE)
-            .edit().putString("invidious_hosts", hosts).apply()
     }
 
     fun showClearHistoryDialog() { _showClearHistoryDialog.value = true }

@@ -15,8 +15,7 @@ data class IptvCategory(
 data class IptvLiveStream(
     val streamId: String,
     val name: String,
-    val iconUrl: String?,
-    val categoryId: String
+    val iconUrl: String?
 )
 
 /**
@@ -25,7 +24,6 @@ data class IptvLiveStream(
 data class XtreamAuthInfo(
     val auth: Boolean,
     val status: String,
-    val expDate: Long,
     val serverName: String?,
     val scheme: String?,
     val timezone: String?
