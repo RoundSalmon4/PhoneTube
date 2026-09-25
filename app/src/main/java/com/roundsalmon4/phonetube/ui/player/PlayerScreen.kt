@@ -108,11 +108,19 @@ fun PlayerScreen(
     // Casting to a companion PhoneTV receiver over WebSocket
     val castViewModel: CastViewModel = hiltViewModel()
     val castDevices by castViewModel.devices.collectAsStateWithLifecycle()
+    val nearbyDevices by castViewModel.nearby.collectAsStateWithLifecycle()
+    val pendingSave by castViewModel.pendingSave.collectAsStateWithLifecycle()
     val castConnection by castViewModel.connectionState.collectAsStateWithLifecycle()
     val isCasting by castViewModel.isCasting.collectAsStateWithLifecycle()
     val tvStatus by castViewModel.tvStatus.collectAsStateWithLifecycle()
     var showCastDialog by remember { mutableStateOf(false) }
     val castScope = rememberCoroutineScope()
+
+    // Find PhoneTV receivers over mDNS while the player is open.
+    LaunchedEffect(Unit) { castViewModel.startDiscovery() }
+    DisposableEffect(Unit) {
+        onDispose { castViewModel.stopDiscovery() }
+    }
 
     // While casting, the phone UI mirrors the TV's playback (position,
     // duration, playing state) so the timeline stays in sync even when the TV
@@ -553,6 +561,7 @@ PlayerControls(
     if (showCastDialog) {
         CastDeviceDialog(
             devices = castDevices,
+            nearbyDevices = nearbyDevices,
             connectionState = castConnection,
             onConnect = { device ->
                 val readyState = viewModel.uiState.value as? PlayerUiState.Ready
@@ -587,6 +596,25 @@ PlayerControls(
             onAddDevice = { name, host, port -> castViewModel.addDevice(name, host, port) },
             onRemoveDevice = { host -> castViewModel.removeDevice(host) },
             onDismiss = { showCastDialog = false }
+        )
+    }
+
+    pendingSave?.let { pending ->
+        AlertDialog(
+            onDismissRequest = { castViewModel.dismissPendingSave() },
+            title = { Text("Save this TV?") },
+            text = {
+                Text(
+                    "Save ${pending.device.name.ifBlank { pending.device.host }} to your devices? " +
+                        "Saved devices are included in import/export backups."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { castViewModel.confirmPendingSave() }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { castViewModel.dismissPendingSave() }) { Text("Not now") }
+            }
         )
     }
 

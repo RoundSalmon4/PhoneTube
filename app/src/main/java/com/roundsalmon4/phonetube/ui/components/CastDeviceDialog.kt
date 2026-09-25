@@ -27,6 +27,7 @@ import com.roundsalmon4.phonetube.core.cast.CastDevice
 @Composable
 fun CastDeviceDialog(
     devices: List<CastDevice>,
+    nearbyDevices: List<CastDevice> = emptyList(),
     connectionState: CastConnectionState,
     onConnect: (CastDevice) -> Unit,
     onDisconnect: () -> Unit,
@@ -73,9 +74,9 @@ fun CastDeviceDialog(
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (devices.isEmpty()) {
+                    if (devices.isEmpty() && nearbyDevices.isEmpty()) {
                         Text(
-                            "No cast devices yet. Add a device running the PhoneTV app.",
+                            "No cast devices found. Open PhoneTV on your TV to find it automatically, or add it by IP.",
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -112,6 +113,37 @@ fun CastDeviceDialog(
                             }
                             TextButton(onClick = { onRemoveDevice(device.host) }) {
                                 Text("Remove")
+                            }
+                        }
+                    }
+                    if (nearbyDevices.isNotEmpty()) {
+                        Text(
+                            "Nearby",
+                            style = MaterialTheme.typography.titleSmall,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                        nearbyDevices.forEach { device ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = device.name,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Text(
+                                        text = "${device.host}:${device.port} - discovered",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                OutlinedButton(
+                                    onClick = { onConnect(device) },
+                                    enabled = connectionState !is CastConnectionState.Connecting
+                                ) {
+                                    Text("Cast")
+                                }
                             }
                         }
                     }

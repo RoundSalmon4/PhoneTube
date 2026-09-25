@@ -907,6 +907,7 @@ private fun Color.luminance(): Float = 0.299f * red + 0.587f * green + 0.114f * 
 @Composable
 private fun CastSection(viewModel: SettingsViewModel) {
     val devices by viewModel.castDevices.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var host by remember { mutableStateOf("") }
@@ -949,6 +950,13 @@ private fun CastSection(viewModel: SettingsViewModel) {
         TextButton(onClick = { showAddDialog = true }, modifier = Modifier.padding(horizontal = 16.dp)) {
             Text("Add Cast Device")
         }
+
+        SwitchItem(
+            name = "Automatically save casted devices",
+            description = "When casting to a discovered TV, save it to your devices without asking",
+            checked = uiState.saveCastedDevices,
+            onCheckedChange = { viewModel.setSaveCastedDevices(it) }
+        )
     }
 
     if (showAddDialog) {

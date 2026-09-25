@@ -57,6 +57,7 @@ private object Keys {
     val SCREEN_PROTECTION = booleanPreferencesKey("screen_protection")
     val INCOGNITO_MODE = booleanPreferencesKey("incognito_mode")
     val WARN_MOBILE_PLAYBACK = booleanPreferencesKey("warn_mobile_playback")
+    val SAVE_CASTED_DEVICES = booleanPreferencesKey("save_casted_devices")
     val FEED_INVIDIOUS = booleanPreferencesKey("feed_invidious")
 }
 
@@ -96,7 +97,8 @@ data class PreferencesUiState(
     val screenProtection: Boolean = false,
     val incognitoMode: Boolean = false,
     val feedInvidious: Boolean = false,
-    val warnMobilePlayback: Boolean = true
+    val warnMobilePlayback: Boolean = true,
+    val saveCastedDevices: Boolean = false
 )
 
 @Singleton
@@ -141,7 +143,8 @@ class PlayerPreferences @Inject constructor(
             screenProtection = prefs[Keys.SCREEN_PROTECTION] ?: false,
             incognitoMode = prefs[Keys.INCOGNITO_MODE] ?: false,
             feedInvidious = prefs[Keys.FEED_INVIDIOUS] ?: false,
-            warnMobilePlayback = prefs[Keys.WARN_MOBILE_PLAYBACK] ?: true
+            warnMobilePlayback = prefs[Keys.WARN_MOBILE_PLAYBACK] ?: true,
+            saveCastedDevices = prefs[Keys.SAVE_CASTED_DEVICES] ?: false
         )
     }
 
@@ -294,6 +297,11 @@ class PlayerPreferences @Inject constructor(
     suspend fun setWarnMobilePlayback(enabled: Boolean) {
         Log.d(TAG, "setWarnMobilePlayback: $enabled")
         context.playerDataStore.edit { it[Keys.WARN_MOBILE_PLAYBACK] = enabled }
+    }
+
+    suspend fun setSaveCastedDevices(enabled: Boolean) {
+        Log.d(TAG, "setSaveCastedDevices: $enabled")
+        context.playerDataStore.edit { it[Keys.SAVE_CASTED_DEVICES] = enabled }
     }
 
     /**

@@ -55,6 +55,7 @@ data class PreferencesExport(
     val screenProtection: Boolean = false,
     val incognitoMode: Boolean = false,
     val warnMobilePlayback: Boolean = true,
+    val saveCastedDevices: Boolean = false,
     val clearVisitorOnExit: Boolean = false
 )
 
