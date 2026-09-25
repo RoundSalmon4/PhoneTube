@@ -91,4 +91,4 @@ Expected SHA-256 certificate fingerprint:
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
-PhoneTube uses [SmartTube](https://github.com/yuliskov/SmartTube)'s MediaServiceCore as its YouTube data engine, and [Nuvio Mobile](https://github.com/NuvioMedia/NuvioMobile) as a design reference for the player.
+PhoneTube uses [SmartTube](https://github.com/yuliskov/SmartTube)'s MediaServiceCore as its YouTube data engine (a lightly patched [fork](https://github.com/RoundSalmon4/MediaServiceCore) for PhoneTube), and [Nuvio Mobile](https://github.com/NuvioMedia/NuvioMobile) as a design reference for the player.

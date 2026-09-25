@@ -31,7 +31,7 @@ data class CreditEntry(
 private val credits = listOf(
     CreditEntry(
         name = "SmartTube",
-        description = "YouTube client engine, MediaServiceCore, and code patterns",
+        description = "YouTube client engine and MediaServiceCore (shipped as a lightly patched fork for PhoneTube), plus code patterns",
         url = "https://github.com/yuliskov/SmartTube",
         license = "MIT"
     ),
@@ -52,12 +52,6 @@ private val credits = listOf(
         description = "Video hosting service API for direct MP4 playback",
         url = "https://streamable.com",
         license = "Proprietary API"
-    ),
-    CreditEntry(
-        name = "MediaServiceCore",
-        description = "YouTube API engine (patched fork, git submodule)",
-        url = "https://github.com/RoundSalmon4/MediaServiceCore",
-        license = "MIT"
     ),
     CreditEntry(
         name = "SharedModules",
