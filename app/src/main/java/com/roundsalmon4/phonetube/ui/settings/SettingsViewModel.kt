@@ -19,6 +19,7 @@ import com.roundsalmon4.phonetube.core.database.IptvDao
 import com.roundsalmon4.phonetube.core.database.IptvFavoriteDao
 import com.roundsalmon4.phonetube.core.cast.CastDevice
 import com.roundsalmon4.phonetube.core.cast.CastRepository
+import com.roundsalmon4.phonetube.core.cast.ProbeResult
 import com.roundsalmon4.phonetube.core.database.entity.InvidiousInstance
 import com.roundsalmon4.phonetube.core.database.entity.IptvFavorite
 import com.roundsalmon4.phonetube.core.database.entity.IptvProvider
@@ -515,6 +516,9 @@ class SettingsViewModel @Inject constructor(
     fun removeCastDevice(host: String) {
         castRepository.removeDevice(host)
     }
+
+    suspend fun probeCastDevice(host: String, port: Int): ProbeResult =
+        castRepository.probe(CastDevice(name = "", host = host, port = port))
 
     fun addPeerTubeInstance(host: String, name: String) = viewModelScope.launch {
         val normalized = host.trim().removePrefix("https://").removePrefix("http://").trimEnd('/')

@@ -65,6 +65,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,6 +80,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
+import com.roundsalmon4.phonetube.core.cast.ProbeResult
 import com.roundsalmon4.phonetube.ui.components.WebViewDialog
 import com.roundsalmon4.phonetube.ui.components.openLink
 import kotlinx.coroutines.launch
@@ -912,6 +914,9 @@ private fun CastSection(viewModel: SettingsViewModel) {
     var name by remember { mutableStateOf("") }
     var host by remember { mutableStateOf("") }
     var port by remember { mutableStateOf("8484") }
+    val scope = rememberCoroutineScope()
+    var probeTarget by remember { mutableStateOf<String?>(null) }
+    var probeResult by remember { mutableStateOf<ProbeResult?>(null) }
 
     Column {
         HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
@@ -932,6 +937,18 @@ private fun CastSection(viewModel: SettingsViewModel) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                TextButton(
+                    onClick = {
+                        probeTarget = device.host
+                        probeResult = null
+                        scope.launch {
+                            probeResult = viewModel.probeCastDevice(device.host, device.port)
+                            probeTarget = null
+                        }
+                    }
+                ) {
+                    Text(if (probeTarget == device.host) "Testing..." else "Test")
+                }
                 TextButton(onClick = { viewModel.removeCastDevice(device.host) }) {
                     Text("Remove")
                 }
@@ -944,6 +961,15 @@ private fun CastSection(viewModel: SettingsViewModel) {
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        probeResult?.let { result ->
+            Text(
+                text = result.message,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (result.ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
             )
         }
 

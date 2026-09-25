@@ -16,9 +16,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlin.coroutines.resume
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -35,6 +39,13 @@ data class CastDevice(
     val name: String,
     val host: String,
     val port: Int = 8484
+)
+
+/** Outcome of a one-shot connectivity check against a cast device. */
+data class ProbeResult(
+    val ok: Boolean,
+    val message: String,
+    val latencyMs: Long? = null
 )
 
 @Serializable
@@ -212,6 +223,50 @@ class CastRepository @Inject constructor(
             context.castDataStore.edit { it[DEVICES_KEY] = json.encodeToString(cleaned) }
         }
         Log.i(TAG, "replaceDevices: ${cleaned.size} device(s)")
+    }
+
+    /**
+     * One-shot connectivity check used by the "Test" button. Opens its own
+     * WebSocket to the device and reports a readable verdict, leaving the
+     * active cast session state untouched.
+     */
+    suspend fun probe(device: CastDevice, timeoutMs: Long = 5_000): ProbeResult =
+        withContext(Dispatchers.IO) {
+            val url = "ws://${device.host}:${device.port}".lowercase()
+            val start = System.currentTimeMillis()
+            val outcome = withTimeoutOrNull(timeoutMs) {
+                suspendCancellableCoroutine<ProbeResult> { cont ->
+                    val listener = object : WebSocketListener() {
+                        override fun onOpen(webSocket: WebSocket, response: Response) {
+                            val latency = System.currentTimeMillis() - start
+                            webSocket.close(1000, "probe done")
+                            if (cont.isActive) {
+                                cont.resume(ProbeResult(true, "Connected in $latency ms", latency))
+                            }
+                        }
+
+                        override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                            if (cont.isActive) {
+                                cont.resume(ProbeResult(false, probeFailureMessage(t), null))
+                            }
+                        }
+                    }
+                    val socket = client.newWebSocket(Request.Builder().url(url).build(), listener)
+                    cont.invokeOnCancellation { socket.cancel() }
+                }
+            }
+            outcome ?: ProbeResult(
+                false,
+                "Timed out after ${timeoutMs / 1000} s. Is the TV powered on and on the same network?"
+            )
+        }
+
+    private fun probeFailureMessage(t: Throwable): String = when (t) {
+        is java.net.UnknownHostException -> "Unknown host: ${t.message}. Check the saved address."
+        is java.net.ConnectException -> "Connection refused. Is PhoneTV running on this device and on this port?"
+        is java.net.SocketTimeoutException -> "Connection timed out. Check the network path to the TV."
+        is java.io.IOException -> "Network error: ${t.message}"
+        else -> "Probe failed: ${t.message ?: t.javaClass.simpleName}"
     }
 
     fun connect(device: CastDevice) {
