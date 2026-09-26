@@ -440,7 +440,7 @@ class CastRepository @Inject constructor(
 
     fun sendSpeed(speed: Float) = send(CastCommand(type = "set_speed", speed = speed))
 
-    /** Shifts the TV's video relative to audio to fix lip-sync. */
+    /** Delays the TV's audio relative to video (0..2000ms) to fix lip-sync. */
     fun sendAvSync(offsetMs: Int) = send(CastCommand(type = "set_av_sync", avSyncMs = offsetMs))
 
     private fun send(command: CastCommand) {

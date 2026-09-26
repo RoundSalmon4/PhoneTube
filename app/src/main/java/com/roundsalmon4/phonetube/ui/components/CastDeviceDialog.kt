@@ -193,13 +193,13 @@ fun CastDeviceDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    "A/V sync",
+                                    "Audio delay",
                                     style = MaterialTheme.typography.bodyMedium,
                                     modifier = Modifier.weight(1f)
                                 )
                                 TextButton(
                                     onClick = {
-                                        onAvSyncChange((avSyncMs - 100).coerceAtLeast(-2000))
+                                        onAvSyncChange((avSyncMs - 100).coerceAtLeast(0))
                                     }
                                 ) {
                                     Text("-100ms")
