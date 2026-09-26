@@ -31,6 +31,8 @@ fun CastDeviceDialog(
     nearbyDevices: List<CastDevice> = emptyList(),
     scanState: CastDiscoveryState = CastDiscoveryState.Idle,
     connectionState: CastConnectionState,
+    avSyncMs: Int = 0,
+    onAvSyncChange: (Int) -> Unit = {},
     onConnect: (CastDevice) -> Unit,
     onDisconnect: () -> Unit,
     onAddDevice: (name: String, host: String, port: Int) -> Unit,
@@ -169,16 +171,53 @@ fun CastDeviceDialog(
                         }
                     }
                     when (connectionState) {
-                        is CastConnectionState.Connecting -> Text(
-                            "Connecting to ${connectionState.device.name}...",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                        is CastConnectionState.Connected -> Text(
-                            "Connected to ${(connectionState as CastConnectionState.Connected).device.name}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        is CastConnectionState.Connecting -> Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                "Connecting to ${connectionState.device.name}...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        is CastConnectionState.Connected -> Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                "Connected to ${connectionState.device.name}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "A/V sync",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                TextButton(
+                                    onClick = {
+                                        onAvSyncChange((avSyncMs - 100).coerceAtLeast(-2000))
+                                    }
+                                ) {
+                                    Text("-100ms")
+                                }
+                                Text(
+                                    "$avSyncMs ms",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                )
+                                TextButton(
+                                    onClick = {
+                                        onAvSyncChange((avSyncMs + 100).coerceAtMost(2000))
+                                    }
+                                ) {
+                                    Text("+100ms")
+                                }
+                            }
+                        }
                         else -> Unit
                     }
                 }

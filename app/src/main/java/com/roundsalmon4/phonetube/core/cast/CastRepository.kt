@@ -60,6 +60,7 @@ data class CastCommand(
     val quality: Int? = null,
     val activeSubtitleIndex: Int? = null,
     val subtitleIndex: Int? = null,
+    val avSyncMs: Int? = null,
     val message: String? = null
 )
 
@@ -438,6 +439,9 @@ class CastRepository @Inject constructor(
     fun sendVolume(volume: Float) = send(CastCommand(type = "set_volume", volume = volume))
 
     fun sendSpeed(speed: Float) = send(CastCommand(type = "set_speed", speed = speed))
+
+    /** Shifts the TV's video relative to audio to fix lip-sync. */
+    fun sendAvSync(offsetMs: Int) = send(CastCommand(type = "set_av_sync", avSyncMs = offsetMs))
 
     private fun send(command: CastCommand) {
         val socket = webSocket

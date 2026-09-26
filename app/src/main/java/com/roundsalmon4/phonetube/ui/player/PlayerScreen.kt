@@ -115,6 +115,7 @@ fun PlayerScreen(
     val isCasting by castViewModel.isCasting.collectAsStateWithLifecycle()
     val tvStatus by castViewModel.tvStatus.collectAsStateWithLifecycle()
     var showCastDialog by remember { mutableStateOf(false) }
+    var avSyncMs by remember { mutableStateOf(0) }
     val castScope = rememberCoroutineScope()
 
     // Find PhoneTV receivers over mDNS while the player is open.
@@ -565,6 +566,8 @@ PlayerControls(
             nearbyDevices = nearbyDevices,
             scanState = discoveryState,
             connectionState = castConnection,
+            avSyncMs = avSyncMs,
+            onAvSyncChange = { avSyncMs = it; castViewModel.setAvSync(it) },
             onConnect = { device ->
                 val readyState = viewModel.uiState.value as? PlayerUiState.Ready
                 val info = readyState?.streamInfo

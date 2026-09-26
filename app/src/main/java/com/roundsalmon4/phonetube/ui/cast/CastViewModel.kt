@@ -142,6 +142,8 @@ class CastViewModel @Inject constructor(
     fun setVolume(volume: Float) = repository.sendVolume(volume)
 
     fun setSpeed(speed: Float) = repository.sendSpeed(speed)
+
+    fun setAvSync(offsetMs: Int) = repository.sendAvSync(offsetMs)
 }
 
 data class PendingCast(
