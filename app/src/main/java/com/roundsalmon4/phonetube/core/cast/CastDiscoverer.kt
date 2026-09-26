@@ -27,6 +27,9 @@ class CastDiscoverer @Inject constructor(
     private val _nearby = MutableStateFlow<List<CastDevice>>(emptyList())
     val nearby: StateFlow<List<CastDevice>> = _nearby.asStateFlow()
 
+    private val _discoveryState = MutableStateFlow<CastDiscoveryState>(CastDiscoveryState.Idle)
+    val discoveryState: StateFlow<CastDiscoveryState> = _discoveryState.asStateFlow()
+
     private val discoveryListener = object : NsdManager.DiscoveryListener {
         override fun onDiscoveryStarted(serviceType: String) {
             Log.i(TAG, "mDNS discovery started for $serviceType")
@@ -50,6 +53,7 @@ class CastDiscoverer @Inject constructor(
 
         override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
             Log.w(TAG, "mDNS start discovery failed (code $errorCode)")
+            _discoveryState.value = CastDiscoveryState.Failed("Could not scan for cast devices (code $errorCode)")
         }
 
         override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {
@@ -81,12 +85,23 @@ class CastDiscoverer @Inject constructor(
 
     fun start() {
         if (nsdManager != null) return
-        val manager = context.getSystemService(Context.NSD_SERVICE) as? NsdManager ?: return
+        val manager = context.getSystemService(Context.NSD_SERVICE) as? NsdManager
+        if (manager == null) {
+            _discoveryState.value = CastDiscoveryState.Failed("mDNS is not available on this device")
+            return
+        }
         try {
             manager.discoverServices(SERVICE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
             nsdManager = manager
+            _discoveryState.value = CastDiscoveryState.Scanning
+        } catch (e: SecurityException) {
+            Log.w(TAG, "discoverServices permission denied", e)
+            _discoveryState.value = CastDiscoveryState.Failed("Missing permission to scan for cast devices")
         } catch (e: Exception) {
             Log.w(TAG, "discoverServices failed", e)
+            _discoveryState.value = CastDiscoveryState.Failed(
+                "Could not start discovery: ${e.message ?: e.javaClass.simpleName}"
+            )
         }
     }
 
@@ -98,6 +113,7 @@ class CastDiscoverer @Inject constructor(
         }
         nsdManager = null
         _nearby.value = emptyList()
+        _discoveryState.value = CastDiscoveryState.Idle
     }
 
     private fun resolveService(serviceInfo: NsdServiceInfo) {
@@ -115,4 +131,11 @@ class CastDiscoverer @Inject constructor(
         private const val TAG = "CastDiscoverer"
         const val SERVICE_TYPE = "_phonetv._tcp."
     }
+}
+
+/** Where mDNS discovery currently stands, so the UI can answer the user. */
+sealed interface CastDiscoveryState {
+    data object Idle : CastDiscoveryState
+    data object Scanning : CastDiscoveryState
+    data class Failed(val message: String) : CastDiscoveryState
 }

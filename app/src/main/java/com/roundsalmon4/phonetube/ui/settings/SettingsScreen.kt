@@ -58,6 +58,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -80,6 +81,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
+import com.roundsalmon4.phonetube.core.cast.CastDiscoveryState
 import com.roundsalmon4.phonetube.core.cast.ProbeResult
 import com.roundsalmon4.phonetube.ui.components.WebViewDialog
 import com.roundsalmon4.phonetube.ui.components.openLink
@@ -983,6 +985,63 @@ private fun CastSection(viewModel: SettingsViewModel) {
             checked = uiState.saveCastedDevices,
             onCheckedChange = { viewModel.setSaveCastedDevices(it) }
         )
+
+        LaunchedEffect(Unit) { viewModel.startCastDiscovery() }
+        DisposableEffect(Unit) {
+            onDispose { viewModel.stopCastDiscovery() }
+        }
+
+        val nearbyCastDevices by viewModel.nearbyCastDevices.collectAsState()
+        val castScanState by viewModel.castScanState.collectAsState()
+
+        when (val scan = castScanState) {
+            is CastDiscoveryState.Scanning ->
+                if (nearbyCastDevices.isEmpty()) {
+                    Text(
+                        "Scanning for TVs on this network...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+            is CastDiscoveryState.Failed -> Text(
+                scan.message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            else -> Unit
+        }
+
+        if (nearbyCastDevices.isNotEmpty()) {
+            Text(
+                "Nearby",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+            nearbyCastDevices.forEach { device ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(device.name, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "${device.host}:${device.port} - discovered",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    TextButton(
+                        onClick = { viewModel.addCastDevice(device.name, device.host, device.port) }
+                    ) {
+                        Text("Save")
+                    }
+                }
+            }
+        }
     }
 
     if (showAddDialog) {

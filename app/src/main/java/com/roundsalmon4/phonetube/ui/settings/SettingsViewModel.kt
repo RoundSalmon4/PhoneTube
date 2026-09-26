@@ -18,6 +18,7 @@ import com.roundsalmon4.phonetube.core.database.InvidiousDao
 import com.roundsalmon4.phonetube.core.database.IptvDao
 import com.roundsalmon4.phonetube.core.database.IptvFavoriteDao
 import com.roundsalmon4.phonetube.core.cast.CastDevice
+import com.roundsalmon4.phonetube.core.cast.CastDiscoveryState
 import com.roundsalmon4.phonetube.core.cast.CastRepository
 import com.roundsalmon4.phonetube.core.cast.ProbeResult
 import com.roundsalmon4.phonetube.core.database.entity.InvidiousInstance
@@ -47,7 +48,8 @@ class SettingsViewModel @Inject constructor(
     private val invidiousDao: InvidiousDao,
     private val iptvDao: IptvDao,
     private val iptvFavoriteDao: IptvFavoriteDao,
-    private val castRepository: CastRepository
+    private val castRepository: CastRepository,
+    private val castDiscoverer: com.roundsalmon4.phonetube.core.cast.CastDiscoverer
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PreferencesUiState())
@@ -508,6 +510,13 @@ class SettingsViewModel @Inject constructor(
     }
 
     val castDevices: StateFlow<List<CastDevice>> = castRepository.devices
+
+    val nearbyCastDevices: StateFlow<List<CastDevice>> = castDiscoverer.nearby
+    val castScanState: StateFlow<CastDiscoveryState> = castDiscoverer.discoveryState
+
+    fun startCastDiscovery() = castDiscoverer.start()
+
+    fun stopCastDiscovery() = castDiscoverer.stop()
 
     fun addCastDevice(name: String, host: String, port: Int) {
         castRepository.addDevice(CastDevice(name = name, host = host, port = port))

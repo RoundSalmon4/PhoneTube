@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.cast.CastConnectionState
 import com.roundsalmon4.phonetube.core.cast.CastDevice
 import com.roundsalmon4.phonetube.core.cast.CastDiscoverer
+import com.roundsalmon4.phonetube.core.cast.CastDiscoveryState
 import com.roundsalmon4.phonetube.core.cast.CastRepository
 import com.roundsalmon4.phonetube.core.cast.CastSubtitle
 import com.roundsalmon4.phonetube.core.cast.TvCastStatus
@@ -29,6 +30,7 @@ class CastViewModel @Inject constructor(
 
     val devices: StateFlow<List<CastDevice>> = repository.devices
     val nearby: StateFlow<List<CastDevice>> = discoverer.nearby
+    val discoveryState: StateFlow<CastDiscoveryState> = discoverer.discoveryState
     val connectionState: StateFlow<CastConnectionState> = repository.connectionState
     val tvStatus: StateFlow<TvCastStatus> = repository.tvStatus
     val lastError: StateFlow<String?> = repository.lastError

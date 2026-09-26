@@ -109,6 +109,7 @@ fun PlayerScreen(
     val castViewModel: CastViewModel = hiltViewModel()
     val castDevices by castViewModel.devices.collectAsStateWithLifecycle()
     val nearbyDevices by castViewModel.nearby.collectAsStateWithLifecycle()
+    val discoveryState by castViewModel.discoveryState.collectAsStateWithLifecycle()
     val pendingSave by castViewModel.pendingSave.collectAsStateWithLifecycle()
     val castConnection by castViewModel.connectionState.collectAsStateWithLifecycle()
     val isCasting by castViewModel.isCasting.collectAsStateWithLifecycle()
@@ -562,6 +563,7 @@ PlayerControls(
         CastDeviceDialog(
             devices = castDevices,
             nearbyDevices = nearbyDevices,
+            scanState = discoveryState,
             connectionState = castConnection,
             onConnect = { device ->
                 val readyState = viewModel.uiState.value as? PlayerUiState.Ready

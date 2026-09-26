@@ -23,11 +23,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.roundsalmon4.phonetube.core.cast.CastConnectionState
 import com.roundsalmon4.phonetube.core.cast.CastDevice
+import com.roundsalmon4.phonetube.core.cast.CastDiscoveryState
 
 @Composable
 fun CastDeviceDialog(
     devices: List<CastDevice>,
     nearbyDevices: List<CastDevice> = emptyList(),
+    scanState: CastDiscoveryState = CastDiscoveryState.Idle,
     connectionState: CastConnectionState,
     onConnect: (CastDevice) -> Unit,
     onDisconnect: () -> Unit,
@@ -74,7 +76,26 @@ fun CastDeviceDialog(
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (devices.isEmpty() && nearbyDevices.isEmpty()) {
+                    when (scanState) {
+                        is CastDiscoveryState.Scanning ->
+                            if (devices.isEmpty() && nearbyDevices.isEmpty()) {
+                                Text(
+                                    "Scanning for TVs on this network...",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        is CastDiscoveryState.Failed -> Text(
+                            scanState.message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        else -> Unit
+                    }
+                    if (devices.isEmpty() && nearbyDevices.isEmpty() &&
+                        scanState !is CastDiscoveryState.Scanning &&
+                        scanState !is CastDiscoveryState.Failed
+                    ) {
                         Text(
                             "No cast devices found. Open PhoneTV on your TV to find it automatically, or add it by IP.",
                             style = MaterialTheme.typography.bodyMedium
