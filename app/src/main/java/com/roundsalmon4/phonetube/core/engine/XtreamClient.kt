@@ -112,9 +112,11 @@ class XtreamClient @Inject constructor() {
     }
 
     /**
-     * Fetches the short EPG for a stream and returns programs with epoch
-     * millis (UTC) so the app can pick the one airing right now. Titles are
-     * base64-encoded by some providers and are decoded when applicable.
+     * Fetches the guide for one stream and returns programs with epoch millis
+     * (UTC) so the app can pick the one airing right now. Some panels (Trex)
+     * return nothing from get_short_epg and publish the same data through
+     * get_simple_data_table, which is tried first. Titles are base64-encoded
+     * by some providers and are decoded when applicable.
      */
     suspend fun shortEpg(
         host: String,
@@ -123,19 +125,6 @@ class XtreamClient @Inject constructor() {
         streamId: String,
         timezone: String
     ): List<IptvProgram> = withContext(Dispatchers.IO) {
-        val body = fetch(host, username, password, action = "get_short_epg", extra = "stream_id=" + Uri.encode(streamId))
-            ?.body ?: return@withContext emptyList()
-        val array = try {
-            org.json.JSONArray(body)
-        } catch (e: Exception) {
-            // Some panels wrap the listing: {"epg_listings": [...]}
-            try {
-                org.json.JSONObject(body).optJSONArray("epg_listings") ?: return@withContext emptyList()
-            } catch (e2: Exception) {
-                Log.w(TAG, "shortEpg($host): no epg_listings array", e2)
-                return@withContext emptyList()
-            }
-        }
         val zone = try {
             java.time.ZoneId.of(timezone)
         } catch (e: Exception) {
@@ -143,16 +132,66 @@ class XtreamClient @Inject constructor() {
             java.time.ZoneId.systemDefault()
         }
         val fmt = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-        val programs = (0 until array.length()).mapNotNull { i ->
+        val tableBody = fetch(
+            host, username, password,
+            action = "get_simple_data_table",
+            extra = "stream_id=" + Uri.encode(streamId)
+        )?.body
+        val table = tableBody?.let { parsePrograms(it, fmt, zone, "$host/table") }.orEmpty()
+        if (table.isNotEmpty()) return@withContext table
+        val epgBody = fetch(
+            host, username, password,
+            action = "get_short_epg",
+            extra = "stream_id=" + Uri.encode(streamId)
+        )?.body
+        val programs = epgBody?.let { parsePrograms(it, fmt, zone, "$host/short_epg") }.orEmpty()
+        Log.d(TAG, "shortEpg($host, stream=$streamId): ${programs.size} programs")
+        programs
+    }
+
+    /**
+     * Parses a guide response into programs. Accepts both a bare JSON array
+     * and the {"epg_listings": [...]} wrapper. Prefers the epoch-second
+     * start_timestamp/stop_timestamp fields, falling back to parsing the
+     * local-time text fields with the provider timezone.
+     */
+    private fun parsePrograms(
+        body: String,
+        fmt: java.time.format.DateTimeFormatter,
+        zone: java.time.ZoneId,
+        source: String
+    ): List<IptvProgram> {
+        val array = try {
+            org.json.JSONArray(body)
+        } catch (e: Exception) {
+            // Some panels wrap the listing: {"epg_listings": [...]}
+            try {
+                org.json.JSONObject(body).optJSONArray("epg_listings") ?: return emptyList()
+            } catch (e2: Exception) {
+                Log.w(TAG, "parsePrograms($source): no epg_listings array", e2)
+                return emptyList()
+            }
+        }
+        return (0 until array.length()).mapNotNull { i ->
             val obj = array.optJSONObject(i) ?: return@mapNotNull null
             val title = decodeTitle(obj.optString("title", ""))
-            val start = parseEpoch(obj.optString("start", ""), fmt, zone)
-            val end = parseEpoch(obj.optString("end", ""), fmt, zone)
+            val start = programEpoch(obj, "start_timestamp", obj.optString("start", ""), fmt, zone)
+            val end = programEpoch(obj, "stop_timestamp", obj.optString("end", ""), fmt, zone)
             if (title.isBlank() || start <= 0L || end <= 0L) return@mapNotNull null
             IptvProgram(title = title, startEpoch = start, endEpoch = end)
         }
-        Log.d(TAG, "shortEpg($host, stream=$streamId): ${programs.size} programs")
-        programs
+    }
+
+    private fun programEpoch(
+        obj: org.json.JSONObject,
+        numericKey: String,
+        local: String,
+        fmt: java.time.format.DateTimeFormatter,
+        zone: java.time.ZoneId
+    ): Long {
+        val seconds = obj.optString(numericKey, "").trim().toLongOrNull()
+        if (seconds != null && seconds > 0L) return seconds * 1000L
+        return parseEpoch(local, fmt, zone)
     }
 
     private fun decodeTitle(raw: String): String {

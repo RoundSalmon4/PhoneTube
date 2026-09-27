@@ -30,8 +30,9 @@ data class XtreamAuthInfo(
 )
 
 /**
- * A program from the short EPG (action=get_short_epg). Timestamps are epoch
- * millis in UTC so they can be matched against the device clock.
+ * A program from the provider guide (get_simple_data_table or get_short_epg).
+ * Timestamps are epoch millis in UTC so they can be matched against the
+ * device clock.
  */
 data class IptvProgram(
     val title: String,
