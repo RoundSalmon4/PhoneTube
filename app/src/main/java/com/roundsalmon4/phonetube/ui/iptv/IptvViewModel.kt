@@ -6,13 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.database.IptvChannelDao
 import com.roundsalmon4.phonetube.core.database.IptvDao
 import com.roundsalmon4.phonetube.core.database.IptvFavoriteDao
-import com.roundsalmon4.phonetube.core.database.PlaylistDao
 import com.roundsalmon4.phonetube.core.database.entity.IptvChannel
 import com.roundsalmon4.phonetube.core.database.entity.IptvFavorite
 import com.roundsalmon4.phonetube.core.database.entity.IptvProvider
-import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.engine.XtreamClient
-import com.roundsalmon4.phonetube.ui.common.PlaylistDialogController
 import com.roundsalmon4.phonetube.core.engine.model.IptvCategory
 import com.roundsalmon4.phonetube.core.engine.model.IptvLiveStream
 import com.roundsalmon4.phonetube.core.engine.model.Video
@@ -30,7 +27,6 @@ class IptvViewModel @Inject constructor(
     private val iptvDao: IptvDao,
     private val iptvFavoriteDao: IptvFavoriteDao,
     private val iptvChannelDao: IptvChannelDao,
-    private val playlistDao: PlaylistDao,
     private val xtreamClient: XtreamClient
 ) : ViewModel() {
 
@@ -39,6 +35,8 @@ class IptvViewModel @Inject constructor(
         // How long a cached channel list is considered fresh before the app
         // checks the provider again in the background.
         private const val CACHE_TTL_MS = 24L * 60 * 60 * 1000
+        // Shown under a channel when the provider has no program to display.
+        private const val NO_EPG_LABEL = "No EPG data found"
     }
 
     private val _providers = MutableStateFlow<List<IptvProvider>>(emptyList())
@@ -81,10 +79,6 @@ class IptvViewModel @Inject constructor(
 
     private val _searchLoading = MutableStateFlow(false)
     val searchLoading: StateFlow<Boolean> = _searchLoading.asStateFlow()
-
-    val playlistDialog = PlaylistDialogController(playlistDao, viewModelScope)
-    val addToPlaylistVideo get() = playlistDialog.video
-    val playlists get() = playlistDialog.playlists
 
     // videoId -> "Title" (or "" when the provider has no EPG for that stream).
     // An entry also acts as a cache so scrolling does not refetch.
@@ -170,11 +164,6 @@ class IptvViewModel @Inject constructor(
         source = null,
         channelHost = null
     )
-
-    fun showAddToPlaylistDialog(video: Video) = playlistDialog.show(video)
-    fun dismissAddToPlaylistDialog() = playlistDialog.dismiss()
-    fun addToPlaylist(playlist: LocalPlaylist) = playlistDialog.addToPlaylist(playlist)
-    fun createPlaylistAndAdd(name: String) = playlistDialog.createAndAdd(name)
 
     fun selectProvider(id: String) {
         Log.d(TAG, "selectProvider: $id")
@@ -350,12 +339,12 @@ class IptvViewModel @Inject constructor(
                         .toLocalTime()
                         .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
                     "${program.title} - until $end"
-                }.orEmpty()
-                Log.d(TAG, "loadNowPlaying(stream=$streamId): ${if (label.isBlank()) "no current program" else label}")
+                } ?: NO_EPG_LABEL
+                Log.d(TAG, "loadNowPlaying(stream=$streamId): $label")
                 _nowPlaying.value = _nowPlaying.value + (videoId to label)
             } catch (e: Exception) {
                 Log.e(TAG, "loadNowPlaying(stream=$streamId) failed", e)
-                _nowPlaying.value = _nowPlaying.value + (videoId to "")
+                _nowPlaying.value = _nowPlaying.value + (videoId to NO_EPG_LABEL)
             } finally {
                 _epgLoading.value = _epgLoading.value - videoId
             }
@@ -470,8 +459,8 @@ class IptvViewModel @Inject constructor(
     }
 
     /**
-     * IPTV channels reuse the Video model so playback, history, playlists and
-     * the queue all work as they do for regular videos. The stored videoId is
+     * IPTV channels reuse the Video model so playback and history work as
+     * they do for regular videos. The stored videoId is
      * already the fully qualified playable id (iptv:<providerKey>:<streamId>).
      */
     private fun IptvLiveStream.toVideo(provider: IptvProvider): Video = Video(

@@ -61,7 +61,6 @@ import coil3.compose.AsyncImage
 import com.roundsalmon4.phonetube.core.database.entity.IptvProvider
 import com.roundsalmon4.phonetube.core.engine.model.IptvCategory
 import com.roundsalmon4.phonetube.core.engine.model.Video
-import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -78,8 +77,6 @@ fun IptvScreen(onVideoClick: (String) -> Unit) {
     val loading by viewModel.loading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val clearingProviderId by viewModel.clearingProviderId.collectAsStateWithLifecycle()
-    val addToPlaylistVideo by viewModel.addToPlaylistVideo.collectAsStateWithLifecycle()
-    val playlists by viewModel.playlists.collectAsStateWithLifecycle()
     val nowPlaying by viewModel.nowPlaying.collectAsStateWithLifecycle()
     val epgLoading by viewModel.epgLoading.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
@@ -178,7 +175,7 @@ fun IptvScreen(onVideoClick: (String) -> Unit) {
                 results = searchResults,
                 loading = searchLoading,
                 onChannelClick = onVideoClick,
-                onChannelLongClick = { viewModel.showAddToPlaylistDialog(it) },
+                onChannelLongClick = {},
                 isFavorite = { it.videoId in favoriteIds },
                 onToggleFavorite = { viewModel.toggleFavorite(it) }
             )
@@ -196,7 +193,7 @@ fun IptvScreen(onVideoClick: (String) -> Unit) {
                 loading = loading,
                 onBack = { viewModel.backToCategories() },
                 onChannelClick = onVideoClick,
-                onChannelLongClick = { viewModel.showAddToPlaylistDialog(it) },
+                onChannelLongClick = {},
                 onNowPlaying = { videoId, streamId -> viewModel.loadNowPlaying(videoId, streamId) },
                 isFavorite = { it.videoId in favoriteIds },
                 onToggleFavorite = { viewModel.toggleFavorite(it) }
@@ -230,16 +227,6 @@ fun IptvScreen(onVideoClick: (String) -> Unit) {
                     Text("Cancel")
                 }
             }
-        )
-    }
-
-    addToPlaylistVideo?.let { video ->
-        AddToPlaylistDialog(
-            videoTitle = video.title,
-            playlists = playlists,
-            onDismiss = { viewModel.dismissAddToPlaylistDialog() },
-            onAddToPlaylist = { playlist -> viewModel.addToPlaylist(playlist) },
-            onCreatePlaylist = { name -> viewModel.createPlaylistAndAdd(name) }
         )
     }
 }
