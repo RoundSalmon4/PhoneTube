@@ -3,7 +3,7 @@ package com.roundsalmon4.phonetube.ui.search
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.roundsalmon4.phonetube.core.database.InvidiousDao
+import com.roundsalmon4.phonetube.core.database.PeerTubeDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
 import com.roundsalmon4.phonetube.core.database.SubscriptionDao
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
@@ -38,7 +38,7 @@ class SearchViewModel @Inject constructor(
     private val playerPreferences: PlayerPreferences,
     private val subscriptionDao: SubscriptionDao,
     private val playlistDao: PlaylistDao,
-    private val invidiousDao: InvidiousDao
+    private val peerTubeDao: PeerTubeDao
 ) : ViewModel() {
 
     companion object {
@@ -325,7 +325,7 @@ class SearchViewModel @Inject constructor(
 
             val peerTubeResults = try {
                 val instances = withContext(Dispatchers.IO) {
-                    invidiousDao.getEnabledSync()
+                    peerTubeDao.getEnabledSync()
                 }
                 Log.d(TAG, "PeerTube search: ${instances.size} enabled instances")
                 if (instances.isNotEmpty()) {

@@ -11,7 +11,7 @@ data class ExportData(
     val preferences: PreferencesExport? = null,
     val playlists: List<LocalPlaylistExport>? = null,
     val subscriptions: List<LocalSubscriptionExport>? = null,
-    val invidiousInstances: List<InvidiousInstanceExport>? = null,
+    val peerTubeInstances: List<PeerTubeInstanceExport>? = null,
     val iptvProviders: List<IptvProviderExport>? = null,
     val iptvFavorites: List<IptvFavoriteExport>? = null,
     val castDevices: List<CastDevice>? = null
@@ -36,7 +36,7 @@ data class PreferencesExport(
     val feedGaming: Boolean = true,
     val feedKids: Boolean = true,
     val feedSubscriptions: Boolean = true,
-    val feedInvidious: Boolean = false,
+    val feedPeerTube: Boolean = false,
     val themeMode: String = "SYSTEM",
     val useAmoledTheme: Boolean = false,
     val primaryColor: Int = 0xFFFF0000.toInt(),
@@ -60,7 +60,7 @@ data class PreferencesExport(
 )
 
 @Serializable
-data class InvidiousInstanceExport(
+data class PeerTubeInstanceExport(
     val host: String,
     val name: String,
     val enabled: Boolean

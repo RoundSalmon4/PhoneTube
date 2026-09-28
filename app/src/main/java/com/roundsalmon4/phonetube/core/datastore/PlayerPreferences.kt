@@ -58,7 +58,7 @@ private object Keys {
     val INCOGNITO_MODE = booleanPreferencesKey("incognito_mode")
     val WARN_MOBILE_PLAYBACK = booleanPreferencesKey("warn_mobile_playback")
     val SAVE_CASTED_DEVICES = booleanPreferencesKey("save_casted_devices")
-    val FEED_INVIDIOUS = booleanPreferencesKey("feed_invidious")
+    val FEED_PEER_TUBE = booleanPreferencesKey("feed_peertube")
 }
 
 data class PreferencesUiState(
@@ -96,7 +96,7 @@ data class PreferencesUiState(
     val duplicatePlaylistWarning: Boolean = true,
     val screenProtection: Boolean = false,
     val incognitoMode: Boolean = false,
-    val feedInvidious: Boolean = false,
+    val feedPeerTube: Boolean = false,
     val warnMobilePlayback: Boolean = true,
     val saveCastedDevices: Boolean = false
 )
@@ -142,7 +142,7 @@ class PlayerPreferences @Inject constructor(
             duplicatePlaylistWarning = prefs[Keys.DUPLICATE_PLAYLIST_WARNING] ?: true,
             screenProtection = prefs[Keys.SCREEN_PROTECTION] ?: false,
             incognitoMode = prefs[Keys.INCOGNITO_MODE] ?: false,
-            feedInvidious = prefs[Keys.FEED_INVIDIOUS] ?: false,
+            feedPeerTube = prefs[Keys.FEED_PEER_TUBE] ?: false,
             warnMobilePlayback = prefs[Keys.WARN_MOBILE_PLAYBACK] ?: true,
             saveCastedDevices = prefs[Keys.SAVE_CASTED_DEVICES] ?: false
         )
@@ -219,7 +219,7 @@ class PlayerPreferences @Inject constructor(
                 "gaming" -> prefs[Keys.FEED_GAMING] = enabled
                 "kids" -> prefs[Keys.FEED_KIDS] = enabled
                 "subscriptions" -> prefs[Keys.FEED_SUBSCRIPTIONS] = enabled
-                "invidious" -> prefs[Keys.FEED_INVIDIOUS] = enabled
+                "peertube" -> prefs[Keys.FEED_PEER_TUBE] = enabled
             }
         }
     }
@@ -321,7 +321,7 @@ class PlayerPreferences @Inject constructor(
         feedGaming: Boolean,
         feedKids: Boolean,
         feedSubscriptions: Boolean,
-        feedInvidious: Boolean,
+        feedPeerTube: Boolean,
         feedOrder: List<String>
     ) {
         context.playerDataStore.edit { prefs ->
@@ -335,7 +335,7 @@ class PlayerPreferences @Inject constructor(
             prefs[Keys.FEED_GAMING] = feedGaming
             prefs[Keys.FEED_KIDS] = feedKids
             prefs[Keys.FEED_SUBSCRIPTIONS] = feedSubscriptions
-            prefs[Keys.FEED_INVIDIOUS] = feedInvidious
+            prefs[Keys.FEED_PEER_TUBE] = feedPeerTube
             prefs[Keys.FEED_ORDER] = serializeFeedOrder(feedOrder)
         }
     }
@@ -361,7 +361,7 @@ class PlayerPreferences @Inject constructor(
 
         val DEFAULT_FEED_ORDER = listOf(
             "home", "what_to_watch", "subscriptions", "trending",
-            "invidious", "sports", "gaming", "live", "news", "music", "kids"
+            "peertube", "sports", "gaming", "live", "news", "music", "kids"
         )
     }
 }

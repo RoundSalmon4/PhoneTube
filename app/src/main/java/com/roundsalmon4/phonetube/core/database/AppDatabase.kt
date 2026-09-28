@@ -6,7 +6,7 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.roundsalmon4.phonetube.core.database.entity.CachedFeedSection
 import com.roundsalmon4.phonetube.core.database.entity.CachedFeedVideo
-import com.roundsalmon4.phonetube.core.database.entity.InvidiousInstance
+import com.roundsalmon4.phonetube.core.database.entity.PeerTubeInstance
 import com.roundsalmon4.phonetube.core.database.entity.IptvChannel
 import com.roundsalmon4.phonetube.core.database.entity.IptvFavorite
 import com.roundsalmon4.phonetube.core.database.entity.IptvProvider
@@ -23,12 +23,12 @@ import com.roundsalmon4.phonetube.core.database.entity.WatchHistoryEntry
         LocalSubscription::class,
         CachedFeedSection::class,
         CachedFeedVideo::class,
-        InvidiousInstance::class,
+        PeerTubeInstance::class,
         IptvProvider::class,
         IptvFavorite::class,
         IptvChannel::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -36,7 +36,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun playlistDao(): PlaylistDao
     abstract fun subscriptionDao(): SubscriptionDao
     abstract fun feedCacheDao(): FeedCacheDao
-    abstract fun invidiousDao(): InvidiousDao
+    abstract fun peerTubeDao(): PeerTubeDao
     abstract fun iptvDao(): IptvDao
     abstract fun iptvFavoriteDao(): IptvFavoriteDao
     abstract fun iptvChannelDao(): IptvChannelDao
@@ -258,6 +258,14 @@ abstract class AppDatabase : RoomDatabase() {
                 """.trimIndent())
                 db.execSQL("DROP TABLE iptv_channels")
                 db.execSQL("ALTER TABLE iptv_channels_new RENAME TO iptv_channels")
+            }
+        }
+
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // peertube_instances used to be stored under the legacy
+                // Invidious-flavored table name.
+                db.execSQL("ALTER TABLE invidious_instances RENAME TO peertube_instances")
             }
         }
     }

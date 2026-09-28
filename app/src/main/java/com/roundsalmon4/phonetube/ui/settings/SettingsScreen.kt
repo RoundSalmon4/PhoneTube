@@ -447,7 +447,7 @@ private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewMod
         "news" to "News",
         "gaming" to "Gaming",
         "kids" to "Kids",
-        "invidious" to "PeerTube"
+        "peertube" to "PeerTube"
     )
 
     val orderedFeeds = feedLabels.keys.toList().let { all ->
@@ -475,7 +475,7 @@ private fun FeedsSection(uiState: PreferencesUiState, viewModel: SettingsViewMod
                 "gaming" -> uiState.feedGaming
                 "kids" -> uiState.feedKids
                 "subscriptions" -> uiState.feedSubscriptions
-                "invidious" -> uiState.feedInvidious
+                "peertube" -> uiState.feedPeerTube
                 else -> true
             }
             val isDragged = index == draggedIndex
@@ -1115,7 +1115,7 @@ private fun DataSection(
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     // PeerTube instance state
-    val instances by viewModel.invidiousInstancesState.collectAsState()
+    val instances by viewModel.peerTubeInstancesState.collectAsState()
     var showAddPeerTubeDialog by remember { mutableStateOf(false) }
     var peerTubeInput by remember { mutableStateOf("") }
 

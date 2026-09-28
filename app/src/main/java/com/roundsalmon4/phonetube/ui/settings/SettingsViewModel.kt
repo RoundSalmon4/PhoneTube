@@ -14,14 +14,14 @@ import com.roundsalmon4.phonetube.core.database.SubscriptionDao
 import com.roundsalmon4.phonetube.core.database.entity.LocalPlaylist
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.datastore.PreferencesUiState
-import com.roundsalmon4.phonetube.core.database.InvidiousDao
+import com.roundsalmon4.phonetube.core.database.PeerTubeDao
 import com.roundsalmon4.phonetube.core.database.IptvDao
 import com.roundsalmon4.phonetube.core.database.IptvFavoriteDao
 import com.roundsalmon4.phonetube.core.cast.CastDevice
 import com.roundsalmon4.phonetube.core.cast.CastDiscoveryState
 import com.roundsalmon4.phonetube.core.cast.CastRepository
 import com.roundsalmon4.phonetube.core.cast.ProbeResult
-import com.roundsalmon4.phonetube.core.database.entity.InvidiousInstance
+import com.roundsalmon4.phonetube.core.database.entity.PeerTubeInstance
 import com.roundsalmon4.phonetube.core.database.entity.IptvFavorite
 import com.roundsalmon4.phonetube.core.database.entity.IptvProvider
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
@@ -45,7 +45,7 @@ class SettingsViewModel @Inject constructor(
     private val playlistDao: PlaylistDao,
     private val subscriptionDao: SubscriptionDao,
     private val engine: YouTubeEngine,
-    private val invidiousDao: InvidiousDao,
+    private val peerTubeDao: PeerTubeDao,
     private val iptvDao: IptvDao,
     private val iptvFavoriteDao: IptvFavoriteDao,
     private val castRepository: CastRepository,
@@ -55,8 +55,8 @@ class SettingsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(PreferencesUiState())
     val uiState: StateFlow<PreferencesUiState> = _uiState.asStateFlow()
 
-    private val invidiousInstances = MutableStateFlow<List<InvidiousInstance>>(emptyList())
-    val invidiousInstancesState: StateFlow<List<InvidiousInstance>> = invidiousInstances.asStateFlow()
+    private val peerTubeInstances = MutableStateFlow<List<PeerTubeInstance>>(emptyList())
+    val peerTubeInstancesState: StateFlow<List<PeerTubeInstance>> = peerTubeInstances.asStateFlow()
 
     companion object {
         private const val TAG = "SettingsVM"
@@ -76,7 +76,7 @@ class SettingsViewModel @Inject constructor(
             playerPreferences.uiState.collect { _uiState.value = it }
         }
         viewModelScope.launch {
-            invidiousDao.getAll().collect { invidiousInstances.value = it }
+            peerTubeDao.getAll().collect { peerTubeInstances.value = it }
         }
     }
 
@@ -86,7 +86,7 @@ class SettingsViewModel @Inject constructor(
         val prefs = playerPreferences.uiState.first()
         val playlists = playlistDao.getAllPlaylists().first()
         val subscriptions = subscriptionDao.getAll().first()
-        val invidiousInstances = invidiousDao.getAll().first()
+        val peerTubeInstances = peerTubeDao.getAll().first()
         val iptvProviders = iptvDao.getAll().first()
         val iptvFavorites = iptvFavoriteDao.getAll().first()
 
@@ -129,7 +129,7 @@ class SettingsViewModel @Inject constructor(
                 duplicatePlaylistWarning = prefs.duplicatePlaylistWarning,
                 screenProtection = prefs.screenProtection,
                 incognitoMode = prefs.incognitoMode,
-                feedInvidious = prefs.feedInvidious,
+                feedPeerTube = prefs.feedPeerTube,
                 warnMobilePlayback = prefs.warnMobilePlayback,
                 saveCastedDevices = prefs.saveCastedDevices,
                 clearVisitorOnExit = clearVisitorOnExit
@@ -160,8 +160,8 @@ class SettingsViewModel @Inject constructor(
                     subscribedAt = sub.subscribedAt
                 )
             },
-            invidiousInstances = invidiousInstances.map { inst ->
-                com.roundsalmon4.phonetube.core.database.InvidiousInstanceExport(
+            peerTubeInstances = peerTubeInstances.map { inst ->
+                com.roundsalmon4.phonetube.core.database.PeerTubeInstanceExport(
                     host = inst.host,
                     name = inst.name,
                     enabled = inst.enabled
@@ -188,7 +188,7 @@ class SettingsViewModel @Inject constructor(
             },
             castDevices = castRepository.devices.value
         )
-        Log.d(TAG, "buildExportJson: exporting ${invidiousInstances.size} peertube instances, ${iptvProviders.size} iptv providers, ${iptvFavorites.size} iptv favorites, ${exportData.castDevices?.size ?: 0} cast devices")
+        Log.d(TAG, "buildExportJson: exporting ${peerTubeInstances.size} peertube instances, ${iptvProviders.size} iptv providers, ${iptvFavorites.size} iptv favorites, ${exportData.castDevices?.size ?: 0} cast devices")
 
         return withContext(Dispatchers.IO) {
             Json { prettyPrint = true }.encodeToString(ExportData.serializer(), exportData)
@@ -227,7 +227,7 @@ class SettingsViewModel @Inject constructor(
                         feedGaming = p.feedGaming,
                         feedKids = p.feedKids,
                         feedSubscriptions = p.feedSubscriptions,
-                        feedInvidious = p.feedInvidious,
+                        feedPeerTube = p.feedPeerTube,
                         feedOrder = p.feedOrder
                     )
                     playerPreferences.setThemeMode(p.themeMode)
@@ -319,11 +319,11 @@ class SettingsViewModel @Inject constructor(
                     Log.d(TAG, "importFromJson: playlists imported=$imported merged=$merged")
                 }
 
-                if (data.invidiousInstances != null) {
-                    Log.d(TAG, "importFromJson: importing ${data.invidiousInstances.size} peertube instances")
-                    for (inst in data.invidiousInstances) {
-                        invidiousDao.insert(
-                            InvidiousInstance(
+                if (data.peerTubeInstances != null) {
+                    Log.d(TAG, "importFromJson: importing ${data.peerTubeInstances.size} peertube instances")
+                    for (inst in data.peerTubeInstances) {
+                        peerTubeDao.insert(
+                            PeerTubeInstance(
                                 host = inst.host,
                                 name = inst.name,
                                 enabled = inst.enabled
@@ -533,7 +533,7 @@ class SettingsViewModel @Inject constructor(
         val normalized = host.trim().removePrefix("https://").removePrefix("http://").trimEnd('/')
         if (normalized.isNotBlank()) {
             Log.d(TAG, "addPeerTubeInstance: adding '$normalized' (name='$name')")
-            invidiousDao.insert(InvidiousInstance(host = normalized, name = name.ifBlank { normalized }))
+            peerTubeDao.insert(PeerTubeInstance(host = normalized, name = name.ifBlank { normalized }))
         } else {
             Log.w(TAG, "addPeerTubeInstance: empty host after normalization (input='$host')")
         }
@@ -583,12 +583,12 @@ class SettingsViewModel @Inject constructor(
 
     fun removePeerTubeInstance(host: String) = viewModelScope.launch {
         Log.d(TAG, "removePeerTubeInstance: removing '$host'")
-        invidiousDao.delete(host)
+        peerTubeDao.delete(host)
     }
 
     fun setPeerTubeEnabled(host: String, enabled: Boolean) = viewModelScope.launch {
         Log.d(TAG, "setPeerTubeEnabled: '$host' -> $enabled")
-        invidiousDao.setEnabled(host, enabled)
+        peerTubeDao.setEnabled(host, enabled)
     }
 
     fun showClearHistoryDialog() { _showClearHistoryDialog.value = true }

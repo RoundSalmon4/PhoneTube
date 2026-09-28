@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.roundsalmon4.phonetube.core.database.FeedCacheDao
 import com.roundsalmon4.phonetube.core.database.HistoryDao
-import com.roundsalmon4.phonetube.core.database.InvidiousDao
+import com.roundsalmon4.phonetube.core.database.PeerTubeDao
 import com.roundsalmon4.phonetube.core.database.PlaylistDao
 import com.roundsalmon4.phonetube.core.database.SubscriptionDao
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
@@ -47,7 +47,7 @@ class HomeViewModel @Inject constructor(
     private val subscriptionDao: SubscriptionDao,
     private val playerPreferences: PlayerPreferences,
     private val historyDao: HistoryDao,
-    private val invidiousDao: InvidiousDao
+    private val peerTubeDao: PeerTubeDao
 ) : ViewModel() {
 
     companion object {
@@ -66,7 +66,7 @@ class HomeViewModel @Inject constructor(
             "Gaming" to "gaming",
             "Kids" to "kids",
             "Subscriptions" to "subscriptions",
-            "PeerTube" to "invidious"
+            "PeerTube" to "peertube"
         )
 
         private fun isFeedEnabled(source: String, prefs: PreferencesUiState): Boolean {
@@ -81,7 +81,7 @@ class HomeViewModel @Inject constructor(
                 "gaming" -> prefs.feedGaming
                 "kids" -> prefs.feedKids
                 "subscriptions" -> prefs.feedSubscriptions
-                "invidious" -> prefs.feedInvidious
+                "peertube" -> prefs.feedPeerTube
                 else -> true
             }
         }
@@ -182,7 +182,7 @@ class HomeViewModel @Inject constructor(
                 if (prefs.feedMusic && shouldRefresh("Music")) newFeeds.add(async { engine.getMusic().firstOrNull() })
                 if (prefs.feedKids && shouldRefresh("Kids")) newFeeds.add(async { engine.getKidsHome().firstOrNull() })
                 if (prefs.feedSubscriptions) newFeeds.add(async { fetchSubscriptionsFeed() })
-                if (prefs.feedInvidious) newFeeds.add(async { fetchPeerTubeFeed() })
+                if (prefs.feedPeerTube) newFeeds.add(async { fetchPeerTubeFeed() })
 
                 val newSections = newFeeds.awaitAll().flatMap { feed ->
                     feed?.sections?.filter { it.videos.isNotEmpty() } ?: emptyList()
@@ -225,7 +225,7 @@ class HomeViewModel @Inject constructor(
             // in Settings. Toggling an instance off must remove its channels
             // from this feed too, not just from the PeerTube home section.
             val enabledHosts = withContext(Dispatchers.IO) {
-                invidiousDao.getEnabledSync().map { it.host }.toSet()
+                peerTubeDao.getEnabledSync().map { it.host }.toSet()
             }
             val peerTubeChannels = subscriptions
                 .filter { it.channelId.startsWith("peertube:") }
@@ -284,7 +284,7 @@ class HomeViewModel @Inject constructor(
     private suspend fun fetchPeerTubeFeed(): com.roundsalmon4.phonetube.core.engine.model.HomeFeed? {
         return try {
             val instances = withContext(Dispatchers.IO) {
-                invidiousDao.getEnabledSync()
+                peerTubeDao.getEnabledSync()
             }
             Log.d(TAG, "fetchPeerTubeFeed: ${instances.size} enabled instances")
             if (instances.isEmpty()) return null
@@ -417,7 +417,7 @@ class HomeViewModel @Inject constructor(
                 val gamingSections = if (prefs.feedGaming) async { engine.getGaming().firstOrNull() } else null
                 val kidsSections = if (prefs.feedKids) async { engine.getKidsHome().firstOrNull() } else null
                 val subscriptionsSection = if (prefs.feedSubscriptions) async { fetchSubscriptionsFeed() } else null
-                val invidiousSection = if (prefs.feedInvidious) async { fetchPeerTubeFeed() } else null
+                val peerTubeSection = if (prefs.feedPeerTube) async { fetchPeerTubeFeed() } else null
 
                 val homeFeed = homeSections?.await()
                 val trendingFeed = trendingSections?.await()
@@ -429,13 +429,13 @@ class HomeViewModel @Inject constructor(
                 val gamingFeed = gamingSections?.await()
                 val kidsFeed = kidsSections?.await()
                 val subscriptionsFeed = subscriptionsSection?.await()
-                val invidiousFeed = invidiousSection?.await()
+                val peerTubeFeed = peerTubeSection?.await()
 
                 val feedSourceMap = mapOf(
                     "home" to homeFeed,
                     "what_to_watch" to whatToWatchFeed,
                     "subscriptions" to subscriptionsFeed,
-                    "invidious" to invidiousFeed,
+                    "peertube" to peerTubeFeed,
                     "trending" to trendingFeed,
                     "music" to musicFeed,
                     "sports" to sportsFeed,
