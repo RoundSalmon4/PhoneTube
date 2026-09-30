@@ -13,6 +13,8 @@ import com.roundsalmon4.phonetube.core.engine.XtreamClient
 import com.roundsalmon4.phonetube.core.engine.model.IptvCategory
 import com.roundsalmon4.phonetube.core.engine.model.IptvLiveStream
 import com.roundsalmon4.phonetube.core.engine.model.Video
+import com.roundsalmon4.phonetube.core.security.CryptoManager
+import com.roundsalmon4.phonetube.core.security.plaintextPassword
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,7 +29,8 @@ class IptvViewModel @Inject constructor(
     private val iptvDao: IptvDao,
     private val iptvFavoriteDao: IptvFavoriteDao,
     private val iptvChannelDao: IptvChannelDao,
-    private val xtreamClient: XtreamClient
+    private val xtreamClient: XtreamClient,
+    private val crypto: CryptoManager
 ) : ViewModel() {
 
     companion object {
@@ -241,7 +244,7 @@ class IptvViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val streams = withContext(Dispatchers.IO) {
-                    xtreamClient.liveStreams(provider.host, provider.username, provider.password, categoryId = null)
+                    xtreamClient.liveStreams(provider.host, provider.username, provider.plaintextPassword(crypto), categoryId = null)
                 }
                 val videos = streams.map { it.toVideo(provider) }
                 Log.d(TAG, "refreshAllChannels(${provider.host}): ${videos.size} total channels")
@@ -329,7 +332,7 @@ class IptvViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val programs = withContext(Dispatchers.IO) {
-                    xtreamClient.shortEpg(provider.host, provider.username, provider.password, streamId, provider.timezone)
+                    xtreamClient.shortEpg(provider.host, provider.username, provider.plaintextPassword(crypto), streamId, provider.timezone)
                 }
                 val now = System.currentTimeMillis()
                 val current = programs.firstOrNull { it.startEpoch <= now && now < it.endEpoch }
@@ -351,50 +354,86 @@ class IptvViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Validates credentials via the player API, then saves the provider.
-     * Returns null on success, otherwise a message explaining the failure.
-     */
-    suspend fun addProvider(host: String, username: String, password: String, name: String): String? {
-        val normalized = host.trim()
-            .removePrefix("https://").removePrefix("http://")
-            .trimEnd('/').trim()
-        if (normalized.isBlank()) return "Please enter a server URL"
-        if (username.isBlank() || password.isBlank()) return "Username and password are required"
+/**
+ * Validates credentials via the player API, then saves the provider when it
+ * resolves to HTTPS or the user explicitly acknowledged plain HTTP. When the
+ * provider is HTTP-only and [acknowledgedHttp] is false, no save happens and
+ * [AddProviderResult.needsHttpConfirmation] is set so the UI can ask first.
+ */
+suspend fun addProvider(
+    host: String,
+    username: String,
+    password: String,
+    name: String,
+    acknowledgedHttp: Boolean = false
+): AddProviderResult {
+    val normalized = host.trim()
+        .removePrefix("https://").removePrefix("http://")
+        .trimEnd('/').trim()
+    if (normalized.isBlank()) return AddProviderResult(error = "Please enter a server URL")
+    if (username.isBlank() || password.isBlank()) return AddProviderResult(error = "Username and password are required")
 
-        val auth = xtreamClient.authenticate(normalized, username, password)
-        if (auth == null) {
-            Log.w(TAG, "addProvider($normalized): authentication request failed")
-            return "Could not connect to the provider"
-        }
-        val valid = auth.auth || auth.status.equals("Active", ignoreCase = true)
-        if (!valid) {
-            Log.w(TAG, "addProvider($normalized): rejected, auth=${auth.auth} status=${auth.status}")
-            return if (auth.status.isNotBlank()) {
+    val auth = xtreamClient.authenticate(normalized, username, password)
+    if (auth == null) {
+        Log.w(TAG, "addProvider($normalized): authentication request failed")
+        return AddProviderResult(error = "Could not connect to the provider")
+    }
+    val valid = auth.auth || auth.status.equals("Active", ignoreCase = true)
+    if (!valid) {
+        Log.w(TAG, "addProvider($normalized): rejected, auth=${auth.auth} status=${auth.status}")
+        return AddProviderResult(
+            error = if (auth.status.isNotBlank()) {
                 "Provider rejected the credentials (status: ${auth.status})"
             } else {
                 "Provider rejected the credentials"
             }
-        }
-        val id = IptvProvider.makeId(normalized, username)
-        val displayName = name.ifBlank { auth.serverName?.takeIf { it.isNotBlank() } ?: normalized }
-        val scheme = auth.scheme?.takeIf { it == "http" || it == "https" } ?: "https"
-        val timezone = auth.timezone.orEmpty()
-        Log.d(TAG, "addProvider: '$normalized' validated OK (auth=${auth.auth}, status=${auth.status}, scheme=$scheme, tz=$timezone)")
-        Log.d(TAG, "addProvider: saving '$displayName' ($normalized) as $id")
-        iptvDao.insert(
-            IptvProvider(
-                id = id,
-                host = normalized,
-                username = username.trim(),
-                password = password,
-                name = displayName,
-                scheme = scheme,
-                timezone = timezone
-            )
         )
-        return null
     }
+    val scheme = auth.scheme?.takeIf { it == "http" || it == "https" } ?: "https"
+    if (scheme == "http" && !acknowledgedHttp) {
+        Log.w(TAG, "addProvider($normalized): HTTP-only provider, awaiting acknowledgment")
+        return AddProviderResult(needsHttpConfirmation = true)
+    }
+    val id = IptvProvider.makeId(normalized, username)
+    val displayName = name.ifBlank { auth.serverName?.takeIf { it.isNotBlank() } ?: normalized }
+    val timezone = auth.timezone.orEmpty()
+    Log.d(TAG, "addProvider: '$normalized' validated OK (auth=${auth.auth}, status=${auth.status}, scheme=$scheme, tz=$timezone)")
+    Log.d(TAG, "addProvider: saving '$displayName' ($normalized) as $id")
+    iptvDao.insert(
+        IptvProvider(
+            id = id,
+            host = normalized,
+            username = username.trim(),
+            password = crypto.encrypt(password),
+            name = displayName,
+            scheme = scheme,
+            timezone = timezone
+        )
+    )
+    return AddProviderResult()
+}
+
+/**
+ * Replaces the saved password of a provider after validating the new
+ * credentials, so a provider imported without its password can be completed.
+ * Returns null on success, otherwise an error message.
+ */
+suspend fun updateProviderPassword(provider: IptvProvider, password: String): String? {
+    if (password.isBlank()) return "Password is required"
+    val auth = xtreamClient.authenticate(provider.host, provider.username, password)
+    if (auth == null) return "Could not connect to the provider"
+    val valid = auth.auth || auth.status.equals("Active", ignoreCase = true)
+    if (!valid) {
+        return if (auth.status.isNotBlank()) {
+            "Provider rejected the credentials (status: ${auth.status})"
+        } else {
+            "Provider rejected the credentials"
+        }
+    }
+    iptvDao.updatePassword(provider.id, crypto.encrypt(password))
+    Log.d(TAG, "updateProviderPassword: updated password for ${provider.id}")
+    return null
+}
 
     fun removeProvider(id: String) {
         Log.d(TAG, "removeProvider: $id")
@@ -425,7 +464,7 @@ class IptvViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val cats = withContext(Dispatchers.IO) {
-                    xtreamClient.liveCategories(provider.host, provider.username, provider.password)
+                    xtreamClient.liveCategories(provider.host, provider.username, provider.plaintextPassword(crypto))
                 }
                 Log.d(TAG, "loadCategories(${provider.host}): ${cats.size} categories")
                 _categories.value = cats
@@ -445,7 +484,7 @@ class IptvViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val streams = withContext(Dispatchers.IO) {
-                    xtreamClient.liveStreams(provider.host, provider.username, provider.password, categoryId)
+                    xtreamClient.liveStreams(provider.host, provider.username, provider.plaintextPassword(crypto), categoryId)
                 }
                 Log.d(TAG, "loadChannels(${provider.host}, cat=$categoryId): ${streams.size} streams")
                 _channels.value = streams.map { it.toVideo(provider) }
@@ -476,3 +515,13 @@ class IptvViewModel @Inject constructor(
         channelHost = null
     )
 }
+
+/**
+ * Outcome of validating a provider before it is saved. When [error] is set
+ * the provider was rejected. When [needsHttpConfirmation] is set the provider
+ * validated but only serves plain HTTP and the user must acknowledge it.
+ */
+data class AddProviderResult(
+    val error: String? = null,
+    val needsHttpConfirmation: Boolean = false
+)

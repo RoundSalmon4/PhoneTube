@@ -37,6 +37,8 @@ import com.roundsalmon4.phonetube.player.PlayerStateManager
 import com.roundsalmon4.phonetube.player.SponsorBlockService
 import com.roundsalmon4.phonetube.player.SubtitleTrackInfo
 import com.roundsalmon4.phonetube.player.service.PlaybackService
+import com.roundsalmon4.phonetube.core.security.CryptoManager
+import com.roundsalmon4.phonetube.core.security.plaintextPassword
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -64,6 +66,7 @@ class PlayerViewModel @Inject constructor(
     private val playlistDao: PlaylistDao,
     private val iptvDao: IptvDao,
     private val xtreamClient: XtreamClient,
+    private val crypto: CryptoManager,
     val playerController: PlayerEngineController,
     private val playerStateManager: PlayerStateManager,
     private val castRepository: CastRepository,
@@ -450,7 +453,7 @@ class PlayerViewModel @Inject constructor(
                     _uiState.value = PlayerUiState.Error("IPTV provider not found. Re-add it from the IPTV tab.")
                     return@launch
                 }
-                val hlsUrl = xtreamClient.liveStreamUrl(provider.scheme, provider.host, provider.username, provider.password, streamId)
+                val hlsUrl = xtreamClient.liveStreamUrl(provider.scheme, provider.host, provider.username, provider.plaintextPassword(crypto), streamId)
                 Log.d(TAG, "loadIptv: stream $streamId via ${provider.scheme}${provider.host}")
                 val info = StreamInfo(
                     title = provider.name,

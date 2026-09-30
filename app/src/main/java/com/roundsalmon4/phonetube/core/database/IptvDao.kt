@@ -18,6 +18,9 @@ interface IptvDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(provider: IptvProvider)
 
+    @Query("UPDATE iptv_providers SET password = :password WHERE id = :id")
+    suspend fun updatePassword(id: String, password: String)
+
     @Query("DELETE FROM iptv_providers WHERE id = :id")
     suspend fun delete(id: String)
 }

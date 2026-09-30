@@ -90,6 +90,7 @@ fun IptvScreen(onVideoClick: (String) -> Unit) {
 
     var providerMenuExpanded by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var showPasswordDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp)
@@ -137,6 +138,23 @@ fun IptvScreen(onVideoClick: (String) -> Unit) {
             }
             IconButton(onClick = { showAddDialog = true }) {
                 Icon(Icons.Default.Add, contentDescription = "Add provider")
+            }
+        }
+
+        if (selectedProvider != null && selectedProvider.password.isEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "This provider has no saved password (restored without credentials).",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = { showPasswordDialog = true }) {
+                    Text("Set password")
+                }
             }
         }
 
@@ -203,9 +221,19 @@ fun IptvScreen(onVideoClick: (String) -> Unit) {
 
     if (showAddDialog) {
         AddProviderDialog(
-            save = viewModel::addProvider,
+            save = { host, username, password, name, ack ->
+                viewModel.addProvider(host, username, password, name, ack)
+            },
             onSaved = { showAddDialog = false },
             onDismiss = { showAddDialog = false }
+        )
+    }
+
+    if (showPasswordDialog && selectedProvider != null) {
+        SetPasswordDialog(
+            provider = selectedProvider,
+            save = viewModel::updateProviderPassword,
+            onDismiss = { showPasswordDialog = false }
         )
     }
 
@@ -549,7 +577,7 @@ private fun IptvChannelRow(
 
 @Composable
 private fun AddProviderDialog(
-    save: suspend (String, String, String, String) -> String?,
+    save: suspend (String, String, String, String, Boolean) -> AddProviderResult,
     onSaved: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -559,19 +587,20 @@ private fun AddProviderDialog(
     var name by remember { mutableStateOf("") }
     var validating by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var httpAck by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    fun submit() {
+    fun submit(acknowledgedHttp: Boolean) {
         if (validating) return
         validating = true
         error = null
         scope.launch {
-            val result = save(host, username, password, name)
+            val result = save(host, username, password, name, acknowledgedHttp)
             validating = false
-            if (result == null) {
-                onSaved()
-            } else {
-                error = result
+            when {
+                result.error != null -> error = result.error
+                result.needsHttpConfirmation -> httpAck = true
+                else -> onSaved()
             }
         }
     }
@@ -608,6 +637,98 @@ private fun AddProviderDialog(
                     onValueChange = { name = it },
                     label = { Text("Display name (optional)") },
                     singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (httpAck) {
+                    Text(
+                        "This provider only supports plain HTTP, so your username and password would be sent without encryption. Save anyway?",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                } else if (error != null) {
+                    Text(
+                        error!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+                if (validating) {
+                    CircularProgressIndicator(modifier = Modifier.padding(top = 8.dp))
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (httpAck) {
+                        httpAck = false
+                        submit(acknowledgedHttp = true)
+                    } else {
+                        submit(acknowledgedHttp = false)
+                    }
+                },
+                enabled = !validating
+            ) {
+                Text(if (httpAck) "Save anyway" else "Save")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = {
+                    if (!validating) {
+                        httpAck = false
+                        onDismiss()
+                    }
+                },
+                enabled = !validating
+            ) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun SetPasswordDialog(
+    provider: IptvProvider,
+    save: suspend (IptvProvider, String) -> String?,
+    onDismiss: () -> Unit
+) {
+    var password by remember { mutableStateOf("") }
+    var validating by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    fun submit() {
+        if (validating) return
+        validating = true
+        error = null
+        scope.launch {
+            val result = save(provider, password)
+            validating = false
+            if (result == null) onDismiss() else error = result
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = { if (!validating) onDismiss() },
+        title = { Text("Set provider password") },
+        text = {
+            Column {
+                Text(
+                    "Enter the password for ${provider.host}. It is stored encrypted and is never included in app exports.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth()
                 )
                 if (error != null) {

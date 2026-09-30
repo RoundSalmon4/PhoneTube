@@ -171,7 +171,6 @@ class SettingsViewModel @Inject constructor(
                 com.roundsalmon4.phonetube.core.database.IptvProviderExport(
                     host = provider.host,
                     username = provider.username,
-                    password = provider.password,
                     name = provider.name,
                     scheme = provider.scheme,
                     timezone = provider.timezone
@@ -340,7 +339,7 @@ class SettingsViewModel @Inject constructor(
                                 id = IptvProvider.makeId(provider.host, provider.username),
                                 host = provider.host,
                                 username = provider.username,
-                                password = provider.password,
+                                password = "",
                                 name = provider.name,
                                 scheme = provider.scheme,
                                 timezone = provider.timezone

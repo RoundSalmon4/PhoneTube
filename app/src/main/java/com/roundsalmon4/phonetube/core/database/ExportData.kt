@@ -70,7 +70,6 @@ data class PeerTubeInstanceExport(
 data class IptvProviderExport(
     val host: String,
     val username: String,
-    val password: String,
     val name: String,
     val scheme: String = "https",
     val timezone: String = ""
