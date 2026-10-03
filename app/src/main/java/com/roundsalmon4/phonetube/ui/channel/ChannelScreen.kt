@@ -31,6 +31,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -49,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
+import com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist
 import com.roundsalmon4.phonetube.core.engine.model.Video
 import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
 import com.roundsalmon4.phonetube.ui.components.VideoCard
@@ -71,6 +73,7 @@ fun ChannelScreen(
     val saveMessage by viewModel.saveMessage.collectAsStateWithLifecycle()
     val savedPlaylistIds by viewModel.savedPlaylistIds.collectAsStateWithLifecycle()
     val pendingSavePlaylist by viewModel.pendingSavePlaylist.collectAsStateWithLifecycle()
+    val playlistsState by viewModel.playlistsState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var longPressedVideo by remember { mutableStateOf<Video?>(null) }
 
@@ -162,35 +165,61 @@ fun ChannelScreen(
                     item {
                         ChannelHeader(name = state.name, avatarUrl = state.avatarUrl, subscriberCount = state.subscriberCount, isSubscribed = isSubscribed, onSubscribeClick = { viewModel.toggleSubscription() })
                     }
-                    // Aggregate all playlists from all sections
-                    val allPlaylists = state.sections.flatMap { it.playlists }
                     items(state.sections.filter { it.videos.isNotEmpty() }, key = { it.title }) { section ->
                         ChannelVideoRow(title = section.title, videos = section.videos, onVideoClick = onVideoClick, onChannelClick = onChannelClick, onVideoLongClick = { longPressedVideo = it })
                     }
-                    if (allPlaylists.isNotEmpty()) {
+                    item {
+                        ChannelPlaylistsHeader(
+                            state = playlistsState,
+                            onFilterChange = viewModel::setPlaylistFilter
+                        )
+                    }
+                    if (playlistsState.isLoading) {
                         item {
-                            Text("Playlists", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.width(12.dp))
+                                Text("Loading playlists", style = MaterialTheme.typography.bodyMedium)
+                            }
                         }
-                        items(allPlaylists, key = { it.playlistId }) { playlist ->
-                            ListItem(
-                                headlineContent = { Text(playlist.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                                supportingContent = { Text(playlist.channelName) },
-                                leadingContent = { AsyncImage(model = playlist.thumbnailUrl, contentDescription = null, modifier = Modifier.size(64.dp, 36.dp).clip(RoundedCornerShape(4.dp)), contentScale = ContentScale.Crop) },
-                                trailingContent = {
-                                    Row {
-                                        if (onPlaylistClick != null) {
-                                            TextButton(onClick = { onPlaylistClick(playlist.playlistId, playlist.title) }) { Text("View") }
-                                        }
-                                        val isSaved = playlist.playlistId.removePrefix("VL") in savedPlaylistIds
-                                        TextButton(onClick = {
-                                            viewModel.onSavePlaylist(playlist)
-                                        }) { Text(if (isSaved) "Saved" else "Save") }
-                                    }
-                                },
-                                modifier = Modifier.clickable {
-                                    if (onPlaylistClick != null) onPlaylistClick(playlist.playlistId, playlist.title)
-                                }
+                    } else if (playlistsState.isEmpty) {
+                        item {
+                            Text(
+                                "This channel has no playlists",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                             )
+                        }
+                    }
+                    items(playlistsState.visibleItems, key = { it.playlistId }) { playlist ->
+                        ChannelPlaylistRow(
+                            playlist = playlist,
+                            isSaved = playlist.playlistId.removePrefix("VL") in savedPlaylistIds,
+                            onView = onPlaylistClick?.let { callback ->
+                                { callback(playlist.playlistId, playlist.title) }
+                            },
+                            onSave = { viewModel.onSavePlaylist(playlist) }
+                        )
+                    }
+                    if (playlistsState.hasMore) {
+                        item {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (playlistsState.isLoadingMore) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                } else {
+                                    OutlinedButton(onClick = viewModel::loadMoreChannelPlaylists) {
+                                        Text("Load more")
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -198,6 +227,61 @@ fun ChannelScreen(
         }
     }
 }
+
+@Composable
+private fun ChannelPlaylistsHeader(
+    state: ChannelPlaylistsUiState,
+    onFilterChange: (String) -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        Text(
+            if (state.hasMore) "Playlists (${state.items.size}+)" else "Playlists (${state.items.size})",
+            style = MaterialTheme.typography.titleMedium
+        )
+        if (state.items.size > PLAYLIST_FILTER_THRESHOLD) {
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = state.filter,
+                onValueChange = onFilterChange,
+                singleLine = true,
+                placeholder = { Text("Filter loaded playlists") },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+private fun ChannelPlaylistRow(
+    playlist: SearchPlaylist,
+    isSaved: Boolean,
+    onView: (() -> Unit)?,
+    onSave: () -> Unit
+) {
+    ListItem(
+        headlineContent = { Text(playlist.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        supportingContent = { Text(playlist.channelName) },
+        leadingContent = {
+            AsyncImage(
+                model = playlist.thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp, 36.dp).clip(RoundedCornerShape(4.dp)),
+                contentScale = ContentScale.Crop
+            )
+        },
+        trailingContent = {
+            Row {
+                if (onView != null) {
+                    TextButton(onClick = onView) { Text("View") }
+                }
+                TextButton(onClick = onSave) { Text(if (isSaved) "Saved" else "Save") }
+            }
+        },
+        modifier = Modifier.clickable(enabled = onView != null) { onView?.invoke() }
+    )
+}
+
+private const val PLAYLIST_FILTER_THRESHOLD = 10
 
 @Composable
 private fun ChannelHeader(name: String, avatarUrl: String?, subscriberCount: String?, isSubscribed: Boolean, onSubscribeClick: () -> Unit) {

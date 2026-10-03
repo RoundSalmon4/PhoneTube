@@ -433,6 +433,60 @@ class YouTubeEngine @Inject constructor(
     }.flowOn(Dispatchers.IO)
 
     /**
+     * Playlists published by a channel, read from its Playlists tab instead of the
+     * preview row that comes back with the channel home browse. Channels can have
+     * thousands of them and the tab is paged, so the next page is fetched by passing
+     * the returned group back into [getMoreChannelPlaylists].
+     */
+    fun getChannelPlaylists(channelId: String): Flow<ChannelPlaylistsResult> = flow {
+        try {
+            val browseId = resolveHandleChannelId(channelId)
+            val groups = contentService.getChannelPlaylistsObserve(browseId).awaitFirstOrDefault(emptyList())
+            val playlists = groups.flatMap { it.mediaItems.orEmpty().filterNotNull() }
+                .mapNotNull { it.toChannelPlaylist() }
+                .distinctBy { it.playlistId }
+            val nextGroup = groups.lastOrNull()?.takeIf { it.nextPageKey != null }
+            Log.d(TAG, "getChannelPlaylists($channelId): ${playlists.size} playlists, hasMore=${nextGroup != null}")
+            emit(ChannelPlaylistsResult(playlists, nextGroup))
+        } catch (e: Exception) {
+            Log.e(TAG, "getChannelPlaylists($channelId) failed", e)
+            emit(ChannelPlaylistsResult(emptyList(), null))
+        }
+    }.flowOn(Dispatchers.IO)
+
+    suspend fun getMoreChannelPlaylists(channelId: String, group: MediaGroup): ChannelPlaylistsResult =
+        withContext(Dispatchers.IO) {
+            try {
+                val next = contentService.continueGroup(group)
+                    ?: return@withContext ChannelPlaylistsResult(emptyList(), null)
+                val playlists = next.mediaItems.orEmpty().filterNotNull()
+                    .mapNotNull { it.toChannelPlaylist() }
+                    .distinctBy { it.playlistId }
+                Log.d(TAG, "getMoreChannelPlaylists($channelId): ${playlists.size} more playlists")
+                ChannelPlaylistsResult(playlists, next.takeIf { it.nextPageKey != null })
+            } catch (e: Exception) {
+                Log.e(TAG, "getMoreChannelPlaylists($channelId) failed", e)
+                ChannelPlaylistsResult(emptyList(), null)
+            }
+        }
+
+    /**
+     * Playlist items reach us as playlist renderers on the Playlists tab but as plain
+     * video-shaped items in a channel home shelf, so key off the playlist id rather
+     * than the item type.
+     */
+    private fun MediaItem.toChannelPlaylist(): SearchPlaylist? {
+        val pid = playlistId ?: channelId?.takeIf { it.startsWith("VL") }?.removePrefix("VL")
+        if (pid.isNullOrBlank()) return null
+        return SearchPlaylist(
+            playlistId = pid,
+            title = title.orEmpty(),
+            channelName = author.orEmpty(),
+            thumbnailUrl = cardImageUrl?.ifBlank { null }
+        )
+    }
+
+    /**
      * The innertube channel browse cannot resolve a bare channel handle (e.g.
      * @privacyguides). Resolve it to the channel's UC... id via the search API
      * first, falling back to the original id when no match is found.
@@ -1028,6 +1082,14 @@ class YouTubeEngine @Inject constructor(
         val channel: ChannelInfo?,
         val sections: List<ChannelSection>
     )
+
+    data class ChannelPlaylistsResult(
+        val playlists: List<SearchPlaylist>,
+        /** Group to continue for the next page, or null when the channel is exhausted. */
+        val nextGroup: MediaGroup?
+    ) {
+        val hasMore: Boolean get() = nextGroup != null
+    }
 
     data class VideoMetadataResult(
         val video: Video,

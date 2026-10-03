@@ -11,9 +11,12 @@ import com.roundsalmon4.phonetube.core.database.entity.LocalSubscription
 import com.roundsalmon4.phonetube.core.database.entity.PlaylistVideo
 import com.roundsalmon4.phonetube.core.datastore.PlayerPreferences
 import com.roundsalmon4.phonetube.core.engine.YouTubeEngine
+import com.roundsalmon4.phonetube.core.engine.YouTubeEngine.ChannelPlaylistsResult
 import com.roundsalmon4.phonetube.core.engine.model.ChannelSection
+import com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist
 import com.roundsalmon4.phonetube.ui.common.PlaylistDialogController
 import com.roundsalmon4.phonetube.core.engine.model.Video
+import com.liskovsoft.mediaserviceinterfaces.data.MediaGroup
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -67,6 +70,12 @@ class ChannelViewModel @Inject constructor(
     private val _pendingSavePlaylist = MutableStateFlow<com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist?>(null)
     val pendingSavePlaylist: StateFlow<com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist?> = _pendingSavePlaylist.asStateFlow()
 
+    private val _playlistsState = MutableStateFlow(ChannelPlaylistsUiState())
+    val playlistsState: StateFlow<ChannelPlaylistsUiState> = _playlistsState.asStateFlow()
+
+    /** Handle for the next playlists page; null once the channel is exhausted. */
+    private var playlistsGroup: MediaGroup? = null
+
     init {
         loadChannel()
         observeSubscription()
@@ -99,11 +108,53 @@ class ChannelViewModel @Inject constructor(
                             subscriberCount = channel?.subscriberCount,
                             sections = sections
                         )
+                        loadChannelPlaylists()
                     }
                 } ?: run {
                     _uiState.value = ChannelUiState.Error("Channel not found")
                 }
         }
+    }
+
+    /**
+     * Playlists are loaded separately from the channel home browse because that browse
+     * only returns the small preview row, which is empty for channels with a lot of them.
+     */
+    private fun loadChannelPlaylists() {
+        if (isPeerTubeChannel) return
+        playlistsGroup = null
+        _playlistsState.value = ChannelPlaylistsUiState(isLoading = true)
+        viewModelScope.launch {
+            val result = engine.getChannelPlaylists(channelId).firstOrNull()
+                ?: ChannelPlaylistsResult(emptyList(), null)
+            playlistsGroup = result.nextGroup
+            _playlistsState.value = ChannelPlaylistsUiState(
+                items = result.playlists,
+                hasMore = result.hasMore,
+                isLoading = false,
+                isEmpty = result.playlists.isEmpty()
+            )
+        }
+    }
+
+    fun loadMoreChannelPlaylists() {
+        val state = _playlistsState.value
+        val group = playlistsGroup
+        if (group == null || state.isLoadingMore || state.isLoading) return
+        _playlistsState.value = state.copy(isLoadingMore = true)
+        viewModelScope.launch {
+            val result = engine.getMoreChannelPlaylists(channelId, group)
+            playlistsGroup = result.nextGroup
+            _playlistsState.value = _playlistsState.value.copy(
+                items = (_playlistsState.value.items + result.playlists).distinctBy { it.playlistId },
+                hasMore = result.hasMore,
+                isLoadingMore = false
+            )
+        }
+    }
+
+    fun setPlaylistFilter(filter: String) {
+        _playlistsState.value = _playlistsState.value.copy(filter = filter)
     }
 
     private fun loadPeerTubeChannel() {
@@ -247,4 +298,24 @@ sealed interface ChannelUiState {
         val subscriberCount: String?,
         val sections: List<ChannelSection>
     ) : ChannelUiState
+}
+
+/**
+ * Channel playlists are paged, so the screen shows what is loaded so far and pulls the
+ * next batch on demand instead of rendering thousands of rows at once.
+ */
+data class ChannelPlaylistsUiState(
+    val items: List<SearchPlaylist> = emptyList(),
+    val hasMore: Boolean = false,
+    val isLoading: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val isEmpty: Boolean = false,
+    val filter: String = ""
+) {
+    val visibleItems: List<SearchPlaylist>
+        get() = if (filter.isBlank()) {
+            items
+        } else {
+            items.filter { it.title.contains(filter, ignoreCase = true) }
+        }
 }
