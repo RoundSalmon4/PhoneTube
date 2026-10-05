@@ -24,11 +24,16 @@ import com.liskovsoft.mediaserviceinterfaces.data.MediaItemMetadata
 import com.liskovsoft.mediaserviceinterfaces.data.SearchOptions
 import com.liskovsoft.youtubeapi.service.YouTubeServiceManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.rx2.await
 import kotlinx.coroutines.rx2.awaitFirstOrDefault
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -47,6 +52,8 @@ class YouTubeEngine @Inject constructor(
         private const val TAG = "YouTubeEngine"
         private const val MAX_SECTION_VIDEOS = 20
         private const val MAX_PLAYLIST_PAGES = 30
+        private const val MAX_CHANNEL_GRID_CONCURRENCY = 4
+        private const val MAX_CHANNEL_GRID_VIDEOS = 6
     }
 
     private val serviceManager: ServiceManager
@@ -851,19 +858,59 @@ class YouTubeEngine @Inject constructor(
     }
 
     /**
-     * Fetches the latest videos from a set of channels via their public RSS feeds.
+     * Latest videos for a set of subscribed channels.
+     *
+     * YouTube's per-channel Atom feed is the cheap path, but YouTube answers it with a
+     * 404 often enough that a channel would quietly drop out of the subscriptions feed
+     * with nothing on screen to explain it. Any channel the Atom feed did not return is
+     * filled in from the innertube channel grid so a refused feed request cannot empty
+     * the section. That fallback costs one browse per failed channel, which the working
+     * path already pays once per channel to enrich the feed items anyway.
      */
-    suspend fun getRssFeedVideos(channelIds: List<String>): List<Video> {
+    suspend fun getSubscriptionVideos(channelIds: List<String>): List<Video> {
+        if (channelIds.isEmpty()) return emptyList()
         return try {
             withContext(Dispatchers.IO) {
-                val group = contentService.getRssFeedObserve(*channelIds.toTypedArray())
+                val feedVideos = contentService.getRssFeedObserve(*channelIds.toTypedArray())
                     .awaitOrNull()
-                group?.mediaItems?.filterNotNull()?.mapNotNull { it.toVideo() } ?: emptyList()
+                    ?.mediaItems?.filterNotNull()?.mapNotNull { it.toVideo() }
+                    ?: emptyList()
+
+                val covered = feedVideos.asSequence().map { it.channelId }.filter { it.isNotBlank() }.toSet()
+                val missing = channelIds.filter { it !in covered }
+                if (missing.isEmpty()) {
+                    feedVideos
+                } else {
+                    Log.w(TAG, "getSubscriptionVideos: no feed data for ${missing.size}/${channelIds.size} channels, using the channel grid for ${missing.joinToString(",")}")
+                    feedVideos + getChannelGridVideos(missing)
+                }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "getRssFeedVideos failed", e)
+            Log.e(TAG, "getSubscriptionVideos failed", e)
             emptyList()
         }
+    }
+
+    /** Newest videos for channels, read from the innertube grid, used when a feed is unavailable. */
+    private suspend fun getChannelGridVideos(channelIds: List<String>): List<Video> = coroutineScope {
+        val gate = Semaphore(MAX_CHANNEL_GRID_CONCURRENCY)
+        channelIds.map { channelId ->
+            async(Dispatchers.IO) {
+                gate.withPermit {
+                    try {
+                        contentService.getChannelObserve(channelId).awaitFirstOrDefault(emptyList())
+                            .flatMap { it.mediaItems.orEmpty().filterNotNull() }
+                            .mapNotNull { it.toVideo() }
+                            .distinctBy { it.videoId }
+                            .sortedByDescending { it.publishedDate }
+                            .take(MAX_CHANNEL_GRID_VIDEOS)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "getChannelGridVideos: $channelId failed: ${e.message?.take(60)}")
+                        emptyList()
+                    }
+                }
+            }
+        }.awaitAll().flatten()
     }
 
     /**

@@ -20,6 +20,8 @@ import com.roundsalmon4.phonetube.core.engine.model.HomeSection
 import com.roundsalmon4.phonetube.ui.common.PlaylistDialogController
 import com.roundsalmon4.phonetube.core.engine.model.Video
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
@@ -101,6 +103,12 @@ class HomeViewModel @Inject constructor(
     private var loadNetworkJob: Job? = null
     private var lastRefreshAt = 0L
     private val cacheMutex = Mutex()
+
+    private val subscriptionsMutex = Mutex()
+
+    /** In-flight subscriptions fetch, shared by every caller of [fetchSubscriptionsFeed]. */
+    @Volatile
+    private var subscriptionsJob: Deferred<com.roundsalmon4.phonetube.core.engine.model.HomeFeed?>? = null
 
     init {
         loadHomeFromCache()
@@ -213,13 +221,32 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Both home load paths rebuild this section, so a single activity create used to
+     * request every channel feed twice for the same result. Callers now share one
+     * in-flight fetch instead, which also means a throttled feed is retried once
+     * rather than twice in a row.
+     */
     private suspend fun fetchSubscriptionsFeed(): com.roundsalmon4.phonetube.core.engine.model.HomeFeed? {
+        val shared = subscriptionsMutex.withLock {
+            subscriptionsJob?.takeIf { it.isActive }
+                ?: viewModelScope.async(start = CoroutineStart.LAZY) { loadSubscriptionsFeed() }
+                    .also { subscriptionsJob = it }
+        }
+        return shared.await()
+    }
+
+    private suspend fun loadSubscriptionsFeed(): com.roundsalmon4.phonetube.core.engine.model.HomeFeed? {
         return try {
             val subscriptions = subscriptionDao.getAll().first()
             if (subscriptions.isEmpty()) return null
 
-            val youtubeChannels = subscriptions.take(10)
+            // Cap the YouTube channels only: applying the limit to the mixed list let a
+            // PeerTube subscription use up a slot and then be filtered out, so
+            // long-standing YouTube subscriptions could be left out entirely.
+            val youtubeChannels = subscriptions
                 .filter { !it.channelId.startsWith("peertube:") }
+                .take(10)
                 .map { it.channelId }
             // Only fetch PeerTube subscriptions whose instance is still enabled
             // in Settings. Toggling an instance off must remove its channels
@@ -238,7 +265,7 @@ class HomeViewModel @Inject constructor(
             }
 
             val youtubeVideos = if (youtubeChannels.isNotEmpty()) {
-                engine.getRssFeedVideos(youtubeChannels)
+                engine.getSubscriptionVideos(youtubeChannels)
             } else {
                 emptyList()
             }

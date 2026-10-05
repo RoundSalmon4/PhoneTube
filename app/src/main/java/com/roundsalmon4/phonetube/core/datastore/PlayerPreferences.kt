@@ -14,6 +14,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -106,7 +107,7 @@ class PlayerPreferences @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
 
-    val uiState: Flow<PreferencesUiState> = context.playerDataStore.data.map { prefs ->
+    val uiState: Flow<PreferencesUiState> = context.playerDataStore.data.onEach { rewriteStaleFeedOrder(it) }.map { prefs ->
         PreferencesUiState(
             playbackSpeed = prefs[Keys.PLAYBACK_SPEED] ?: 1.0f,
             defaultQuality = prefs[Keys.DEFAULT_QUALITY] ?: "AUTO",
@@ -161,16 +162,30 @@ class PlayerPreferences @Inject constructor(
 
     private fun parseFeedOrder(raw: String?): List<String> {
         if (raw.isNullOrBlank()) {
-            Log.d(TAG, "parseFeedOrder: no saved order, using defaults: ${PlayerPreferences.DEFAULT_FEED_ORDER}")
             return PlayerPreferences.DEFAULT_FEED_ORDER
         }
-        val saved = raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        return mergeFeedOrder(raw.split(",").map { it.trim() }.filter { it.isNotBlank() })
+    }
+
+    /** Drops keys that no longer exist (e.g. the pre-PeerTube "invidious") and appends missing ones. */
+    private fun mergeFeedOrder(saved: List<String>): List<String> {
         val allKeys = PlayerPreferences.DEFAULT_FEED_ORDER
-        val merged = saved.filter { it in allKeys } + allKeys.filter { it !in saved }
-        if (saved != merged) {
-            Log.d(TAG, "parseFeedOrder: merged saved order with defaults. saved=$saved, added=${allKeys.filter { it !in saved }}, result=$merged")
-        }
-        return merged
+        return saved.filter { it in allKeys } + allKeys.filter { it !in saved }
+    }
+
+    /**
+     * Rewrites the stored order once when it still carries keys that no longer exist, so
+     * every read does not have to merge them again (this ran on each preferences emission).
+     */
+    private suspend fun rewriteStaleFeedOrder(prefs: Preferences) {
+        val raw = prefs[Keys.FEED_ORDER] ?: return
+        if (raw.isBlank()) return
+        val saved = raw.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        val merged = mergeFeedOrder(saved)
+        if (saved == merged) return
+        val dropped = saved.filter { it !in PlayerPreferences.DEFAULT_FEED_ORDER }
+        Log.d(TAG, "rewriteStaleFeedOrder: rewriting stored feed order, dropping $dropped")
+        context.playerDataStore.edit { it[Keys.FEED_ORDER] = serializeFeedOrder(merged) }
     }
 
     private fun serializeFeedOrder(order: List<String>): String = order.joinToString(",")
