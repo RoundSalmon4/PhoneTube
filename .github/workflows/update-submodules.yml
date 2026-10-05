@@ -53,6 +53,7 @@ jobs:
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/rss/RssService.kt \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeContentService.java \
+            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeSignInService.java \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/data/YouTubeMediaItem.java \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/MediaServiceData.java \
             youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/V2/VideoInfoService.java \
@@ -69,6 +70,8 @@ jobs:
           grep -q "fun getChannelPlaylists" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt || { echo "ERROR: channel playlists browse patch missing"; exit 1; }
           grep -q "continueGroupObserve" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeContentService.java || { echo "ERROR: YouTubeContentService patch missing"; exit 1; }
           grep -q "getChannelPlaylistsObserve" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeContentService.java || { echo "ERROR: channel playlists service patch missing"; exit 1; }
+          # The signed-out case must stay quiet: a null refresh token is normal.
+          grep -q "else if (refreshToken != null)" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeSignInService.java || { echo "ERROR: YouTubeSignInService quiet signed-out patch missing"; exit 1; }
           grep -q 'android:required="false"' youtubeapi/src/main/AndroidManifest.xml || { echo "ERROR: manifest usb.host fix missing"; exit 1; }
           grep -q "setDurationMs" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/data/YouTubeMediaItem.java || { echo "ERROR: YouTubeMediaItem patch missing"; exit 1; }
           grep -q "setDurationMs(first.getDurationMs())" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/rss/RssService.kt || { echo "ERROR: RssService patch missing"; exit 1; }
