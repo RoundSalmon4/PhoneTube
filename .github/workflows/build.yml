@@ -3,9 +3,10 @@ name: Build
 on:
   push:
     branches: [ main ]
+    # The submodules are build inputs, not docs: the app calls into MediaServiceCore's
+    # interfaces and compiles against SharedModules, so a pointer-only bump has to be
+    # built like any other change. Keep this list in step with checks.yml.
     paths-ignore:
-      - 'MediaServiceCore/**'
-      - 'SharedModules/**'
       - '*.md'
       - 'LICENSE'
       - 'logs/**'
