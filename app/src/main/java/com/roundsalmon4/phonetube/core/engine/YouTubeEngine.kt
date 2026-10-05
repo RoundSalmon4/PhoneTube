@@ -54,6 +54,10 @@ class YouTubeEngine @Inject constructor(
         private const val MAX_PLAYLIST_PAGES = 30
         private const val MAX_CHANNEL_GRID_CONCURRENCY = 4
         private const val MAX_CHANNEL_GRID_VIDEOS = 6
+
+        // Reused across calls: building a Json format per request is the documented way
+        // to slow deserialization down.
+        private val streamableJson = Json { ignoreUnknownKeys = true }
     }
 
     private val serviceManager: ServiceManager
@@ -572,34 +576,37 @@ class YouTubeEngine @Inject constructor(
                     val isLive = root.optBoolean("isLive", false)
 
                     var hlsUrl: String? = null
-                    val playlists = root.optJSONArray("streamingPlaylists")
-                    for (i in 0 until (playlists?.length() ?: 0)) {
-                        val pl = playlists.getJSONObject(i)
-                        val url = pl.optString("playlistUrl", "")
-                        if (url.isNotBlank()) {
-                            hlsUrl = url
-                            break
+                    // optJSONObject rather than getJSONObject: a non-object element would
+                    // throw, and the array itself may be absent on older uploads.
+                    root.optJSONArray("streamingPlaylists")?.let { playlists ->
+                        for (i in 0 until playlists.length()) {
+                            val url = playlists.optJSONObject(i)?.optString("playlistUrl", "").orEmpty()
+                            if (url.isNotBlank()) {
+                                hlsUrl = url
+                                break
+                            }
                         }
                     }
 
                     // Fallback: direct file URL(s)
                     val urlFormats = mutableListOf<StreamFormat>()
                     if (hlsUrl == null) {
-                        val files = root.optJSONArray("files")
-                        for (i in 0 until (files?.length() ?: 0)) {
-                            val f = files.getJSONObject(i)
-                            val u = f.optString("fileUrl", "")
-                            if (u.isNotBlank()) {
-                                urlFormats.add(
-                                    StreamFormat(
-                                        url = u,
-                                        mimeType = "video/mp4",
-                                        height = f.optInt("resolution_*", 0).takeIf { it > 0 } ?: 0,
-                                        bitrate = null,
-                                        fps = null,
-                                        qualityLabel = null
+                        root.optJSONArray("files")?.let { files ->
+                            for (i in 0 until files.length()) {
+                                val f = files.optJSONObject(i) ?: continue
+                                val u = f.optString("fileUrl", "")
+                                if (u.isNotBlank()) {
+                                    urlFormats.add(
+                                        StreamFormat(
+                                            url = u,
+                                            mimeType = "video/mp4",
+                                            height = f.optInt("resolution_*", 0).takeIf { it > 0 } ?: 0,
+                                            bitrate = null,
+                                            fps = null,
+                                            qualityLabel = null
+                                        )
                                     )
-                                )
+                                }
                             }
                         }
                     }
@@ -936,7 +943,7 @@ class YouTubeEngine @Inject constructor(
                         return@withContext null
                     }
                     val json = connection.inputStream.bufferedReader().use { it.readText() }
-                    val response = Json { ignoreUnknownKeys = true }
+                    val response = streamableJson
                         .decodeFromString<StreamableVideoResponse>(json)
                     val mp4Url = response.files?.mp4?.url
                     if (response.status == 2 && !mp4Url.isNullOrBlank()) {
