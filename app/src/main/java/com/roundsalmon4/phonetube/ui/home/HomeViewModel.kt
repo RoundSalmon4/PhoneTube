@@ -148,6 +148,23 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
+     * Publishes a section list. Guarding the empty case matters: publishing an empty
+     * Success renders a blank screen, and writing it to the cache wipes every cached
+     * feed, so a re-filter that removes everything (an import that turns feeds off)
+     * becomes the Empty state instead and leaves the cache intact.
+     */
+    private suspend fun publishSections(sections: List<HomeSection>, origin: String) {
+        if (sections.isEmpty()) {
+            Log.d(TAG, "$origin: nothing left after filtering, showing the empty state and keeping the cache")
+            _uiState.value = HomeUiState.Empty
+            return
+        }
+        Log.d(TAG, "$origin: publishing ${sections.map { it.source }}")
+        _uiState.value = HomeUiState.Success(sections)
+        withContext(NonCancellable) { writeToCache(sections) }
+    }
+
+    /**
      * True when the feed toggles or the feed order differ between two snapshots. Both
      * network paths snapshot the preferences before fetching, so an import that lands
      * mid-fetch would otherwise be published away by the stale snapshot.
@@ -223,20 +240,11 @@ class HomeViewModel @Inject constructor(
                 val merged = ordered + leftover
                 Log.d(TAG, "refreshHomeOnly: kept=${enabledSections.map { it.source }} refreshed=${newSections.map { it.source }}")
 
-                if (merged.isNotEmpty()) {
-                    // Same stale-snapshot guard as loadFromNetwork: an import landing
-                    // during the fetch must not be published away.
-                    val currentPrefs = playerPreferences.uiState.first()
-                    if (feedSettingsChanged(prefs, currentPrefs)) {
-                        Log.w(TAG, "refreshHomeOnly: feed settings changed while refreshing, re-filtering the result")
-                    }
-                    val published = applyFeedPrefs(merged, currentPrefs)
-                    Log.d(TAG, "refreshHomeOnly: publishing ${published.map { it.source }}")
-                    _uiState.value = HomeUiState.Success(published)
-                    withContext(NonCancellable) { writeToCache(published) }
-                } else {
-                    _uiState.value = HomeUiState.Empty
+                val currentPrefs = playerPreferences.uiState.first()
+                if (feedSettingsChanged(prefs, currentPrefs)) {
+                    Log.w(TAG, "refreshHomeOnly: feed settings changed while refreshing, re-filtering the result")
                 }
+                publishSections(applyFeedPrefs(merged, currentPrefs), "refreshHomeOnly")
                 lastRefreshAt = System.currentTimeMillis()
             } catch (e: Exception) {
                 Log.e(TAG, "Home refresh failed", e)
@@ -436,15 +444,20 @@ class HomeViewModel @Inject constructor(
                             sectionMap[source]
                         }
                     }
+                    Log.d(TAG, "loadHomeFromCache: ${cachedSections.size} cached, ${sections.size} enabled by settings, showing ${reordered.map { it.source }}")
                     if (reordered.isNotEmpty()) {
                         _uiState.value = HomeUiState.Success(reordered)
                         val oldestFetchedAt = feedCacheDao.getOldestFetchedAt()
                         if (oldestFetchedAt != null && System.currentTimeMillis() - oldestFetchedAt > CACHE_MAX_AGE_MS) {
+                            Log.d(TAG, "loadHomeFromCache: cache is stale, fetching")
                             loadFromNetwork(isRefresh = false)
+                        } else {
+                            Log.d(TAG, "loadHomeFromCache: cache is fresh, not fetching")
                         }
                         return@launch
                     }
                 }
+                Log.d(TAG, "loadHomeFromCache: nothing cached to show, fetching")
                 loadFromNetwork(isRefresh = false)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load cache", e)
@@ -516,10 +529,7 @@ class HomeViewModel @Inject constructor(
                     if (feedSettingsChanged(prefs, currentPrefs)) {
                         Log.w(TAG, "loadFromNetwork: feed settings changed while fetching, re-filtering the result")
                     }
-                    val published = applyFeedPrefs(nonEmpty, currentPrefs)
-                    Log.d(TAG, "loadFromNetwork: publishing ${published.map { it.source }}")
-                    _uiState.value = HomeUiState.Success(published)
-                    withContext(NonCancellable) { writeToCache(published) }
+                    publishSections(applyFeedPrefs(nonEmpty, currentPrefs), "loadFromNetwork")
                 } else {
                     // When the API returns nothing (e.g. no watch history to seed
                     // recommendations yet), populate from local watch history so the

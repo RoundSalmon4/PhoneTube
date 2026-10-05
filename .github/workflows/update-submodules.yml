@@ -68,6 +68,10 @@ jobs:
           grep -q "getChannelPlaylistsObserve" mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java || { echo "ERROR: channel playlists interface patch missing"; exit 1; }
           grep -q "fun getPlaylist" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt || { echo "ERROR: BrowseService2 patch missing"; exit 1; }
           grep -q "fun getChannelPlaylists" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt || { echo "ERROR: channel playlists browse patch missing"; exit 1; }
+          # The playlists tab only answers on the web client; the tv client ignores the params.
+          grep -q "getChannelPlaylistsQuery(AppClient.WEB, channelId)" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt || { echo "ERROR: channel playlists must use the web client"; exit 1; }
+          # Lockups are the item shape the playlists tab returns and must not be untyped.
+          grep -q "getLockupItem()?.getPlaylistId() != null" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt || { echo "ERROR: lockup type mapping missing"; exit 1; }
           grep -q "continueGroupObserve" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeContentService.java || { echo "ERROR: YouTubeContentService patch missing"; exit 1; }
           grep -q "getChannelPlaylistsObserve" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeContentService.java || { echo "ERROR: channel playlists service patch missing"; exit 1; }
           # The signed-out case must stay quiet: a null refresh token is normal.
