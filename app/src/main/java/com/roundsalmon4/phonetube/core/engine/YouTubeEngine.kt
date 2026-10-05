@@ -900,6 +900,10 @@ class YouTubeEngine @Inject constructor(
                     try {
                         contentService.getChannelObserve(channelId).awaitFirstOrDefault(emptyList())
                             .flatMap { it.mediaItems.orEmpty().filterNotNull() }
+                            // The channel browse also carries playlist rows and tab
+                            // entries, which cannot become videos. Drop them here so
+                            // each fallback does not log one line per dropped item.
+                            .filter { !it.videoId.isNullOrBlank() }
                             .mapNotNull { it.toVideo() }
                             .distinctBy { it.videoId }
                             .sortedByDescending { it.publishedDate }

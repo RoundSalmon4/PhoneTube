@@ -203,6 +203,13 @@ class SettingsViewModel @Inject constructor(
 
                 if (data.preferences != null) {
                     val p = data.preferences
+                    Log.d(
+                        TAG,
+                        "importFromJson: importing preferences, feeds=[home=${p.feedHome},what_to_watch=${p.feedWhatToWatch}," +
+                            "trending=${p.feedTrending},music=${p.feedMusic},sports=${p.feedSports},live=${p.feedLive}," +
+                            "news=${p.feedNews},gaming=${p.feedGaming},kids=${p.feedKids}," +
+                            "subscriptions=${p.feedSubscriptions},peertube=${p.feedPeerTube}] order=${p.feedOrder}"
+                    )
                     playerPreferences.setPlaybackSpeed(p.playbackSpeed)
                     playerPreferences.setDefaultQuality(p.defaultQuality)
                     playerPreferences.setResumePlayback(p.resumePlayback)
@@ -253,6 +260,7 @@ class SettingsViewModel @Inject constructor(
                 }
 
                 if (data.subscriptions != null) {
+                    Log.d(TAG, "importFromJson: importing ${data.subscriptions.size} subscriptions")
                     for (sub in data.subscriptions) {
                         subscriptionDao.subscribe(
                             com.roundsalmon4.phonetube.core.database.entity.LocalSubscription(

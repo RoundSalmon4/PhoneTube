@@ -339,6 +339,12 @@ class PlayerPreferences @Inject constructor(
         feedPeerTube: Boolean,
         feedOrder: List<String>
     ) {
+        Log.d(
+            TAG,
+            "batchSetFeedPreferences: feeds=[home=$feedHome,what_to_watch=$feedWhatToWatch,trending=$feedTrending," +
+                "music=$feedMusic,sports=$feedSports,live=$feedLive,news=$feedNews,gaming=$feedGaming," +
+                "kids=$feedKids,subscriptions=$feedSubscriptions,peertube=$feedPeerTube] order=$feedOrder"
+        )
         context.playerDataStore.edit { prefs ->
             prefs[Keys.FEED_HOME] = feedHome
             prefs[Keys.FEED_TRENDING] = feedTrending

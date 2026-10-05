@@ -138,7 +138,23 @@ class HomeViewModel @Inject constructor(
         }
         val orderedSources = ordered.map { it.source }.toSet()
         val leftover = current.filter { it.source !in orderedSources }
-        return (ordered + leftover).filter { isFeedEnabled(it.source, prefs) }
+        val result = (ordered + leftover).filter { isFeedEnabled(it.source, prefs) }
+        val before = current.map { it.source }
+        val after = result.map { it.source }
+        if (before != after) {
+            Log.d(TAG, "applyFeedPrefs: $before -> $after (dropped=${before - after.toSet()})")
+        }
+        return result
+    }
+
+    /**
+     * True when the feed toggles or the feed order differ between two snapshots. Both
+     * network paths snapshot the preferences before fetching, so an import that lands
+     * mid-fetch would otherwise be published away by the stale snapshot.
+     */
+    private fun feedSettingsChanged(before: PreferencesUiState, after: PreferencesUiState): Boolean {
+        if (before.feedOrder != after.feedOrder) return true
+        return SOURCE_TO_FEED_KEY.keys.any { isFeedEnabled(it, before) != isFeedEnabled(it, after) }
     }
 
     fun loadHome() {
@@ -205,10 +221,19 @@ class HomeViewModel @Inject constructor(
                 }
                 val leftover = allSections.filter { it.source !in ordered.map { o -> o.source } }
                 val merged = ordered + leftover
+                Log.d(TAG, "refreshHomeOnly: kept=${enabledSections.map { it.source }} refreshed=${newSections.map { it.source }}")
 
                 if (merged.isNotEmpty()) {
-                    _uiState.value = HomeUiState.Success(merged)
-                    withContext(NonCancellable) { writeToCache(merged) }
+                    // Same stale-snapshot guard as loadFromNetwork: an import landing
+                    // during the fetch must not be published away.
+                    val currentPrefs = playerPreferences.uiState.first()
+                    if (feedSettingsChanged(prefs, currentPrefs)) {
+                        Log.w(TAG, "refreshHomeOnly: feed settings changed while refreshing, re-filtering the result")
+                    }
+                    val published = applyFeedPrefs(merged, currentPrefs)
+                    Log.d(TAG, "refreshHomeOnly: publishing ${published.map { it.source }}")
+                    _uiState.value = HomeUiState.Success(published)
+                    withContext(NonCancellable) { writeToCache(published) }
                 } else {
                     _uiState.value = HomeUiState.Empty
                 }
@@ -483,8 +508,18 @@ class HomeViewModel @Inject constructor(
                 val allSections = orderedFeeds.flatMap { it.sections }
                 val nonEmpty = allSections.filter { it.videos.isNotEmpty() }
                 if (nonEmpty.isNotEmpty()) {
-                    _uiState.value = HomeUiState.Success(nonEmpty)
-                    withContext(NonCancellable) { writeToCache(nonEmpty) }
+                    // Re-read the settings before publishing: an import that changed the
+                    // feed toggles while this fetch was running would otherwise be
+                    // overwritten by the snapshot taken at the start of the load, which
+                    // is what left disabled feeds on screen until the next refresh.
+                    val currentPrefs = playerPreferences.uiState.first()
+                    if (feedSettingsChanged(prefs, currentPrefs)) {
+                        Log.w(TAG, "loadFromNetwork: feed settings changed while fetching, re-filtering the result")
+                    }
+                    val published = applyFeedPrefs(nonEmpty, currentPrefs)
+                    Log.d(TAG, "loadFromNetwork: publishing ${published.map { it.source }}")
+                    _uiState.value = HomeUiState.Success(published)
+                    withContext(NonCancellable) { writeToCache(published) }
                 } else {
                     // When the API returns nothing (e.g. no watch history to seed
                     // recommendations yet), populate from local watch history so the
