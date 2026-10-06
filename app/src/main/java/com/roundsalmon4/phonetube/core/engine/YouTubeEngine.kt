@@ -498,6 +498,30 @@ class YouTubeEngine @Inject constructor(
         }
 
     /**
+     * Playlists a channel matches a query for, read from the channel search tab. Kept
+     * separate from the listings tab on purpose: that tab is paged at around thirty a
+     * load, so a playlist further down is invisible to a filter that only looks at what
+     * has been loaded. Verified against the live API, this returns playlists that the
+     * listings tab has not handed out yet.
+     */
+    suspend fun searchChannelPlaylists(channelId: String, query: String): List<SearchPlaylist> {
+        val term = query.trim()
+        if (channelId.isBlank() || term.isEmpty()) return emptyList()
+        return try {
+            withContext(Dispatchers.IO) {
+                val group = contentService.getChannelSearch(channelId, term)
+                val items = group?.mediaItems.orEmpty().filterNotNull()
+                val found = items.mapNotNull { it.toChannelPlaylist() }.distinctBy { it.playlistId }
+                Log.d(TAG, "searchChannelPlaylists($channelId, '$term'): ${found.size} playlists from ${items.size} items")
+                found
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "searchChannelPlaylists($channelId, '$term') failed", e)
+            emptyList()
+        }
+    }
+
+    /**
      * Playlist items reach us as playlist renderers on the Playlists tab but as plain
      * video-shaped items in a channel home shelf, so key off the playlist id rather
      * than the item type.

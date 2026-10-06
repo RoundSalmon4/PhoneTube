@@ -176,8 +176,27 @@ class ChannelViewModel @Inject constructor(
         }
     }
 
-    fun setPlaylistFilter(filter: String) {
-        _playlistsState.value = _playlistsState.value.copy(filter = filter)
+    /**
+     * Applies the playlist filter. Deliberately not called per keystroke: filtering on
+     * every character re-laid out the list while the keyboard was on screen. It also
+     * asks the channel search for matches, because the listings tab only has the first
+     * page loaded and the playlist being looked for can be well past that.
+     */
+    fun applyPlaylistFilter(query: String) {
+        val term = query.trim()
+        _playlistsState.value = _playlistsState.value.copy(
+            filter = term,
+            searched = emptyList(),
+            isSearching = term.isNotEmpty()
+        )
+        Log.d(TAG, "applyPlaylistFilter: '$term'")
+        if (term.isEmpty()) return
+        viewModelScope.launch {
+            val found = engine.searchChannelPlaylists(channelId, term)
+            _playlistsState.value = _playlistsState.value
+                .copy(searched = found, isSearching = false)
+            Log.d(TAG, "applyPlaylistFilter: '$term' -> ${found.size} from the channel search")
+        }
     }
 
     private fun loadPeerTubeChannel() {
@@ -333,12 +352,18 @@ data class ChannelPlaylistsUiState(
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val isEmpty: Boolean = false,
-    val filter: String = ""
+    val filter: String = "",
+    /** Channel search hits that are not among [items] yet, because the tab is paged. */
+    val searched: List<SearchPlaylist> = emptyList(),
+    val isSearching: Boolean = false
 ) {
     val visibleItems: List<SearchPlaylist>
-        get() = if (filter.isBlank()) {
-            items
-        } else {
-            items.filter { it.title.contains(filter, ignoreCase = true) }
+        get() {
+            val loaded = if (filter.isBlank()) {
+                items
+            } else {
+                items.filter { it.title.contains(filter, ignoreCase = true) }
+            }
+            return (loaded + searched).distinctBy { it.playlistId }
         }
 }

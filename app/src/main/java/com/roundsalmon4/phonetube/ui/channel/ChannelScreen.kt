@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
@@ -45,11 +47,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import com.roundsalmon4.phonetube.core.engine.model.SearchPlaylist
 import com.roundsalmon4.phonetube.core.engine.model.Video
 import com.roundsalmon4.phonetube.ui.components.AddToPlaylistDialog
@@ -171,7 +175,7 @@ fun ChannelScreen(
                     item {
                         ChannelPlaylistsHeader(
                             state = playlistsState,
-                            onFilterChange = viewModel::setPlaylistFilter
+                            onFilterApply = viewModel::applyPlaylistFilter
                         )
                     }
                     if (playlistsState.isLoading) {
@@ -231,8 +235,13 @@ fun ChannelScreen(
 @Composable
 private fun ChannelPlaylistsHeader(
     state: ChannelPlaylistsUiState,
-    onFilterChange: (String) -> Unit
+    onFilterApply: (String) -> Unit
 ) {
+    // Typing only edits this local value. The filter runs on Done so the list is not
+    // re-laid out on every keystroke while the keyboard is on top of it.
+    var draft by remember(state.filter) { mutableStateOf(state.filter) }
+    val keyboard = LocalSoftwareKeyboardController.current
+
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(
             if (state.hasMore) "Playlists (${state.items.size}+)" else "Playlists (${state.items.size})",
@@ -241,13 +250,43 @@ private fun ChannelPlaylistsHeader(
         if (state.items.size > PLAYLIST_FILTER_THRESHOLD) {
             Spacer(Modifier.height(8.dp))
             OutlinedTextField(
-                value = state.filter,
-                onValueChange = onFilterChange,
+                value = draft,
+                onValueChange = { draft = it },
                 singleLine = true,
-                placeholder = { Text("Filter loaded playlists") },
+                placeholder = { Text("Search playlists, press Enter to apply") },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
+                    onFilterApply(draft)
+                    keyboard?.hide()
+                }),
                 modifier = Modifier.fillMaxWidth()
             )
+            when {
+                state.isSearching -> Text(
+                    "Searching the channel",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                state.filter.isNotBlank() -> Text(
+                    filterStatus(state),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
         }
+    }
+}
+
+/**
+ * Says where the matches came from, because the listings tab is paged and a hit from the
+ * channel search is the reason a playlist outside the loaded pages appears at all.
+ */
+private fun filterStatus(state: ChannelPlaylistsUiState): String {
+    val loaded = state.items.count { it.title.contains(state.filter, ignoreCase = true) }
+    val extra = state.searched.size
+    return when {
+        extra > 0 -> "$loaded loaded, $extra more from the channel"
+        else -> "$loaded matching"
     }
 }
 
