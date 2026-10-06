@@ -3,6 +3,7 @@ package com.roundsalmon4.phonetube.core.engine
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import com.liskovsoft.sharedutils.okhttp.OkHttpManager
 import com.liskovsoft.sharedutils.prefs.GlobalPreferences
 import com.liskovsoft.youtubeapi.service.YouTubeServiceManager
 import com.liskovsoft.youtubeapi.service.internal.MediaServiceData
@@ -11,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import okhttp3.logging.HttpLoggingInterceptor
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,7 +31,36 @@ class YouTubeInitializer @Inject constructor(
     fun init() {
         if (initialized) return
         GlobalPreferences.instance(context)
+        reduceHttpLogNoise()
         initialized = true
+    }
+
+    /**
+     * Lowers the core's http log from body to headers.
+     *
+     * The interceptor the core adds prints every response body, and in the last capture
+     * that came to 2248 KB out of a 2259 KB main buffer, so the buffer rolled inside a
+     * minute and a quarter and the app's own lines went with it. The request line, url
+     * and response code stay, which is what a capture actually gets read for.
+     *
+     * Runs after GlobalPreferences.instance() on purpose: building the client is what
+     * reads that setting for the DNS choice, and building it earlier would freeze the
+     * preference at the default because OkHttpManager caches the client after first use.
+     */
+    private fun reduceHttpLogNoise() {
+        try {
+            val client = OkHttpManager.instance().getClient()
+            var changed = false
+            client.interceptors().forEach { interceptor ->
+                if (interceptor is HttpLoggingInterceptor) {
+                    interceptor.setLevel(HttpLoggingInterceptor.Level.HEAD)
+                    changed = true
+                }
+            }
+            Log.d(TAG, "reduceHttpLogNoise: body logging lowered to headers, matched=$changed")
+        } catch (e: Exception) {
+            Log.w(TAG, "reduceHttpLogNoise failed: $e")
+        }
     }
 
     suspend fun warmup() {

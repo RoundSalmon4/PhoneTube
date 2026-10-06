@@ -110,6 +110,9 @@ dependencies {
     implementation(project(":youtubeapi"))
     implementation(project(":mediaserviceinterfaces"))
     implementation(project(":sharedutils"))
+    // Same version SharedModules/constants.gradle already pins, added only so this app
+    // can reach HttpLoggingInterceptor and lower the level it sets to BODY.
+    implementation(libs.okhttp.logging)
 
     // Compose
     implementation(platform(libs.compose.bom))
