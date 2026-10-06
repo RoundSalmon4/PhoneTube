@@ -467,7 +467,10 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun loadFromNetwork(isRefresh: Boolean) {
-        if (loadNetworkJob?.isActive == true && !isRefresh) return
+        // One load at a time, refresh included: refreshAll() used to pass isRefresh=true
+        // and slip past this guard, so a second refresh tap ran a whole parallel set of
+        // feed requests against the first.
+        if (loadNetworkJob?.isActive == true) return
         loadNetworkJob = viewModelScope.launch {
             try {
                 val prefs = playerPreferences.uiState.first()
@@ -515,7 +518,12 @@ class HomeViewModel @Inject constructor(
                 }
 
                 Log.d(TAG, "loadFromNetwork: feedOrder=${prefs.feedOrder}")
-                Log.d(TAG, "loadFromNetwork: fetched feeds=${feedSourceMap.map { "${it.key}=${it.value?.sections?.flatMap { s -> s.videos }?.size ?: 0}v" }}")
+                // Also report which feeds are off: a disabled feed shows as 0v here for the
+                // same reason a failed one does, and that difference matters when reading a log.
+                val enabledKeys = SOURCE_TO_FEED_KEY.entries
+                    .filter { isFeedEnabled(it.key, prefs) }
+                    .map { it.value }
+                Log.d(TAG, "loadFromNetwork: fetched feeds=${feedSourceMap.map { "${it.key}=${it.value?.sections?.flatMap { s -> s.videos }?.size ?: 0}v" }} enabled=$enabledKeys")
                 Log.d(TAG, "loadFromNetwork: ordered sections=${orderedFeeds.flatMap { it.sections }.map { "${it.source}(${it.videos.size}v)" }}")
 
                 val allSections = orderedFeeds.flatMap { it.sections }
