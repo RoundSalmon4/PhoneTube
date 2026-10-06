@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -65,6 +66,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Re-logged at activity start: log captures usually begin here, and PhoneTubeApp
+        // runs before it, so the Application-only line can fall outside the capture.
+        Log.i(TAG, "App build: v${BuildConfig.VERSION_NAME} (code ${BuildConfig.VERSION_CODE}) " +
+            "buildType=${BuildConfig.BUILD_TYPE} commit=${BuildConfig.GIT_HASH}")
         enableEdgeToEdge()
         requestNotificationPermission()
         lifecycleScope.launch {
@@ -200,6 +205,7 @@ class MainActivity : ComponentActivity() {
     }
 
     companion object {
+        private const val TAG = "MainActivity"
         private const val NOTIFICATION_PERMISSION_CODE = 1001
     }
 }

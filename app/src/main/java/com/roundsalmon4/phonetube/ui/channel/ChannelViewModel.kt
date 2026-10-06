@@ -121,9 +121,13 @@ class ChannelViewModel @Inject constructor(
      * only returns the small preview row, which is empty for channels with a lot of them.
      */
     private fun loadChannelPlaylists() {
-        if (isPeerTubeChannel) return
+        if (isPeerTubeChannel) {
+            Log.d(TAG, "loadChannelPlaylists: skipping, $channelId is a PeerTube channel")
+            return
+        }
         playlistsGroup = null
         _playlistsState.value = ChannelPlaylistsUiState(isLoading = true)
+        Log.d(TAG, "loadChannelPlaylists: $channelId requesting first page")
         viewModelScope.launch {
             val result = engine.getChannelPlaylists(channelId).firstOrNull()
                 ?: ChannelPlaylistsResult(emptyList(), null)
@@ -134,21 +138,40 @@ class ChannelViewModel @Inject constructor(
                 isLoading = false,
                 isEmpty = result.playlists.isEmpty()
             )
+            Log.d(
+                TAG,
+                "loadChannelPlaylists: $channelId loaded ${result.playlists.size} playlists " +
+                    "hasMore=${result.hasMore} empty=${result.playlists.isEmpty()} " +
+                    "first=${result.playlists.firstOrNull()?.playlistId ?: "none"}"
+            )
         }
     }
 
     fun loadMoreChannelPlaylists() {
         val state = _playlistsState.value
         val group = playlistsGroup
-        if (group == null || state.isLoadingMore || state.isLoading) return
+        if (group == null || state.isLoadingMore || state.isLoading) {
+            Log.d(
+                TAG,
+                "loadMoreChannelPlaylists: skipped, hasGroup=${group != null} " +
+                    "loadingMore=${state.isLoadingMore} loading=${state.isLoading}"
+            )
+            return
+        }
         _playlistsState.value = state.copy(isLoadingMore = true)
         viewModelScope.launch {
+            val before = state.items.size
             val result = engine.getMoreChannelPlaylists(channelId, group)
             playlistsGroup = result.nextGroup
             _playlistsState.value = _playlistsState.value.copy(
                 items = (_playlistsState.value.items + result.playlists).distinctBy { it.playlistId },
                 hasMore = result.hasMore,
                 isLoadingMore = false
+            )
+            Log.d(
+                TAG,
+                "loadMoreChannelPlaylists: $channelId added ${result.playlists.size} " +
+                    "total=${before} -> ${_playlistsState.value.items.size} hasMore=${result.hasMore}"
             )
         }
     }
