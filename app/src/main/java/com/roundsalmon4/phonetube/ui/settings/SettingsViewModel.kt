@@ -196,6 +196,7 @@ class SettingsViewModel @Inject constructor(
 
     fun importFromJson(json: String) {
         viewModelScope.launch {
+            playerPreferences.setImportInProgress(true)
             try {
                 val data = withContext(Dispatchers.IO) {
                     Json { ignoreUnknownKeys = true }.decodeFromString(ExportData.serializer(), json)
@@ -392,6 +393,10 @@ class SettingsViewModel @Inject constructor(
                 // A user-picked file can be anything; never crash on it. Empty
                 // message hides technical noise while still being informative.
                 _importResult.value = "Import failed: that file isn't a valid PhoneTube backup"
+            } finally {
+                // Always released: a failed import must not leave the home screen
+                // permanently refusing to load feeds.
+                playerPreferences.setImportInProgress(false)
             }
         }
     }

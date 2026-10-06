@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
@@ -127,6 +128,21 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+
+        // An import writes preferences in several steps over a few seconds. Loading feeds
+        // part way through it meant picking up half the imported settings and publishing
+        // that, which is what left the screen on "no videos found" until the user
+        // refreshed by hand. Wait for the import to finish instead, then load once.
+        viewModelScope.launch {
+            playerPreferences.importInProgress
+                .dropWhile { !it }
+                .collect { importing ->
+                    if (!importing) {
+                        Log.d(TAG, "import finished, loading feeds from scratch")
+                        loadFromNetwork(isRefresh = true)
+                    }
+                }
+        }
     }
 
     private fun applyFeedPrefs(current: List<HomeSection>, prefs: PreferencesUiState): List<HomeSection> {
@@ -185,11 +201,21 @@ class HomeViewModel @Inject constructor(
     }
 
     fun refreshHomeOnly() {
+        if (playerPreferences.importInProgress.value) {
+            Log.d(TAG, "refreshHomeOnly: skipped, an import is writing preferences")
+            return
+        }
         if (homeRetryJob?.isActive == true) return
         homeRetryJob = viewModelScope.launch {
             _isRefreshing.value = true
             try {
                 delay(3_000L)
+                // The import can start during the delay above, so re-check before
+                // spending the network round trips on settings about to be replaced.
+                if (playerPreferences.importInProgress.value) {
+                    Log.d(TAG, "refreshHomeOnly: cancelled, an import is writing preferences")
+                    return@launch
+                }
                 val prefs = playerPreferences.uiState.first()
                 val currentSections = when (val s = _uiState.value) {
                     is HomeUiState.Success -> s.sections
@@ -467,6 +493,14 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun loadFromNetwork(isRefresh: Boolean) {
+        // An import is about to replace these settings, so fetching now would only
+        // produce something that gets thrown away. refreshAll() sets the spinner before
+        // calling in, so clear it again or it would spin with nothing running.
+        if (playerPreferences.importInProgress.value) {
+            Log.d(TAG, "loadFromNetwork: skipped, an import is writing preferences")
+            _isRefreshing.value = false
+            return
+        }
         // One load at a time, refresh included: refreshAll() used to pass isRefresh=true
         // and slip past this guard, so a second refresh tap ran a whole parallel set of
         // feed requests against the first.

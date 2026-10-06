@@ -13,6 +13,9 @@ import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import javax.inject.Inject
@@ -147,6 +150,19 @@ class PlayerPreferences @Inject constructor(
             warnMobilePlayback = prefs[Keys.WARN_MOBILE_PLAYBACK] ?: true,
             saveCastedDevices = prefs[Keys.SAVE_CASTED_DEVICES] ?: false
         )
+    }
+
+    /**
+     * True while an import is writing preferences. An import lands as a burst of writes
+     * across several seconds, so the home screen stops fetching meanwhile instead of
+     * racing each write, and refreshes once when the last one is done.
+     */
+    private val _importInProgress = MutableStateFlow(false)
+    val importInProgress: StateFlow<Boolean> = _importInProgress.asStateFlow()
+
+    fun setImportInProgress(value: Boolean) {
+        Log.d(TAG, "setImportInProgress: $value")
+        _importInProgress.value = value
     }
 
     private fun parseCategories(raw: Set<String>?): Map<String, String> {
