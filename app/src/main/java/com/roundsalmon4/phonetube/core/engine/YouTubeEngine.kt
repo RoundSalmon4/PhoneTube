@@ -207,12 +207,22 @@ class YouTubeEngine @Inject constructor(
         }
     }.flowOn(Dispatchers.IO)
 
+    /**
+     * Reports what a first-batch-only fetch actually received. `nextPageKey on N` is the
+     * number to read: N > 0 means the observable had another batch waiting, which is
+     * results we never fetch while the caller collects with awaitFirstOrDefault. N == 0
+     * means the first batch was the whole response and nothing is being dropped.
+     */
+    private fun logFirstBatch(tag: String, groups: List<MediaGroup>) {
+        val items = groups.sumOf { (it.mediaItems?.size ?: 0) }
+        val withNextPageKey = groups.count { !it.nextPageKey.isNullOrEmpty() }
+        Log.d(TAG, "$tag: ${groups.size} groups, $items items, nextPageKey on $withNextPageKey")
+    }
+
     fun search(query: String): Flow<SearchResult> = flow {
         try {
             val groups = contentService.getSearchObserve(query).awaitFirstOrDefault(emptyList())
-
-            val totalItems = groups.sumOf { (it.mediaItems?.size ?: 0) }
-            Log.d(TAG, "search('$query'): ${groups.size} groups, $totalItems total items")
+            logFirstBatch("search('$query')", groups)
 
             if (groups.isNotEmpty()) {
                 val allItems = groups.flatMap { (it.mediaItems ?: emptyList()).filterNotNull() }
@@ -235,11 +245,13 @@ class YouTubeEngine @Inject constructor(
             val channelGroups = try {
                 contentService.getSearchObserve(query, SearchOptions.TYPE_CHANNEL).awaitFirstOrDefault(emptyList())
             } catch (_: Exception) { emptyList() }
+            logFirstBatch("search('$query') channel filter", channelGroups)
             val channelsFromFilter = channelGroups.toSearchChannels()
 
             val playlistGroups = try {
                 contentService.getSearchObserve(query, SearchOptions.TYPE_PLAYLIST).awaitFirstOrDefault(emptyList())
             } catch (_: Exception) { emptyList() }
+            logFirstBatch("search('$query') playlist filter", playlistGroups)
             val playlistsFromFilter = playlistGroups.toSearchPlaylists()
 
             // The dedicated channel search can return odd results for short or
@@ -387,7 +399,11 @@ class YouTubeEngine @Inject constructor(
     fun getChannel(channelId: String): Flow<ChannelResult> = flow {
         try {
             val browseId = resolveHandleChannelId(channelId)
-            val groups = contentService.getChannelObserve(browseId).awaitFirstOrDefault(emptyList())
+            // toList rather than awaitFirstOrDefault: the browse emits batch by batch and
+            // only completes once the core has walked every continuation. Taking the first
+            // emission leaves the later sections out and cancels the request it was waiting
+            // on, which is where the interrupted-request stacks came from.
+            val groups = contentService.getChannelObserve(browseId).toList().await().flatten()
             val firstGroup = groups.firstOrNull()
             Log.d(TAG, "getChannel($channelId): ${groups.size} groups from API (browse=$browseId)")
             val sections = groups.mapNotNull { group ->
@@ -508,6 +524,7 @@ class YouTubeEngine @Inject constructor(
         return try {
             val groups = contentService.getSearchObserve(name, SearchOptions.TYPE_CHANNEL)
                 .awaitFirstOrDefault(emptyList())
+            logFirstBatch("resolveHandle('@$name')", groups)
             val resolved = groups.asSequence()
                 .flatMap { it.mediaItems.orEmpty().asSequence().filterNotNull() }
                 .mapNotNull { it.channelId?.takeIf { id -> id.startsWith("UC") && id.length >= 24 } }
