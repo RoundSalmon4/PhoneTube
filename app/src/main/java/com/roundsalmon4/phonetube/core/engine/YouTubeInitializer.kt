@@ -36,12 +36,13 @@ class YouTubeInitializer @Inject constructor(
     }
 
     /**
-     * Lowers the core's http log from body to headers.
+     * Lowers the core's http log from body to basics.
      *
      * The interceptor the core adds prints every response body, and in the last capture
      * that came to 2248 KB out of a 2259 KB main buffer, so the buffer rolled inside a
      * minute and a quarter and the app's own lines went with it. The request line, url
-     * and response code stay, which is what a capture actually gets read for.
+     * and response code stay, which is what a capture actually gets read for. Basics
+     * rather than headers: headers also print cookies and authorization.
      *
      * Runs after GlobalPreferences.instance() on purpose: building the client is what
      * reads that setting for the DNS choice, and building it earlier would freeze the
@@ -53,11 +54,11 @@ class YouTubeInitializer @Inject constructor(
             var changed = false
             client.interceptors().forEach { interceptor ->
                 if (interceptor is HttpLoggingInterceptor) {
-                    interceptor.setLevel(HttpLoggingInterceptor.Level.HEAD)
+                    interceptor.setLevel(HttpLoggingInterceptor.Level.BASIC)
                     changed = true
                 }
             }
-            Log.d(TAG, "reduceHttpLogNoise: body logging lowered to headers, matched=$changed")
+            Log.d(TAG, "reduceHttpLogNoise: body logging lowered to basics, matched=$changed")
         } catch (e: Exception) {
             Log.w(TAG, "reduceHttpLogNoise failed: $e")
         }
