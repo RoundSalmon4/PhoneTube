@@ -102,6 +102,15 @@ class HomeViewModel @Inject constructor(
 
     private var homeRetryJob: Job? = null
     private var loadNetworkJob: Job? = null
+
+    /**
+     * Set when a reload is wanted but a load is already running, so the running load
+     * starts the next one when it finishes. Dropping the request instead lost the reload
+     * that was meant to follow an import.
+     */
+    @Volatile
+    private var reloadPending = false
+
     private var lastRefreshAt = 0L
     private val cacheMutex = Mutex()
 
@@ -139,7 +148,7 @@ class HomeViewModel @Inject constructor(
                 .collect { importing ->
                     if (!importing) {
                         Log.d(TAG, "import finished, loading feeds from scratch")
-                        loadFromNetwork(isRefresh = true)
+                        requestReload("import finished")
                     }
                 }
         }
@@ -266,12 +275,18 @@ class HomeViewModel @Inject constructor(
                 val merged = ordered + leftover
                 Log.d(TAG, "refreshHomeOnly: kept=${enabledSections.map { it.source }} refreshed=${newSections.map { it.source }}")
 
+                // Same guard as loadFromNetwork: this refresh fetched for the settings it
+                // snapshotted, so publishing against newer ones filtered the result to
+                // nothing and showed the empty state in place of the subscriptions the
+                // import had just turned on.
                 val currentPrefs = playerPreferences.uiState.first()
                 if (feedSettingsChanged(prefs, currentPrefs)) {
-                    Log.w(TAG, "refreshHomeOnly: feed settings changed while refreshing, re-filtering the result")
+                    Log.w(TAG, "refreshHomeOnly: feed settings changed while refreshing, reloading instead of publishing")
+                    requestReload("stale refresh")
+                } else {
+                    publishSections(applyFeedPrefs(merged, currentPrefs), "refreshHomeOnly")
+                    lastRefreshAt = System.currentTimeMillis()
                 }
-                publishSections(applyFeedPrefs(merged, currentPrefs), "refreshHomeOnly")
-                lastRefreshAt = System.currentTimeMillis()
             } catch (e: Exception) {
                 Log.e(TAG, "Home refresh failed", e)
             } finally {
@@ -492,6 +507,23 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Starts a load, or arranges for one as soon as the load in flight finishes.
+     *
+     * Returning silently used to drop the request, and that is how the reload meant to
+     * follow an import went missing: the load it would have waited for had started
+     * before the import and was still fetching.
+     */
+    private fun requestReload(reason: String) {
+        if (loadNetworkJob?.isActive == true) {
+            reloadPending = true
+            Log.d(TAG, "requestReload($reason): a load is running, will run another when it finishes")
+        } else {
+            Log.d(TAG, "requestReload($reason): starting a load")
+            loadFromNetwork(isRefresh = true)
+        }
+    }
+
     private fun loadFromNetwork(isRefresh: Boolean) {
         // An import is about to replace these settings, so fetching now would only
         // produce something that gets thrown away. refreshAll() sets the spinner before
@@ -503,8 +535,12 @@ class HomeViewModel @Inject constructor(
         }
         // One load at a time, refresh included: refreshAll() used to pass isRefresh=true
         // and slip past this guard, so a second refresh tap ran a whole parallel set of
-        // feed requests against the first.
-        if (loadNetworkJob?.isActive == true) return
+        // feed requests against the first. The running load clears the spinner itself,
+        // so there is nothing to reset here.
+        if (loadNetworkJob?.isActive == true) {
+            Log.d(TAG, "loadFromNetwork: skipped, a load is already running")
+            return
+        }
         loadNetworkJob = viewModelScope.launch {
             try {
                 val prefs = playerPreferences.uiState.first()
@@ -560,28 +596,31 @@ class HomeViewModel @Inject constructor(
                 Log.d(TAG, "loadFromNetwork: fetched feeds=${feedSourceMap.map { "${it.key}=${it.value?.sections?.flatMap { s -> s.videos }?.size ?: 0}v" }} enabled=$enabledKeys")
                 Log.d(TAG, "loadFromNetwork: ordered sections=${orderedFeeds.flatMap { it.sections }.map { "${it.source}(${it.videos.size}v)" }}")
 
-                val allSections = orderedFeeds.flatMap { it.sections }
-                val nonEmpty = allSections.filter { it.videos.isNotEmpty() }
-                if (nonEmpty.isNotEmpty()) {
-                    // Re-read the settings before publishing: an import that changed the
-                    // feed toggles while this fetch was running would otherwise be
-                    // overwritten by the snapshot taken at the start of the load, which
-                    // is what left disabled feeds on screen until the next refresh.
-                    val currentPrefs = playerPreferences.uiState.first()
-                    if (feedSettingsChanged(prefs, currentPrefs)) {
-                        Log.w(TAG, "loadFromNetwork: feed settings changed while fetching, re-filtering the result")
-                    }
-                    publishSections(applyFeedPrefs(nonEmpty, currentPrefs), "loadFromNetwork")
+                // Re-read the settings before publishing anything. If they moved while
+                // this load was fetching, the result describes settings that no longer
+                // exist: filtering it drops the feeds that were fetched and keeps ones it
+                // should not, and with only subscriptions enabled by the import that
+                // filtered down to nothing, so the empty state was published instead of
+                // the subscriptions the user had just imported.
+                val currentPrefs = playerPreferences.uiState.first()
+                if (feedSettingsChanged(prefs, currentPrefs)) {
+                    Log.w(TAG, "loadFromNetwork: feed settings changed while fetching, reloading instead of publishing")
+                    reloadPending = true
                 } else {
-                    // When the API returns nothing (e.g. no watch history to seed
-                    // recommendations yet), populate from local watch history so the
-                    // user gets immediate content.
-                    val historyFeed = buildHistoryFallback()
-                    if (historyFeed != null && historyFeed.sections.isNotEmpty()) {
-                        _uiState.value = HomeUiState.Success(historyFeed.sections)
-                        withContext(NonCancellable) { writeToCache(historyFeed.sections) }
-                    } else if (_uiState.value is HomeUiState.Loading) {
-                        _uiState.value = HomeUiState.Empty
+                    val nonEmpty = orderedFeeds.flatMap { it.sections }.filter { it.videos.isNotEmpty() }
+                    if (nonEmpty.isNotEmpty()) {
+                        publishSections(applyFeedPrefs(nonEmpty, currentPrefs), "loadFromNetwork")
+                    } else {
+                        // When the API returns nothing (e.g. no watch history to seed
+                        // recommendations yet), populate from local watch history so the
+                        // user gets immediate content.
+                        val historyFeed = buildHistoryFallback()
+                        if (historyFeed != null && historyFeed.sections.isNotEmpty()) {
+                            _uiState.value = HomeUiState.Success(historyFeed.sections)
+                            withContext(NonCancellable) { writeToCache(historyFeed.sections) }
+                        } else if (_uiState.value is HomeUiState.Loading) {
+                            _uiState.value = HomeUiState.Empty
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -591,6 +630,11 @@ class HomeViewModel @Inject constructor(
                 }
             } finally {
                 _isRefreshing.value = false
+                if (reloadPending) {
+                    reloadPending = false
+                    Log.d(TAG, "loadFromNetwork: running the deferred reload")
+                    loadFromNetwork(isRefresh = true)
+                }
             }
         }
     }
