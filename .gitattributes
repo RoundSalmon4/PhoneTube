@@ -1,0 +1,8 @@
+# The Gradle launcher runs on Linux in CI, so it has to stay LF. Without this a
+# machine that does not have core.autocrlf can commit it as CRLF and every job
+# that runs ./gradlew dies on a bad interpreter.
+gradlew text eol=lf
+
+# Binary assets. Git must never rewrite these.
+*.jar binary
+*.png binary
