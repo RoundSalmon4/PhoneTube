@@ -73,6 +73,9 @@ class ChannelViewModel @Inject constructor(
     private val _playlistsState = MutableStateFlow(ChannelPlaylistsUiState())
     val playlistsState: StateFlow<ChannelPlaylistsUiState> = _playlistsState.asStateFlow()
 
+    private val _videoFilter = MutableStateFlow(ChannelVideoFilterUiState())
+    val videoFilter: StateFlow<ChannelVideoFilterUiState> = _videoFilter.asStateFlow()
+
     /** Handle for the next playlists page; null once the channel is exhausted. */
     private var playlistsGroup: MediaGroup? = null
 
@@ -196,6 +199,23 @@ class ChannelViewModel @Inject constructor(
             _playlistsState.value = _playlistsState.value
                 .copy(searched = found, isSearching = false)
             Log.d(TAG, "applyPlaylistFilter: '$term' -> ${found.size} from the channel search")
+        }
+    }
+
+    /**
+     * Applies the video filter. Same shape as the playlist filter: it runs on Enter rather
+     * than per keystroke, and it asks the channel search as well as the loaded shelves so a
+     * video the channel home has not served yet can still be found.
+     */
+    fun applyVideoFilter(query: String) {
+        val term = query.trim()
+        _videoFilter.value = ChannelVideoFilterUiState(filter = term, isSearching = term.isNotEmpty())
+        Log.d(TAG, "applyVideoFilter: '$term'")
+        if (term.isEmpty()) return
+        viewModelScope.launch {
+            val found = engine.searchChannelVideos(channelId, term)
+            _videoFilter.value = _videoFilter.value.copy(searched = found, isSearching = false)
+            Log.d(TAG, "applyVideoFilter: '$term' -> ${found.size} from the channel search")
         }
     }
 
@@ -367,3 +387,13 @@ data class ChannelPlaylistsUiState(
             return (loaded + searched).distinctBy { it.playlistId }
         }
 }
+
+/**
+ * Video search on a channel page. The loaded shelves are filtered locally so matches show
+ * straight away, and [searched] holds the channel search hits that are not on a shelf yet.
+ */
+data class ChannelVideoFilterUiState(
+    val filter: String = "",
+    val searched: List<Video> = emptyList(),
+    val isSearching: Boolean = false
+)

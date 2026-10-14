@@ -522,6 +522,33 @@ class YouTubeEngine @Inject constructor(
     }
 
     /**
+     * Videos a channel matches a query for, read from the same channel search tab the
+     * playlist filter uses. The channel home only carries the shelves it has already
+     * served, so a video further down the list only turns up once the search is asked.
+     * The response is a mix of videos and playlists; [toVideo] drops the rest.
+     */
+    suspend fun searchChannelVideos(channelId: String, query: String): List<Video> {
+        val term = query.trim()
+        if (channelId.isBlank() || term.isEmpty()) return emptyList()
+        return try {
+            withContext(Dispatchers.IO) {
+                val group = contentService.getChannelSearch(channelId, term)
+                val items = group?.mediaItems.orEmpty().filterNotNull()
+                // Pre-filter by id the way the channel grid does, so the playlist rows in
+                // the response do not each log a line from toVideo.
+                val found = items.filter { !it.videoId.isNullOrBlank() }
+                    .mapNotNull { it.toVideo() }
+                    .distinctBy { it.videoId }
+                Log.d(TAG, "searchChannelVideos($channelId, '$term'): ${found.size} videos from ${items.size} items")
+                found
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "searchChannelVideos($channelId, '$term') failed", e)
+            emptyList()
+        }
+    }
+
+    /**
      * Playlist items reach us as playlist renderers on the Playlists tab but as plain
      * video-shaped items in a channel home shelf, so key off the playlist id rather
      * than the item type.

@@ -78,6 +78,7 @@ fun ChannelScreen(
     val savedPlaylistIds by viewModel.savedPlaylistIds.collectAsStateWithLifecycle()
     val pendingSavePlaylist by viewModel.pendingSavePlaylist.collectAsStateWithLifecycle()
     val playlistsState by viewModel.playlistsState.collectAsStateWithLifecycle()
+    val videoFilter by viewModel.videoFilter.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var longPressedVideo by remember { mutableStateOf<Video?>(null) }
 
@@ -165,12 +166,56 @@ fun ChannelScreen(
                 }
             }
             is ChannelUiState.Success -> {
+                val channelVideos = state.sections.flatMap { it.videos }
+                val filterActive = videoFilter.filter.isNotBlank()
+                val loadedMatches = if (filterActive) {
+                    channelVideos.filter { it.title.contains(videoFilter.filter, ignoreCase = true) }
+                } else {
+                    emptyList()
+                }
+                val results = (loadedMatches + videoFilter.searched).distinctBy { it.videoId }
                 LazyColumn(modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
                     item {
                         ChannelHeader(name = state.name, avatarUrl = state.avatarUrl, subscriberCount = state.subscriberCount, isSubscribed = isSubscribed, onSubscribeClick = { viewModel.toggleSubscription() })
                     }
-                    items(state.sections.filter { it.videos.isNotEmpty() }, key = { it.title }) { section ->
-                        ChannelVideoRow(title = section.title, videos = section.videos, onVideoClick = onVideoClick, onChannelClick = onChannelClick, onVideoLongClick = { longPressedVideo = it })
+                    item {
+                        ChannelVideoFilter(state = videoFilter, total = channelVideos.size, onApply = viewModel::applyVideoFilter)
+                    }
+                    if (filterActive) {
+                        item {
+                            Text(
+                                text = videoFilterStatus(videoFilter, loadedMatches.size),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp)
+                            )
+                        }
+                        if (results.isEmpty() && !videoFilter.isSearching) {
+                            item {
+                                Text(
+                                    text = "No matching videos on this channel",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                                )
+                            }
+                        }
+                        items(results, key = { "result-${it.videoId}" }) { video ->
+                            VideoCard(
+                                video = video,
+                                onClick = { onVideoClick(video.playableId()) },
+                                onChannelClick = { _ ->
+                                    val id = video.channelPlayableId()
+                                    if (id.isNotBlank()) onChannelClick(id)
+                                },
+                                onLongClick = { longPressedVideo = video },
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                            )
+                        }
+                    } else {
+                        items(state.sections.filter { it.videos.isNotEmpty() }, key = { it.title }) { section ->
+                            ChannelVideoRow(title = section.title, videos = section.videos, onVideoClick = onVideoClick, onChannelClick = onChannelClick, onVideoLongClick = { longPressedVideo = it })
+                        }
                     }
                     item {
                         ChannelPlaylistsHeader(
@@ -229,6 +274,51 @@ fun ChannelScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ChannelVideoFilter(
+    state: ChannelVideoFilterUiState,
+    total: Int,
+    onApply: (String) -> Unit
+) {
+    // Shown once there is enough on the page to be worth filtering. It stays on screen while
+    // a filter is set even if the channel is short, or there would be no way to clear it.
+    if (total > VIDEO_FILTER_THRESHOLD || state.filter.isNotBlank()) {
+        // Same as the playlist filter: the draft is local and the filter runs on Done, so the
+        // shelves are not re-laid out on every keystroke.
+        var draft by remember(state.filter) { mutableStateOf(state.filter) }
+        val keyboard = LocalSoftwareKeyboardController.current
+
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+            OutlinedTextField(
+                value = draft,
+                onValueChange = { draft = it },
+                singleLine = true,
+                placeholder = { Text("Search this channel, press Enter to apply") },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
+                    onApply(draft)
+                    keyboard?.hide()
+                }),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+/**
+ * Says where the matches came from. The shelves only carry what the channel home has
+ * served, so a hit that came from the channel search is the reason a video outside the
+ * loaded shelves appears at all.
+ */
+private fun videoFilterStatus(state: ChannelVideoFilterUiState, loadedMatches: Int): String {
+    if (state.isSearching) return "Searching the channel"
+    val extra = state.searched.size
+    return when {
+        extra > 0 -> "$loadedMatches loaded, $extra more from the channel"
+        else -> "$loadedMatches matching"
     }
 }
 
@@ -321,6 +411,7 @@ private fun ChannelPlaylistRow(
 }
 
 private const val PLAYLIST_FILTER_THRESHOLD = 10
+private const val VIDEO_FILTER_THRESHOLD = 10
 
 @Composable
 private fun ChannelHeader(name: String, avatarUrl: String?, subscriberCount: String?, isSubscribed: Boolean, onSubscribeClick: () -> Unit) {
