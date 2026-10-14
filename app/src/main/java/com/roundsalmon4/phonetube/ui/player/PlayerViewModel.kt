@@ -159,9 +159,19 @@ class PlayerViewModel @Inject constructor(
         get() = videoId.startsWith("streamable:") || videoId.startsWith("media:") || videoId.startsWith("peertube:") || videoId.startsWith("iptv:")
 
     init {
+        // The player is a singleton shared by every video, so the volume from whatever
+        // played last would otherwise stay put and a mute would follow you into the next
+        // video while this screen showed it as unmuted. Reopening the video the mini
+        // player is already holding keeps its volume and mute; anything else starts clean.
+        val mini = playerStateManager.miniPlayerState.value
+        if (mini.hasActivePlayback && mini.videoId == videoId) {
+            _volume.value = mini.volume
+            _muted.value = mini.muted
+        }
+        playerController.setVolume(if (_muted.value) 0f else _volume.value)
         playerStateManager.isPlayerScreenVisible = true
         loadStreamInfo()
-        restoreSpeedPreference()
+        restoreSpeed()
         loadLandscapeLockPreference()
         loadOpenLinksInPreference()
         loadScreenProtectionPreference()
@@ -773,18 +783,29 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
-    private fun restoreSpeedPreference() {
+    /**
+     * Picks the speed this video starts at. A speed chosen for this video last time wins
+     * over the settings default, so each video keeps the speed it was watched at. The
+     * default covers everything else, including the videos that never get a history row
+     * (Streamable, direct media, live TV).
+     */
+    private fun restoreSpeed() {
         viewModelScope.launch {
-            val savedSpeed = playerPreferences.uiState.first().playbackSpeed
-            // IPTV is always 1x; the global playback speed preference must not
-            // apply to live streams (and must not race the 1x force in loadIptv).
+            // IPTV is always 1x; the global playback speed preference must not apply to
+            // live streams (and must not race the 1x force in loadIptv).
             if (videoId.startsWith("iptv:")) {
                 sessionSpeed = 1f
                 playerController.setPlaybackSpeed(1f)
-            } else {
-                sessionSpeed = savedSpeed
-                playerController.setPlaybackSpeed(savedSpeed)
+                return@launch
             }
+            val prefs = playerPreferences.uiState.first()
+            // Incognito keeps no history, so it should not read any either.
+            val remembered = if (prefs.incognitoMode) null
+                else historyDao.getById(videoId)?.speed?.takeIf { it > 0f }
+            val speed = remembered ?: prefs.playbackSpeed
+            sessionSpeed = speed
+            playerController.setPlaybackSpeed(speed)
+            Log.d(TAG, "restoreSpeed: ${speed}x (${if (remembered != null) "remembered" else "default"})")
         }
     }
 
@@ -801,6 +822,7 @@ class PlayerViewModel @Inject constructor(
         _muted.value = next
         Log.d(TAG, "toggleMute: ${if (next) "muted" else "unmuted"}")
         playerController.setVolume(if (next) 0f else _volume.value)
+        playerStateManager.updateVolume(_volume.value, next)
     }
 
     fun setVolume(value: Float) {
@@ -809,6 +831,7 @@ class PlayerViewModel @Inject constructor(
         _muted.value = v <= 0f
         Log.d(TAG, "setVolume: $v")
         playerController.setVolume(v)
+        playerStateManager.updateVolume(v, _muted.value)
     }
 
     private fun loadPipEnabledPreference() {
@@ -899,10 +922,6 @@ class PlayerViewModel @Inject constructor(
 
                 // Don't resume if video was finished (within 5 seconds of end)
                 if (entry.positionMs > 0 && entry.positionMs < durationMs - 5000) {
-                    // Restore the speed this video was watched at
-                    if (entry.speed > 0f && entry.speed != prefs.playbackSpeed) {
-                        playerController.setPlaybackSpeed(entry.speed)
-                    }
                     // Wait for player to be ready before seeking
                     delay(1000)
                     Log.d(TAG, "Resuming from ${entry.positionMs}ms")
@@ -970,6 +989,12 @@ class PlayerViewModel @Inject constructor(
     // The user's chosen playback speed for this session, kept independent of
     // the local player's transient state so cast handoffs always mirror it.
     private var sessionSpeed: Float = 1.0f
+
+    /**
+     * Speed this session runs at. Cast handoffs mirror this rather than the player's own
+     * value, which reads 1.0 for a freshly prepared paused player.
+     */
+    val sessionPlaybackSpeed: Float get() = sessionSpeed
 
     fun markCurrentVideoCasted() {
         castRepository.lastCastVideoId = videoId

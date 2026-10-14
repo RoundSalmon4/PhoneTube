@@ -19,7 +19,9 @@ data class MiniPlayerState(
     val isPlaying: Boolean = false,
     val currentPosition: Long = 0L,
     val duration: Long = 0L,
-    val bufferedPosition: Long = 0L
+    val bufferedPosition: Long = 0L,
+    val volume: Float = 1f,
+    val muted: Boolean = false
 ) {
     val hasActivePlayback: Boolean get() = videoId.isNotEmpty()
 }
@@ -47,11 +49,20 @@ class PlayerStateManager @Inject constructor(
         title: String,
         thumbnailUrl: String
     ) {
+        // Volume lives on the player, not the video, so read it back here: this is the
+        // point the mini player starts describing this video, and the two have to match.
+        val volume = playerController.exoPlayer.volume
         _miniPlayerState.value = _miniPlayerState.value.copy(
             videoId = videoId,
             title = title,
-            thumbnailUrl = thumbnailUrl
+            thumbnailUrl = thumbnailUrl,
+            volume = volume,
+            muted = volume <= 0f
         )
+    }
+
+    fun updateVolume(volume: Float, muted: Boolean) {
+        _miniPlayerState.value = _miniPlayerState.value.copy(volume = volume, muted = muted)
     }
 
     fun updatePlaybackState(isPlaying: Boolean, currentPosition: Long, duration: Long, bufferedPosition: Long = 0L) {

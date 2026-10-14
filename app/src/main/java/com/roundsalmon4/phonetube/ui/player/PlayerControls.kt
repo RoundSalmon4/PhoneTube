@@ -260,7 +260,7 @@ fun PlayerControls(
                                 .padding(end = 6.dp)
                         )
                         Slider(
-                            value = volume,
+                            value = if (muted) 0f else volume,
                             onValueChange = onVolumeChange,
                             modifier = Modifier.width(128.dp),
                             colors = SliderDefaults.colors(

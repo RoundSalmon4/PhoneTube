@@ -584,7 +584,7 @@ PlayerControls(
                             positionMs = playbackState.currentPosition,
                             subtitles = info.subtitles.takeIf { it.isNotEmpty() }?.toCastSubtitles(),
                             quality = viewModel.defaultQualityHeight(),
-                            speed = viewModel.playerController.exoPlayer.playbackParameters.speed,
+                            speed = viewModel.sessionPlaybackSpeed,
                             activeSubtitleIndex = viewModel.activeCastSubtitleIndex(info.subtitles)
                         )
                     }

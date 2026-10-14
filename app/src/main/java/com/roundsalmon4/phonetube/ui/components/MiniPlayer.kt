@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
 import androidx.compose.material.icons.filled.Forward30
+import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -79,6 +80,16 @@ fun MiniPlayer(
                         .weight(1f)
                         .padding(horizontal = 8.dp)
                 )
+
+            if (state.muted) {
+                Icon(
+                    imageVector = Icons.Default.VolumeOff,
+                    contentDescription = "Muted",
+                    modifier = Modifier
+                        .size(20.dp)
+                        .padding(horizontal = 4.dp)
+                )
+            }
 
             IconButton(onClick = onRewind, modifier = Modifier.size(36.dp)) {
                 Icon(
