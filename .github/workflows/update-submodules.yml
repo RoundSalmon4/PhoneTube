@@ -122,7 +122,11 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.PAT }}
-          commit-message: 'chore: update submodules from upstream [skip ci]'
+          # No skip directive here on purpose. A submodule pointer is a build input, so
+          # the bump has to be built, and a skip directive in this message would travel
+          # into the merge commit and suppress the build on main. Same reasoning as the
+          # paths-ignore note in build.yml and checks.yml.
+          commit-message: 'chore: update submodules from upstream'
           branch: auto/update-submodules
           title: 'chore: update SharedModules from upstream'
           body: |
