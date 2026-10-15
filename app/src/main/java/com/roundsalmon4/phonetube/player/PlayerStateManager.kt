@@ -49,15 +49,14 @@ class PlayerStateManager @Inject constructor(
         title: String,
         thumbnailUrl: String
     ) {
-        // Volume lives on the player, not the video, so read it back here: this is the
-        // point the mini player starts describing this video, and the two have to match.
-        val volume = playerController.exoPlayer.volume
+        // Volume and mute are left alone here on purpose. They belong to the video the
+        // player screen set them from, and reading them back off the shared player stored
+        // whatever the previous video had left behind, which is how the mini player ended
+        // up describing the wrong state. The player screen pushes them with updateVolume.
         _miniPlayerState.value = _miniPlayerState.value.copy(
             videoId = videoId,
             title = title,
-            thumbnailUrl = thumbnailUrl,
-            volume = volume,
-            muted = volume <= 0f
+            thumbnailUrl = thumbnailUrl
         )
     }
 

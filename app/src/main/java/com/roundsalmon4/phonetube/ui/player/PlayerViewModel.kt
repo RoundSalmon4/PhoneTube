@@ -163,12 +163,19 @@ class PlayerViewModel @Inject constructor(
         // played last would otherwise stay put and a mute would follow you into the next
         // video while this screen showed it as unmuted. Reopening the video the mini
         // player is already holding keeps its volume and mute; anything else starts clean.
+        //
+        // The value is deliberately not pushed to the player here. This screen can open
+        // while the previous video is still playing, and pushing at that moment un-muted
+        // the video that was still running. beginPlayback applies it once this video is
+        // the one about to play.
         val mini = playerStateManager.miniPlayerState.value
-        if (mini.hasActivePlayback && mini.videoId == videoId) {
+        val continuingSameVideo = mini.hasActivePlayback && mini.videoId == videoId
+        if (continuingSameVideo) {
             _volume.value = mini.volume
             _muted.value = mini.muted
         }
-        playerController.setVolume(if (_muted.value) 0f else _volume.value)
+        Log.d(TAG, "init: volume=${_volume.value} muted=${_muted.value} continuing=$continuingSameVideo " +
+            "mini=${mini.videoId.take(11)}/${mini.volume}/${mini.muted}")
         playerStateManager.isPlayerScreenVisible = true
         loadStreamInfo()
         restoreSpeed()
@@ -681,6 +688,9 @@ class PlayerViewModel @Inject constructor(
             "dash=${info.dashManifestUrl != null}, hls=${info.hlsManifestUrl != null}, " +
             "urlFormats=${info.urlFormats.size}, isLive=$isLive")
 
+        // This video is now the one about to play, so it is safe to give it its volume.
+        applyVolume()
+
         // While a cast session is active (or connecting), new videos hand off to the
         // TV instead of playing locally, so the phone works purely as a remote.
         val castState = castRepository.connectionState.value
@@ -832,6 +842,19 @@ class PlayerViewModel @Inject constructor(
         Log.d(TAG, "setVolume: $v")
         playerController.setVolume(v)
         playerStateManager.updateVolume(v, _muted.value)
+    }
+
+    /**
+     * Hands this video's volume and mute to the shared player, and to the mini player so
+     * it can carry them into the next open. Called when a video is actually about to play
+     * rather than when its screen is built: the player is shared with the previous video,
+     * and pushing the volume at build time un-muted whatever was still playing.
+     */
+    private fun applyVolume() {
+        val target = if (_muted.value) 0f else _volume.value
+        playerController.setVolume(target)
+        playerStateManager.updateVolume(_volume.value, _muted.value)
+        Log.d(TAG, "applyVolume: target=$target muted=${_muted.value} player=${playerController.exoPlayer.volume}")
     }
 
     private fun loadPipEnabledPreference() {
