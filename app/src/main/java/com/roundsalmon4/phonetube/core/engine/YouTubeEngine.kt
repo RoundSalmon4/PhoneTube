@@ -973,7 +973,11 @@ class YouTubeEngine @Inject constructor(
             async(Dispatchers.IO) {
                 gate.withPermit {
                     try {
-                        contentService.getChannelObserve(channelId).awaitFirstOrDefault(emptyList())
+                        // toList rather than awaitFirstOrDefault: the browse emits batch by
+                        // batch, and taking the first emission cancels the continuation it
+                        // was waiting on, which is where the interrupted-request stacks came
+                        // from. getChannel was already changed for the same reason.
+                        contentService.getChannelObserve(channelId).toList().await().flatten()
                             .flatMap { it.mediaItems.orEmpty().filterNotNull() }
                             // The channel browse also carries playlist rows and tab
                             // entries, which cannot become videos. Drop them here so
