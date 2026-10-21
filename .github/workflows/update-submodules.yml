@@ -24,44 +24,23 @@ jobs:
           git config user.email "209016228+RoundSalmon4@users.noreply.github.com"
           git remote add upstream https://github.com/yuliskov/MediaServiceCore.git || true
           git fetch upstream master
+          git fetch origin phonetube-patch
           git fetch origin phonetube-patches
-          git fetch origin patches
-          LOCAL=$(git rev-parse origin/phonetube-patches)
-          REMOTE=$(git rev-parse upstream/master)
-          if [ "$LOCAL" = "$REMOTE" ]; then
-            echo "MediaServiceCore phonetube-patches is up to date with upstream"
-            exit 0
+          # Our changes live on phonetube-patch as commits sitting on top of an upstream
+          # master, so they get replayed onto whatever upstream is at today. The old setup
+          # started from a frozen known-good upstream commit and copied whole pinned files
+          # back out of a snapshot of our own fork, which threw away upstream's fixes to
+          # those files and left the core pinned at that commit for good: the step compared
+          # upstream master to our fork, they were never equal, and the rebuilt tree it
+          # produced was identical to what was already there.
+          git checkout -B auto/update-mediaservicecore upstream/master
+          if ! git cherry-pick upstream/master..origin/phonetube-patch; then
+            git cherry-pick --abort || true
+            echo "ERROR: the PhoneTube patch no longer applies on top of upstream master."
+            echo "Resolve it in the MediaServiceCore fork, rebase phonetube-patch onto"
+            echo "upstream/master, push the branch, then re-run this workflow."
+            exit 1
           fi
-          echo "MediaServiceCore upstream has new commits: $LOCAL -> $REMOTE"
-          # KNOWN-GOOD upstream base: 9df453a0 is the last upstream tip that
-          # compiles standalone. Later commits (59795dfe, 8b4a884b) reference
-          # generated constants that do not exist in the repo, so syncing to the
-          # head would push a broken core. Bump KNOWN_GOOD_CORE_REF only after
-          # a CI debug build has verified a newer upstream commit compiles.
-          KNOWN_GOOD_CORE_REF=9df453a0b13d593452b4817d778645916b978236
-          # start from the known-good upstream base
-          git checkout -b auto/update-mediaservicecore $KNOWN_GOOD_CORE_REF
-          # copy our patched files from the `patches` branch
-          # To add/remove pinned files: edit the list below, then update the
-          # patches branch by rebuilding phonetube-patches and pushing:
-          #   git push origin phonetube-patches:patches
-          git checkout FETCH_HEAD -- \
-            LICENSE \
-            mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java \
-            youtubeapi/src/main/AndroidManifest.xml \
-            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseApiHelper.kt \
-            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/browse/v2/BrowseService2.kt \
-            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/rss/RssService.kt \
-            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeContentService.java \
-            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeSignInService.java \
-            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/data/YouTubeMediaItem.java \
-            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/MediaServiceData.java \
-            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/V2/VideoInfoService.java \
-            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/models/VideoInfo.java \
-            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeMediaItemService.java \
-            youtubeapi/src/main/java/com/liskovsoft/youtubeapi/app/nsigsolver/common/InfoExtractor.kt
-          # also copy CommonHelper.kt
-          curl -sL "https://raw.githubusercontent.com/RoundSalmon4/MediaServiceCore/patches/youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt" -o youtubeapi/src/main/java/com/liskovsoft/youtubeapi/common/models/gen/CommonHelper.kt
           # verify every patch made it into the working tree
           grep -q "2025-present RoundSalmon4" LICENSE || { echo "ERROR: MIT LICENSE missing"; exit 1; }
           grep -q "getPlaylist" mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java || { echo "ERROR: ContentService patch missing"; exit 1; }
@@ -79,20 +58,43 @@ jobs:
           grep -q 'android:required="false"' youtubeapi/src/main/AndroidManifest.xml || { echo "ERROR: manifest usb.host fix missing"; exit 1; }
           grep -q "setDurationMs" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/data/YouTubeMediaItem.java || { echo "ERROR: YouTubeMediaItem patch missing"; exit 1; }
           grep -q "setDurationMs(first.getDurationMs())" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/rss/RssService.kt || { echo "ERROR: RssService patch missing"; exit 1; }
-          grep -q "formatInfo == null || formatInfo.isUnplayable()" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/YouTubeMediaItemService.java || { echo "ERROR: innertube fallback patch missing"; exit 1; }
+          # Extended HLS is the one format flag we change, and it is turned on in two
+          # places, so both are checked.
+          grep -q "setFormatEnabled(FORMATS_ADAPTIVE | FORMATS_EXTENDED_HLS, true)" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/MediaServiceData.java || { echo "ERROR: extended HLS default patch missing"; exit 1; }
+          grep -q "setFormatEnabled(FORMATS_EXTENDED_HLS, true)" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/MediaServiceData.java || { echo "ERROR: extended HLS upgrade patch missing"; exit 1; }
+          # The fallback moved into FormatInfoWrapper when upstream pulled format
+          # selection out of YouTubeMediaItemService, so the check follows it.
+          grep -q "formatInfo == null || formatInfo.isUnplayable()" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/FormatInfoWrapper.kt || { echo "ERROR: innertube fallback patch missing"; exit 1; }
           grep -q '"User-Agent", USER_AGENT_BROWSER' youtubeapi/src/main/java/com/liskovsoft/youtubeapi/app/nsigsolver/common/InfoExtractor.kt || { echo "ERROR: browser User-Agent patch missing"; exit 1; }
+          # The client order is the main reason we patch this file at all, and a hand
+          # merge can quietly take upstream's list instead, so check one of our entries.
+          grep -q 'AppClient.WEB_EMBED, // Restricted (18+) videos, requires PoToken' youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/V2/VideoInfoService.java || { echo "ERROR: video client order patch missing"; exit 1; }
           grep -q "switchNextFormat(boolean force)" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/V2/VideoInfoService.java || { echo "ERROR: switchNextFormat signature patch missing"; exit 1; }
-          # Skip the rebuild when the result is content-identical to the current branch,
-          # so an unchanged upstream doesn't generate a new commit SHA and a no-op PR.
-          if git diff --quiet origin/phonetube-patches -- LICENSE mediaserviceinterfaces youtubeapi; then
-            echo "Rebuilt state matches phonetube-patches; no update needed"
-            git checkout -f origin/phonetube-patches
+          # Deliberately not upstream's check. Upstream only counts a video broken
+          # when it is live and full HD; ours goes with the extended HLS default we
+          # turn on, so it has to stay or the two fall out of step. It is easy to
+          # lose this one when the file gets merged by hand, hence the check.
+          grep -q 'getHlsManifestUrl() == null && getAdaptiveFormats() != null && !getAdaptiveFormats().isEmpty()' youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/models/VideoInfo.java || { echo "ERROR: extended HLS check patch missing"; exit 1; }
+          # Skip the rebuild when it is content-identical to the core that main already
+          # points at, so an unchanged upstream does not generate a new commit SHA and a
+          # no-op PR. It has to compare against main's pointer and not against
+          # phonetube-patches: the branch is pushed before the PR merges, so if a core PR
+          # is ever closed without merging, comparing against the branch would report no
+          # change and the job would go quiet until upstream happened to move again.
+          # Compared across the whole tree, less the nested SharedModules pointer,
+          # because PhoneTube builds against the root SharedModules.
+          LOCKED=$(git -C .. rev-parse HEAD:MediaServiceCore)
+          if git diff --quiet "$LOCKED" -- . ':(exclude)SharedModules'; then
+            echo "Rebuilt state matches the core main points at ($LOCKED); no update needed"
+            git checkout -f "$LOCKED"
           else
+            echo "Core differs from what main points at: $LOCKED -> rebuilt"
             git add -A
             git commit -m "chore: sync phonetube-patches with upstream + apply patches" || echo "no changes to commit"
-            # push to phonetube-patches AND update the patches branch to stay current
+            # The rebuilt core lands on phonetube-patches, and the pointer change rides
+            # into the PR below. Nothing reaches main until that PR passes CI, which is
+            # the only place the core actually gets compiled.
             git push origin auto/update-mediaservicecore:phonetube-patches --force
-            git push origin HEAD:patches --force
           fi
 
       - name: Update SharedModules
@@ -111,13 +113,51 @@ jobs:
       - name: Check for submodule changes
         id: changes
         run: |
-          if git diff --quiet HEAD; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
+          CHANGED=$(git diff --name-only HEAD | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+          echo "changed submodules: $CHANGED"
+          if [ -z "$CHANGED" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+
+          CORE=false
+          SHARED=false
+          case "$CHANGED" in *MediaServiceCore*) CORE=true ;; esac
+          case "$CHANGED" in *SharedModules*) SHARED=true ;; esac
+
+          # Both pointers can move in the same run, and only the core one does most
+          # weeks, so the title follows whatever actually changed instead of always
+          # claiming SharedModules.
+          if [ "$CORE" = "true" ] && [ "$SHARED" = "true" ]; then
+            echo "title=chore: update MediaServiceCore and SharedModules from upstream" >> "$GITHUB_OUTPUT"
+          elif [ "$CORE" = "true" ]; then
+            echo "title=chore: update MediaServiceCore from upstream" >> "$GITHUB_OUTPUT"
+          elif [ "$SHARED" = "true" ]; then
+            echo "title=chore: update SharedModules from upstream" >> "$GITHUB_OUTPUT"
           else
-            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "title=chore: update submodules from upstream" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create Pull Request for SharedModules only
+          {
+            echo "body<<PAYLOAD"
+            echo "Automated submodule update from upstream repositories."
+            echo
+            echo "**Changed:** \`$CHANGED\`"
+            echo
+            if [ "$CORE" = "true" ]; then
+              echo "**MediaServiceCore:** [yuliskov/MediaServiceCore](https://github.com/yuliskov/MediaServiceCore)"
+            fi
+            if [ "$SHARED" = "true" ]; then
+              echo "**SharedModules:** [yuliskov/SharedModules](https://github.com/yuliskov/SharedModules)"
+            fi
+            echo
+            echo "The core pointer only moves once this PR merges, so the checks here are"
+            echo "the thing that decides whether it is safe to take."
+            echo "PAYLOAD"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create Pull Request
         if: steps.changes.outputs.has_changes == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
@@ -128,11 +168,8 @@ jobs:
           # paths-ignore note in build.yml and checks.yml.
           commit-message: 'chore: update submodules from upstream'
           branch: auto/update-submodules
-          title: 'chore: update SharedModules from upstream'
-          body: |
-            Automated submodule update from upstream repositories.
-
-            **SharedModules:** [yuliskov/SharedModules](https://github.com/yuliskov/SharedModules)
+          title: ${{ steps.changes.outputs.title }}
+          body: ${{ steps.changes.outputs.body }}
           labels: automated
           delete-branch: true
 
