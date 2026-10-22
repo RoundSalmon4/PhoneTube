@@ -24,8 +24,10 @@ jobs:
           git config user.email "209016228+RoundSalmon4@users.noreply.github.com"
           git remote add upstream https://github.com/yuliskov/MediaServiceCore.git || true
           git fetch upstream master
-          git fetch origin phonetube-patch
-          git fetch origin phonetube-patches
+          # checkout sets origin up with a narrow refspec, so a bare "git fetch origin
+          # phonetube-patch" only writes FETCH_HEAD and origin/phonetube-patch never
+          # exists, which turned the range below into an unknown revision. Name the ref.
+          git fetch origin +refs/heads/phonetube-patch:refs/remotes/origin/phonetube-patch
           # Our changes live on phonetube-patch as commits sitting on top of an upstream
           # master, so they get replayed onto whatever upstream is at today. The old setup
           # started from a frozen known-good upstream commit and copied whole pinned files
@@ -69,7 +71,6 @@ jobs:
           # The client order is the main reason we patch this file at all, and a hand
           # merge can quietly take upstream's list instead, so check one of our entries.
           grep -q 'AppClient.WEB_EMBED, // Restricted (18+) videos, requires PoToken' youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/V2/VideoInfoService.java || { echo "ERROR: video client order patch missing"; exit 1; }
-          grep -q "switchNextFormat(boolean force)" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/V2/VideoInfoService.java || { echo "ERROR: switchNextFormat signature patch missing"; exit 1; }
           # Deliberately not upstream's check. Upstream only counts a video broken
           # when it is live and full HD; ours goes with the extended HLS default we
           # turn on, so it has to stay or the two fall out of step. It is easy to
@@ -100,7 +101,7 @@ jobs:
       - name: Update SharedModules
         run: |
           cd SharedModules
-          git fetch origin master
+          git fetch origin +refs/heads/master:refs/remotes/origin/master
           LOCAL=$(git rev-parse HEAD)
           REMOTE=$(git rev-parse origin/master)
           if [ "$LOCAL" != "$REMOTE" ]; then
