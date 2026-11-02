@@ -23,18 +23,9 @@ jobs:
           git config user.name "roundsalmon4"
           git config user.email "209016228+RoundSalmon4@users.noreply.github.com"
           git remote add upstream https://github.com/yuliskov/MediaServiceCore.git || true
+          git remote add origin https://github.com/RoundSalmon4/MediaServiceCore.git || true
           git fetch upstream master
-          # checkout sets origin up with a narrow refspec, so a bare "git fetch origin
-          # phonetube-patch" only writes FETCH_HEAD and origin/phonetube-patch never
-          # exists, which turned the range below into an unknown revision. Name the ref.
-          git fetch origin +refs/heads/phonetube-patch:refs/remotes/origin/phonetube-patch
-          # Our changes live on phonetube-patch as commits sitting on top of an upstream
-          # master, so they get replayed onto whatever upstream is at today. The old setup
-          # started from a frozen known-good upstream commit and copied whole pinned files
-          # back out of a snapshot of our own fork, which threw away upstream's fixes to
-          # those files and left the core pinned at that commit for good: the step compared
-          # upstream master to our fork, they were never equal, and the rebuilt tree it
-          # produced was identical to what was already there.
+          git fetch origin phonetube-patch
           git checkout -B auto/update-mediaservicecore upstream/master
           if ! git cherry-pick upstream/master..origin/phonetube-patch; then
             git cherry-pick --abort || true
