@@ -25,7 +25,7 @@ jobs:
           git remote add upstream https://github.com/yuliskov/MediaServiceCore.git || true
           git remote add origin https://github.com/RoundSalmon4/MediaServiceCore.git || true
           git fetch upstream master
-          git fetch origin phonetube-patch
+          git fetch origin +refs/heads/phonetube-patch:refs/remotes/origin/phonetube-patch
           git checkout -B auto/update-mediaservicecore upstream/master
           if ! git cherry-pick upstream/master..origin/phonetube-patch; then
             git cherry-pick --abort || true
