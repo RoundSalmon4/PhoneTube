@@ -24,6 +24,12 @@ jobs:
           git config user.email "209016228+RoundSalmon4@users.noreply.github.com"
           git remote add upstream https://github.com/yuliskov/MediaServiceCore.git || true
           git remote add origin https://github.com/RoundSalmon4/MediaServiceCore.git || true
+          # actions/checkout clones the submodule with --depth=1, which leaves .git/shallow
+          # in place. A shallow repo cannot compute the merge-base for the cherry-pick
+          # range below, so git reports every touched file as an add/add conflict and the
+          # rebuild fails even though the patch applies cleanly in a full clone. Unshallow
+          # the submodule so history is complete before the fetch and cherry-pick.
+          git fetch --unshallow origin
           git fetch upstream master
           git fetch origin +refs/heads/phonetube-patch:refs/remotes/origin/phonetube-patch
           git checkout -B auto/update-mediaservicecore upstream/master
