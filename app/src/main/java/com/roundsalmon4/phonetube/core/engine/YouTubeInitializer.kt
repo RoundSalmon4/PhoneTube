@@ -78,7 +78,7 @@ class YouTubeInitializer @Inject constructor(
                         MediaServiceData.instance().visitorCookie = null
                     }
                     Log.d(TAG, "warmup: fetching visitor data and player info")
-                    YouTubeServiceManager.instance().refreshCacheIfNeeded()
+                    YouTubeServiceManager.instance().warmUpCacheIfNeeded()
                     Log.d(TAG, "warmup: visitor data refreshed")
                     YouTubeServiceManager.instance().contentService.enableHistory(true)
                     Log.d(TAG, "warmup: watch history enabled")
