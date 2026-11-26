@@ -91,9 +91,10 @@ jobs:
           # selection out of YouTubeMediaItemService, so the check follows it.
           grep -q "formatInfo == null || formatInfo.isUnplayable()" youtubeapi/src/main/java/com/liskovsoft/youtubeapi/service/internal/FormatInfoWrapper.kt || { echo "ERROR: innertube fallback patch missing"; exit 1; }
           grep -q '"User-Agent", USER_AGENT_BROWSER' youtubeapi/src/main/java/com/liskovsoft/youtubeapi/app/nsigsolver/common/InfoExtractor.kt || { echo "ERROR: browser User-Agent patch missing"; exit 1; }
-          # The client order is the main reason we patch this file at all, and a hand
-          # merge can quietly take upstream's list instead, so check one of our entries.
-          grep -q 'AppClient.WEB_EMBED, // Restricted (18+) videos, requires PoToken' youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/V2/VideoInfoService.java || { echo "ERROR: video client order patch missing"; exit 1; }
+          # The client order is the main reason we used to patch this file at all. Upstream
+          # has since moved WEB_EMBED into a named constant for the restricted (18+) case,
+          # which is the behavior we wanted, so the check just guards that it survives.
+          grep -q 'WEB_CLIENT = AppClient.WEB_EMBED' youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/V2/VideoInfoService.java || { echo "ERROR: video client order patch missing"; exit 1; }
           # Deliberately not upstream's check. Upstream only counts a video broken
           # when it is live and full HD; ours goes with the extended HLS default we
           # turn on, so it has to stay or the two fall out of step. It is easy to
