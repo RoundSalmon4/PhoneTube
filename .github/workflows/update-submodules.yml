@@ -8,6 +8,7 @@ on:
 jobs:
   update-submodules:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -17,29 +18,54 @@ jobs:
           token: ${{ secrets.PAT }}
           persist-credentials: true
 
-      - name: Update MediaServiceCore
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Sync the fork source onto the newest upstream (auto-rebase)
+        id: core
         run: |
+          set -euo pipefail
           cd MediaServiceCore
           git config user.name "roundsalmon4"
           git config user.email "209016228+RoundSalmon4@users.noreply.github.com"
           git remote add upstream https://github.com/yuliskov/MediaServiceCore.git || true
           git remote add origin https://github.com/RoundSalmon4/MediaServiceCore.git || true
-          # actions/checkout clones the submodule with --depth=1, which leaves .git/shallow
-          # in place. A shallow repo cannot compute the merge-base for the cherry-pick
-          # range below, so git reports every touched file as an add/add conflict and the
-          # rebuild fails even though the patch applies cleanly in a full clone. Unshallow
-          # the submodule so history is complete before the fetch and cherry-pick.
+          # actions/checkout clones each submodule with --depth=1, which leaves
+          # .git/shallow in place. A shallow repo cannot compute the merge-base for the
+          # cherry-pick below, so git reports every touched file as an add/add conflict
+          # and the rebuild fails even though the patch applies cleanly in a full clone.
+          # Unshallow so history is complete before we touch anything.
           git fetch --unshallow origin
           git fetch upstream master
           git fetch origin +refs/heads/phonetube-patch:refs/remotes/origin/phonetube-patch
-          git checkout -B auto/update-mediaservicecore upstream/master
-          if ! git cherry-pick upstream/master..origin/phonetube-patch; then
-            git cherry-pick --abort || true
-            echo "ERROR: the PhoneTube patch no longer applies on top of upstream master."
-            echo "Resolve it in the MediaServiceCore fork, rebase phonetube-patch onto"
-            echo "upstream/master, push the branch, then re-run this workflow."
+
+          # Sanity check: the fork patch set must still be the commits we know about.
+          # If the fork accidentally dropped or split a patch, this count goes off and we
+          # stop with a precise message instead of silently replaying the wrong thing.
+          # Bump this number only when you deliberately add or remove a fork patch.
+          EXPECTED_PATCH_COMMITS=6
+          COUNT=$(git rev-list --count upstream/master..origin/phonetube-patch)
+          if [ "$COUNT" -ne "$EXPECTED_PATCH_COMMITS" ]; then
+            echo "ERROR: expected $EXPECTED_PATCH_COMMITS fork patch commits on phonetube-patch, found $COUNT."
+            echo "The fork branch lost or gained patches. Inspect it and fix before re-running."
             exit 1
           fi
+
+          # Auto-rebase: replay the fork's patch commits onto today's upstream. This is
+          # what keeps the patch set stable week to week, no hand-rebasing required.
+          git checkout -B auto/update-mediaservicecore upstream/master
+          if ! git cherry-pick upstream/master..origin/phonetube-patch; then
+            CONFLICTS=$(git diff --name-only --diff-filter=U | tr '\n' ' ' | sed 's/[[:space:]]*$//')
+            git cherry-pick --abort || true
+            echo "ERROR: the PhoneTube patch no longer applies onto upstream master."
+            echo "Conflicting files: $CONFLICTS"
+            echo "Resolve in the MediaServiceCore fork, then re-run this workflow."
+            exit 1
+          fi
+
           # verify every patch made it into the working tree
           grep -q "2025-present RoundSalmon4" LICENSE || { echo "ERROR: MIT LICENSE missing"; exit 1; }
           grep -q "getPlaylist" mediaserviceinterfaces/src/main/java/com/liskovsoft/mediaserviceinterfaces/ContentService.java || { echo "ERROR: ContentService patch missing"; exit 1; }
@@ -73,30 +99,15 @@ jobs:
           # turn on, so it has to stay or the two fall out of step. It is easy to
           # lose this one when the file gets merged by hand, hence the check.
           grep -q 'getHlsManifestUrl() == null && getAdaptiveFormats() != null && !getAdaptiveFormats().isEmpty()' youtubeapi/src/main/java/com/liskovsoft/youtubeapi/videoinfo/models/VideoInfo.java || { echo "ERROR: extended HLS check patch missing"; exit 1; }
-          # Skip the rebuild when it is content-identical to the core that main already
-          # points at, so an unchanged upstream does not generate a new commit SHA and a
-          # no-op PR. It has to compare against main's pointer and not against
-          # phonetube-patches: the branch is pushed before the PR merges, so if a core PR
-          # is ever closed without merging, comparing against the branch would report no
-          # change and the job would go quiet until upstream happened to move again.
-          # Compared across the whole tree, less the nested SharedModules pointer,
-          # because PhoneTube builds against the root SharedModules.
-          LOCKED=$(git -C .. rev-parse HEAD:MediaServiceCore)
-          if git diff --quiet "$LOCKED" -- . ':(exclude)SharedModules'; then
-            echo "Rebuilt state matches the core main points at ($LOCKED); no update needed"
-            git checkout -f "$LOCKED"
-          else
-            echo "Core differs from what main points at: $LOCKED -> rebuilt"
-            git add -A
-            git commit -m "chore: sync phonetube-patches with upstream + apply patches" || echo "no changes to commit"
-            # The rebuilt core lands on phonetube-patches, and the pointer change rides
-            # into the PR below. Nothing reaches main until that PR passes CI, which is
-            # the only place the core actually gets compiled.
-            git push origin auto/update-mediaservicecore:phonetube-patches --force
-          fi
+
+          # Commit the rebuilt core so the submodule working tree and the gitlink that
+          # the compile step (and the pointer bump) will reference are the same object.
+          git add -A
+          git commit -m "chore: sync MediaServiceCore with upstream + apply patches" || echo "no MediaServiceCore changes to commit"
 
       - name: Update SharedModules
         run: |
+          set -euo pipefail
           cd SharedModules
           git fetch origin +refs/heads/master:refs/remotes/origin/master
           LOCAL=$(git rev-parse HEAD)
@@ -106,6 +117,50 @@ jobs:
             git checkout origin/master
           else
             echo "SharedModules is up to date"
+          fi
+
+      # ---------- Pre-push compile gate ----------
+      # Marker greps only prove the strings are present; they do not prove the rebuilt
+      # core compiles (a duplicate method or type mismatch slips straight through, as it
+      # did once). Compile the app before anything is pushed, so a broken rebuild stops
+      # here instead of arriving as a red PR after the branch is already on the remote.
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build gate (compile before push)
+        id: build
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew :app:testDebugUnitTest --no-daemon
+        shell: bash
+
+      - name: Push rebuilt core to the fork
+        run: |
+          set -euo pipefail
+          cd MediaServiceCore
+          printf 'checking for core change...'
+          LOCKED=$(git -C .. rev-parse HEAD:MediaServiceCore)
+          # Compared across the whole tree, less the nested SharedModules pointer,
+          # because PhoneTube builds against the root SharedModules.
+          if git diff --quiet "$LOCKED" -- . ':(exclude)SharedModules'; then
+            echo "Rebuilt state matches the core main points at ($LOCKED); no update needed"
+            git checkout -f "$LOCKED"
+          else
+            echo "Core differs from what main points at: $LOCKED -> rebuilt"
+            # Publish the OUTPUT branch that the pointer bump will reference. The SOURCE
+            # branch (phonetube-patch) is deliberately left untouched here: it stays the
+            # gold, hand-reviewed patch set, and the job below always re-derives the
+            # rebuilt tree from it against whatever upstream is today. A botched run can
+            # only corrupt the regenerable output, never the reviewable source.
+            git push --force origin auto/update-mediaservicecore:phonetube-patches
           fi
 
       - name: Check for submodule changes
@@ -150,8 +205,8 @@ jobs:
               echo "**SharedModules:** [yuliskov/SharedModules](https://github.com/yuliskov/SharedModules)"
             fi
             echo
-            echo "The core pointer only moves once this PR merges, so the checks here are"
-            echo "the thing that decides whether it is safe to take."
+            echo "The rebuilt core is compiled in this run before it is pushed, so a"
+            echo "half-broken patch set stops here instead of arriving as a red PR."
             echo "PAYLOAD"
           } >> "$GITHUB_OUTPUT"
 
